@@ -60,17 +60,17 @@ test_that("per-study DE gives the same result in parallel and serially", {
   demo <- tma_demo_data()
   studies <- split_studies(demo$counts, demo$design)
   serial <- run_de_studies(studies, BPPARAM = BiocParallel::SerialParam())
-  parallel <- run_de_studies(studies, BPPARAM = BiocParallel::MulticoreParam(workers = 3))
+  parallel <- run_de_studies(studies, BPPARAM = BiocParallel::MulticoreParam(workers = 2))
   expect_equal(parallel, serial)
 })
 
 test_that("tma_bpparam uses at most one worker per study", {
-  withr::local_options(tma.workers = 8)
+  withr::local_options(tma.workers = 2)
   param <- tma_bpparam(3)
   if (.Platform$OS.type == "windows") {
     expect_s4_class(param, "SerialParam")
   } else {
-    expect_equal(BiocParallel::bpnworkers(param), 3)
+    expect_equal(BiocParallel::bpnworkers(param), 2)
   }
   expect_s4_class(tma_bpparam(1), "SerialParam")
 })

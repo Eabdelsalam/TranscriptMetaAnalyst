@@ -7,6 +7,7 @@
 #'
 #' @param workers Maximum number of background analyses at the same time.
 #' @return The previous `future` plan, invisibly.
+#' @importFrom promises future_promise
 #' @export
 #' @examples
 #' \dontrun{

@@ -65,7 +65,8 @@ run_de_studies <- function(studies, alpha = 0.05, BPPARAM = tma_bpparam(length(s
 
 #' Parallel back-end for the per-study analyses
 #'
-#' Uses one worker per study, up to the number of cores minus one, as forked
+#' Uses one worker per study, up to [BiocParallel::multicoreWorkers()] (the
+#' number of cores minus two, within any limit set for the machine), as forked
 #' processes (`MulticoreParam`). On Windows, or when only one worker is
 #' available, the studies are run one after the other (`SerialParam`). Set
 #' `options(tma.workers = n)` to choose the number of workers.
@@ -74,12 +75,9 @@ run_de_studies <- function(studies, alpha = 0.05, BPPARAM = tma_bpparam(length(s
 #' @return A `BiocParallelParam` object.
 #' @export
 #' @examples
-#' tma_bpparam(3)
+#' tma_bpparam(2)
 tma_bpparam <- function(n_jobs) {
-  cores <- parallel::detectCores()
-  if (is.na(cores)) cores <- 1L
-  workers <- getOption("tma.workers", max(1L, cores - 1L))
-  workers <- min(n_jobs, workers)
+  workers <- min(n_jobs, getOption("tma.workers", BiocParallel::multicoreWorkers()))
   if (.Platform$OS.type == "windows" || workers < 2) {
     BiocParallel::SerialParam()
   } else {

@@ -13,11 +13,12 @@ tma_bpparam(n_jobs)
 A \code{BiocParallelParam} object.
 }
 \description{
-Uses one worker per study, up to the number of cores minus one, as forked
+Uses one worker per study, up to \code{\link[BiocParallel:multicoreWorkers]{BiocParallel::multicoreWorkers()}} (the
+number of cores minus two, within any limit set for the machine), as forked
 processes (\code{MulticoreParam}). On Windows, or when only one worker is
 available, the studies are run one after the other (\code{SerialParam}). Set
 \code{options(tma.workers = n)} to choose the number of workers.
 }
 \examples{
-tma_bpparam(3)
+tma_bpparam(2)
 }
