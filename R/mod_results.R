@@ -98,6 +98,8 @@ mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE) {
 #' @export
 mod_results_server <- function(id, result, organism = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
+    # download file names start with the tab, e.g. "rnaseq_pca.pdf"
+    fname <- function(name) paste0(id, "_", name)
     shinycssloaders::hideSpinner("go_plot")
     shinycssloaders::hideSpinner("kegg_plot")
 
@@ -141,7 +143,7 @@ mod_results_server <- function(id, result, organism = NULL) {
 
     # main plots -------------------------------------------------------------
     output$p_dist <- shiny::renderPlot(plot_pvalue_hist(result()))
-    output$download_pdist <- shiny::downloadHandler("pdist.pdf", content = function(file) {
+    output$download_pdist <- shiny::downloadHandler(fname("pdist.pdf"), content = function(file) {
       grDevices::pdf(file, width = 6, height = 4.5)
       on.exit(grDevices::dev.off())
       plot_pvalue_hist(result())
@@ -149,7 +151,7 @@ mod_results_server <- function(id, result, organism = NULL) {
 
     pca_plot <- shiny::reactive(plot_pca(result()))
     output$pca <- shiny::renderPlot(pca_plot())
-    output$download_pca <- shiny::downloadHandler("pca.pdf", content = function(file) {
+    output$download_pca <- shiny::downloadHandler(fname("pca.pdf"), content = function(file) {
       ggplot2::ggsave(file, pca_plot(), device = "pdf", width = 20, height = 16, units = "cm")
     })
 
@@ -163,26 +165,26 @@ mod_results_server <- function(id, result, organism = NULL) {
       need_heat()
       plot_heatmap(heat(), heat_k(), length(result()$studies))
     })
-    output$download_heatmap <- shiny::downloadHandler("heatmap.pdf", content = function(file) {
+    output$download_heatmap <- shiny::downloadHandler(fname("heatmap.pdf"), content = function(file) {
       need_heat()
       grDevices::pdf(file, height = 10)
       on.exit(grDevices::dev.off())
       plot_heatmap_static(heat(), result()$design, heat_k(), length(result()$studies))
     })
-    output$download_heatmap_data <- shiny::downloadHandler("heatmap_data.csv", content = function(file) {
+    output$download_heatmap_data <- shiny::downloadHandler(fname("heatmap_data.csv"), content = function(file) {
       utils::write.csv(heat(), file, quote = FALSE)
     }, contentType = "text/csv")
 
     sets <- shiny::reactive(deg_sets(result()))
     venn_plot <- shiny::reactive(plot_venn(sets()))
     output$venn <- shiny::renderPlot(venn_plot())
-    output$download_venn <- shiny::downloadHandler("venndiagram.pdf", content = function(file) {
+    output$download_venn <- shiny::downloadHandler(fname("venndiagram.pdf"), content = function(file) {
       ggplot2::ggsave(file, venn_plot(), device = "pdf", width = 15, height = 15, units = "cm")
     })
 
     upset_plot <- shiny::reactive(plot_upset(sets()))
     output$upset <- shiny::renderPlot(ComplexHeatmap::draw(upset_plot()))
-    output$download_upset <- shiny::downloadHandler("upset.pdf", content = function(file) {
+    output$download_upset <- shiny::downloadHandler(fname("upset.pdf"), content = function(file) {
       n <- length(result()$studies)
       grDevices::pdf(file, width = max(6, n * 2), height = max(4, n))
       on.exit(grDevices::dev.off())
@@ -192,16 +194,16 @@ mod_results_server <- function(id, result, organism = NULL) {
     volcano <- shiny::reactive(volcano_data(result()))
     volcano_plot <- shiny::reactive(plot_volcano(volcano()))
     output$volcano <- shiny::renderPlot(volcano_plot())
-    output$download_volcano <- shiny::downloadHandler("volcano_plot.pdf", content = function(file) {
+    output$download_volcano <- shiny::downloadHandler(fname("volcano_plot.pdf"), content = function(file) {
       ggplot2::ggsave(file, volcano_plot(), device = "pdf", width = 30, height = 25, units = "cm")
     })
-    output$download_volcano_data <- shiny::downloadHandler("volcano_data.csv", content = function(file) {
+    output$download_volcano_data <- shiny::downloadHandler(fname("volcano_data.csv"), content = function(file) {
       utils::write.csv(volcano(), file, quote = FALSE, row.names = FALSE)
     }, contentType = "text/csv")
 
     # meta-analysis table and count plots ------------------------------------
     output$meta_table <- DT::renderDT(result()$meta, selection = "single")
-    output$download_meta_table <- shiny::downloadHandler("meta_analysis_results.csv", content = function(file) {
+    output$download_meta_table <- shiny::downloadHandler(fname("meta_analysis_results.csv"), content = function(file) {
       utils::write.csv(result()$meta, file, quote = FALSE)
     }, contentType = "text/csv")
 
@@ -222,7 +224,7 @@ mod_results_server <- function(id, result, organism = NULL) {
     })
     output$counts_plot <- shiny::renderPlot(counts_plot())
     output$download_counts_plot <- shiny::downloadHandler(
-      filename = function() paste(selected_gene(), "counts_plot.pdf", sep = "_"),
+      filename = function() paste(selected_gene(), fname("counts_plot.pdf"), sep = "_"),
       content = function(file) {
         ggplot2::ggsave(file, counts_plot(), device = "pdf",
                         height = count_rows() * 4, width = count_cols() * 4)
@@ -263,10 +265,10 @@ mod_results_server <- function(id, result, organism = NULL) {
     })
     go_plot <- shiny::reactive(plot_go_lollipop(go_table()))
     output$go_plot <- shiny::renderPlot(go_plot())
-    output$download_go_table <- shiny::downloadHandler("GO_results.txt", content = function(file) {
+    output$download_go_table <- shiny::downloadHandler(fname("GO_results.txt"), content = function(file) {
       utils::write.table(go_table(), file, quote = FALSE, sep = "\t", row.names = FALSE)
     }, contentType = "text/plain")
-    output$download_go_plot <- shiny::downloadHandler("go_plot.pdf", content = function(file) {
+    output$download_go_plot <- shiny::downloadHandler(fname("go_plot.pdf"), content = function(file) {
       ggplot2::ggsave(file, go_plot(), device = "pdf", width = 30, height = 20, units = "cm")
     })
 
@@ -278,10 +280,10 @@ mod_results_server <- function(id, result, organism = NULL) {
     })
     kegg_plot <- shiny::reactive(plot_kegg_lollipop(kegg_table()))
     output$kegg_plot <- shiny::renderPlot(kegg_plot())
-    output$download_kegg_table <- shiny::downloadHandler("KEGG_results.csv", content = function(file) {
+    output$download_kegg_table <- shiny::downloadHandler(fname("KEGG_results.csv"), content = function(file) {
       utils::write.csv(kegg_table(), file, quote = FALSE)
     }, contentType = "text/csv")
-    output$download_kegg_plot <- shiny::downloadHandler("kegg_plot.pdf", content = function(file) {
+    output$download_kegg_plot <- shiny::downloadHandler(fname("kegg_plot.pdf"), content = function(file) {
       ggplot2::ggsave(file, kegg_plot(), device = "pdf", width = 30, height = 20, units = "cm")
     })
   })

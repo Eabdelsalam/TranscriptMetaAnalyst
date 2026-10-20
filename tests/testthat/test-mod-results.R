@@ -10,6 +10,7 @@ test_that("mod_results_server renders a tma_result", {
     expect_equal(heat_k(), 4L)
     expect_equal(rownames(heat()), res$meta_degs)
     heat_csv <- utils::read.csv(output$download_heatmap_data, row.names = 1)
+    expect_equal(fname("pca.pdf"), paste0(session$ns(NULL), "_pca.pdf"))
     expect_equal(dim(heat_csv), c(length(res$meta_degs), nrow(res$design)))
 
     expect_equal(volcano()$fc, unname(mean_fold_change(res$fold_changes)))
