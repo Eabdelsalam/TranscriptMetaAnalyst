@@ -11,17 +11,20 @@ plot_batch_pca(result)
 plot_rle(result)
 }
 \arguments{
-\item{result}{A \code{tma_result} from a design with a \code{batch} column.}
+\item{result}{A \code{tma_result} from a design with a \code{batch} column, or a
+\code{tma_batch_check} from \code{\link[=batch_check]{batch_check()}}.}
 }
 \value{
 A ggplot.
 }
 \description{
-PCA and relative log expression (RLE) plots of each study before and after
-the batch correction, to judge whether the correction removed the batch
-effect. "Before" is the log2 normalised counts; "after" is the ComBat-seq
-corrected counts if ComBat-seq was used, and otherwise the values from
-\code{\link[limma:removeBatchEffect]{limma::removeBatchEffect()}}.
+PCA and relative log expression (RLE) plots of each study. For a
+\code{tma_result} they show the data before and after the batch correction, to
+judge whether the correction removed the batch effect: "before" is the log2
+normalised counts; "after" is the ComBat-seq corrected counts if ComBat-seq
+was used, and otherwise the values from \code{\link[limma:removeBatchEffect]{limma::removeBatchEffect()}}. For a
+\code{\link[=batch_check]{batch_check()}} they show the uploaded data before any analysis. Samples are
+coloured by batch, or by condition when the design has no \code{batch} column.
 }
 \details{
 The PCA is computed separately in each study on its 500 most variable

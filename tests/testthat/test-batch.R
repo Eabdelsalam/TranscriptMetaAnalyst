@@ -151,3 +151,58 @@ test_that("the results module shows the batch status of each study", {
     expect_error(batch_pca(), class = "shiny.silent.error")
   })
 })
+
+test_that("batch_check flags a study where batch explains more variance than condition", {
+  sim <- batch_data_set()
+  check <- batch_check(sim$counts, sim$design)
+  expect_s3_class(check, "tma_batch_check")
+  expect_equal(check$table$study, c("S1", "S2"))
+  expect_true(all(check$table$batch_var > check$table$condition_var))
+  expect_match(check$table$message, "Batch explains as much variance as condition or more")
+  expect_output(print(check), "S1: Batch explains")
+  expect_equal(dim(check$log_values), c(nrow(filter_low_counts(split_studies(sim$counts, sim$design))$S1$counts), 16L))
+})
+
+test_that("batch_check is quiet when there is no batch effect", {
+  # remove the batch effect: give the b2 samples the b1 means
+  no_batch <- simulate_batch_data(seed = 11)
+  genes <- no_batch$counts$Geneid %in% no_batch$batch_genes
+  b2 <- no_batch$design$sample[no_batch$design$batch == "b2"]
+  no_batch$counts[genes, b2] <- round(no_batch$counts[genes, b2] / 4)
+  check <- batch_check(no_batch$counts, no_batch$design)
+  expect_true(all(check$table$batch_var < check$table$condition_var))
+  expect_match(check$table$message, "Batch explains less variance than condition")
+})
+
+test_that("batch_check hints at an unrecorded batch effect without a batch column", {
+  sim <- batch_data_set()
+  hidden <- sim$design[, c("sample", "study", "condition")]
+  check <- batch_check(sim$counts, hidden)
+  expect_true(all(is.na(check$table$batch_var)))
+  expect_match(check$table$message, "may be an unrecorded batch effect")
+
+  demo <- tma_demo_data()
+  expect_match(batch_check(demo$counts, demo$design)$table$message, "No sign of a batch effect")
+})
+
+test_that("batch_check reports confounded and single-batch studies", {
+  sim <- batch_data_set()
+  design <- sim$design
+  design$batch[design$study == "S1"] <- design$condition[design$study == "S1"]
+  design$batch[design$study == "S2"] <- "b1"
+  check <- batch_check(sim$counts, design)
+  expect_match(check$table$message[1], "confounded with condition")
+  expect_match(check$table$message[2], "Only one batch")
+})
+
+test_that("the diagnostic plots work on a batch check before the analysis", {
+  sim <- batch_data_set()
+  check <- batch_check(sim$counts, sim$design)
+  pca <- plot_batch_pca(check)
+  expect_equal(levels(droplevels(pca$data$stage)), "Before")
+  expect_match(pca$labels$title, "before the analysis")
+  expect_no_error(ggplot2::ggplot_build(plot_rle(check)))
+  # without a batch column the samples are coloured by condition
+  no_col <- batch_check(sim$counts, sim$design[, c("sample", "study", "condition")])
+  expect_setequal(plot_batch_pca(no_col)$data$batch, c("Cont", "Treated"))
+})
