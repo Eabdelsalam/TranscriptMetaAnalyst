@@ -1218,8 +1218,11 @@ function(input, output, session) {
     }
   ) #close Demo observe statement
   
-  #stop app after browser close
-  session$onSessionEnded(function() {
-    stopApp()
-  })
+  #stop the app after the browser closes, but only for local runs started with
+  #runTMA(); on a shared server this would shut the app down for every user
+  if (isTRUE(getOption("tma.stop_on_session_end", FALSE))) {
+    session$onSessionEnded(function() {
+      stopApp()
+    })
+  }
 }

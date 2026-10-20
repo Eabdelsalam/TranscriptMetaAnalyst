@@ -7,6 +7,7 @@ License: MIT + file LICENSE
 Imports:
   shiny, shinydashboard, shinyjs, shinyalert, shinycssloaders, DESeq2, metaRNASeq, dplyr, ggplot2, ggrepel, ggvenn, ComplexHeatmap, pheatmap, EnhancedVolcano, DT, rbioapi, clusterProfiler, heatmaply
 Suggests:
-  testthat (>= 3.0.0)
+  testthat (>= 3.0.0),
+  withr
 Config/testthat/edition: 3
 biocViews: Software
