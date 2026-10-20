@@ -1,12 +1,13 @@
 # Builds the microarray demo data in inst/extdata/microarray_demo/ (D13).
 #
 # Wild-type Synechocystis sp. PCC 6803 grown at high CO2 (HC) and shifted to
-# low CO2 (air) for 3 h (LC_3h) or 24 h (LC_24h), from four GEO series on two
-# platforms:
-#   GSE82120 (GPL15867): HC 6, LC_24h 6
-#   GSE63352 (GPL15867): HC 2, LC_3h 2, LC_24h 2
-#   GSE68250 (GPL15867): HC 2, LC_3h 2, LC_24h 2
-#   GSE31672 (GPL6546):  HC 8, LC_3h 2, LC_24h 2
+# low CO2 (air) for 3 h (LC_3h) or 24 h (LC_24h), from three GEO series
+# (platform GPL15867):
+#   GSE82120: HC 6, LC_24h 6
+#   GSE63352: HC 2, LC_3h 2, LC_24h 2
+#   GSE68250: HC 2, LC_3h 2, LC_24h 2
+# GSE31672 (GPL6546) has the same design but is a two-colour experiment whose
+# channels are not comparable as single-channel samples, so it is not used.
 # The series-matrix values (normalised, log2) are kept as published. To keep
 # the package small, each file holds at most 3 probes per gene (locus tag) plus
 # a few control probes without a gene, so the demo still shows probe
@@ -32,7 +33,7 @@ classify <- function(p) {
   ifelse(wild_type, condition, NA)
 }
 
-series <- c("GSE82120", "GSE63352", "GSE68250", "GSE31672")
+series <- c("GSE82120", "GSE63352", "GSE68250")
 designs <- list()
 for (gse in series) {
   es <- suppressMessages(getGEO(gse, GSEMatrix = TRUE, destdir = cache, getGPL = TRUE))[[1]]

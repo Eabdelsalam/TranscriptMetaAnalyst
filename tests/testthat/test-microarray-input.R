@@ -37,14 +37,14 @@ test_that("prepare_array_studies matches files to studies and intersects genes",
   prepared <- prepare_array_studies(demo$matrices, demo$design)
   expect_named(prepared$studies, unique(demo$design$study))
   common <- attr(prepared$report, "common_genes")
-  expect_equal(common, 3242)
+  expect_equal(common, 3358)
   for (s in prepared$studies) {
     expect_equal(nrow(s$values), common)
     expect_equal(colnames(s$values), s$design$sample)
     expect_equal(rownames(s$values), rownames(prepared$studies[[1]]$values))
   }
-  expect_equal(prepared$report$no_gene, rep(20, 4))
-  expect_match(prepared$notes, "3242 genes are measured in all 4 studies", all = FALSE)
+  expect_equal(prepared$report$no_gene, rep(20, 3))
+  expect_match(prepared$notes, "3358 genes are measured in all 3 studies", all = FALSE)
   # the collapsed value is the gene's probe with the highest mean
   raw <- demo$matrices$GSE63352
   gene <- rownames(prepared$studies$GSE63352$values)[10]
@@ -64,11 +64,26 @@ test_that("prepare_array_studies log2-transforms linear data and explains input 
   expect_equal(prepared$studies$GSE63352$values,
                prepare_array_studies(demo$matrices, demo$design)$studies$GSE63352$values)
 
-  without <- demo$matrices[names(demo$matrices) != "GSE31672"]
-  expect_error(prepare_array_studies(without, demo$design), "No expression file was given for study GSE31672")
+  without <- demo$matrices[names(demo$matrices) != "GSE68250"]
+  expect_error(prepare_array_studies(without, demo$design), "No expression file was given for study GSE68250")
   merged <- demo$matrices$GSE63352
   merged <- cbind(merged, demo$matrices$GSE68250[match(merged$ID, demo$matrices$GSE68250$ID), -(1:2)])
   expect_error(prepare_array_studies(list(merged = merged), demo$design), "contains samples of several studies")
   expect_error(prepare_array_studies(list(x = data.frame(ID = "a", Symbol = "a", S9 = 1)), demo$design),
                "has no column that matches a sample")
+})
+
+test_that("genes are intersected across platforms with different gene sets", {
+  demo <- tma_microarray_demo_data()
+  # a second "platform" that lacks some genes and measures each gene once
+  other <- demo$matrices$GSE68250
+  other <- other[other$Symbol != "" & !duplicated(other$Symbol), ]
+  removed <- other$Symbol[1:100]
+  other <- other[-(1:100), ]
+  other$ID <- paste0("other_", other$ID)
+  matrices <- demo$matrices
+  matrices$GSE68250 <- other
+  prepared <- prepare_array_studies(matrices, demo$design)
+  expect_equal(attr(prepared$report, "common_genes"), 3358 - 100)
+  expect_false(any(removed %in% rownames(prepared$studies$GSE82120$values)))
 })

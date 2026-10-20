@@ -14,9 +14,9 @@ as read by \code{\link[=read_array_matrix]{read_array_matrix()}}) and \code{desi
 \description{
 Normalised (log2) expression of wild-type \emph{Synechocystis} sp. PCC 6803 grown
 at high CO2 (\code{HC}) and 3 h or 24 h after a shift to low CO2 (\code{LC_3h},
-\code{LC_24h}), from four GEO series on two platforms: GSE82120, GSE63352 and
-GSE68250 (GPL15867) and GSE31672 (GPL6546). To keep the package small, each
-file holds at most 3 probes per gene (locus tag) and a few control probes.
+\code{LC_24h}), from three GEO series on platform GPL15867: GSE82120, GSE63352
+and GSE68250. To keep the package small, each file holds at most 3 probes
+per gene (locus tag) and a few control probes.
 }
 \examples{
 demo <- tma_microarray_demo_data()

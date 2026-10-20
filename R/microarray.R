@@ -2,9 +2,9 @@
 #'
 #' Normalised (log2) expression of wild-type *Synechocystis* sp. PCC 6803 grown
 #' at high CO2 (`HC`) and 3 h or 24 h after a shift to low CO2 (`LC_3h`,
-#' `LC_24h`), from four GEO series on two platforms: GSE82120, GSE63352 and
-#' GSE68250 (GPL15867) and GSE31672 (GPL6546). To keep the package small, each
-#' file holds at most 3 probes per gene (locus tag) and a few control probes.
+#' `LC_24h`), from three GEO series on platform GPL15867: GSE82120, GSE63352
+#' and GSE68250. To keep the package small, each file holds at most 3 probes
+#' per gene (locus tag) and a few control probes.
 #'
 #' @return A list with `matrices` (a named list with one data frame per study,
 #'   as read by [read_array_matrix()]) and `design` (data frame with `sample`,
@@ -199,4 +199,126 @@ prepare_array_studies <- function(matrices, design) {
   notes <- c(notes, sprintf("%d genes are measured in all %d studies and are used in the meta-analysis.",
                             length(common), length(studies)))
   list(studies = studies, report = report, notes = notes)
+}
+
+#' Differential expression of one microarray study with limma
+#'
+#' Fits `~ 0 + condition` (or `~ 0 + condition + batch`) to the log2
+#' expression values with [limma::lmFit()], extracts every condition-vs-reference
+#' contrast with [limma::contrasts.fit()] and moderates the statistics with
+#' [limma::eBayes()] using an intensity trend (`trend = TRUE`), as recommended
+#' for microarray data.
+#'
+#' @param values Log2 expression matrix (genes x samples).
+#' @param design Data frame with a `condition` column (and `batch` if
+#'   `use_batch = TRUE`), one row per column of `values`.
+#' @inheritParams run_deseq2
+#' @return A list with `tables` (one standardised table per contrast, as for
+#'   [run_deseq2()]; `base_mean` is the average log2 expression and `stat` the
+#'   moderated t statistic), `table` (the first contrast) and `norm_counts`
+#'   (the log2 values).
+#' @export
+#' @examples
+#' demo <- tma_microarray_demo_data()
+#' prepared <- prepare_array_studies(demo$matrices, demo$design)
+#' study <- prepared$studies$GSE63352
+#' de <- run_limma_array(study$values, study$design, reference = "HC")
+#' names(de$tables)
+run_limma_array <- function(values, design, alpha = 0.05, use_batch = FALSE, reference = NULL) {
+  condition <- condition_factor(design$condition, reference)
+  model <- if (use_batch) {
+    batch <- factor(design$batch)
+    stats::model.matrix(~ 0 + condition + batch)
+  } else {
+    stats::model.matrix(~ 0 + condition)
+  }
+  lvls <- levels(condition)
+  contrasts <- matrix(0, nrow = ncol(model), ncol = length(lvls) - 1,
+                      dimnames = list(colnames(model), contrast_names(condition)))
+  for (j in seq_len(length(lvls) - 1)) {
+    contrasts[paste0("condition", lvls[j + 1]), j] <- 1
+    contrasts[paste0("condition", lvls[1]), j] <- -1
+  }
+  fit <- limma::lmFit(values, model)
+  fit <- limma::eBayes(limma::contrasts.fit(fit, contrasts), trend = TRUE)
+  tables <- lapply(stats::setNames(seq_len(ncol(contrasts)), colnames(contrasts)), function(j) {
+    tab <- limma::topTable(fit, coef = j, number = Inf, sort.by = "none")
+    data.frame(
+      gene = rownames(values),
+      base_mean = tab$AveExpr,
+      log2_fc = tab$logFC,
+      lfc_se = unname(fit$stdev.unscaled[, j] * sqrt(fit$s2.post)),
+      stat = tab$t,
+      pvalue = tab$P.Value,
+      padj = tab$adj.P.Val
+    )
+  })
+  list(table = tables[[1]], tables = tables, norm_counts = values)
+}
+
+# limma for every microarray study, in parallel
+run_array_studies <- function(studies, alpha = 0.05, batch_method = "none", reference = NULL,
+                              BPPARAM = tma_bpparam(length(studies))) {
+  jobs <- lapply(studies, function(st) {
+    c(st, use_batch = batch_method == "model" && batch_status(st$design, "model") == "applied")
+  })
+  BiocParallel::bplapply(jobs, function(s) {
+    run_limma_array(s$counts, s$design, alpha = alpha, use_batch = s$use_batch, reference = reference)
+  }, BPPARAM = BPPARAM)
+}
+
+# log2 values with the batch effect removed (for the plots), keeping the
+# condition effect; unchanged when batch cannot be used in the study
+remove_batch_log2 <- function(values, design) {
+  if (is.null(design$batch) || nlevels(factor(design$batch)) < 2 ||
+      batch_status(design, "model") == "confounded with condition") {
+    return(values)
+  }
+  limma::removeBatchEffect(values, batch = as.character(design$batch),
+                           design = stats::model.matrix(~ factor(design$condition)))
+}
+
+#' Run the TMA microarray meta-analysis
+#'
+#' Prepares the expression matrices ([prepare_array_studies()]: log2 if
+#' needed, probes collapsed to genes, genes intersected across studies), fits
+#' limma in every study ([run_limma_array()]) and meta-analyses every
+#' condition-vs-reference comparison exactly as [run_tma_analysis()] does for
+#' RNA-seq: same replicate rule, meta-analysis methods, direction filter and
+#' results.
+#'
+#' @param matrices A list of data frames from [read_array_matrix()], one per
+#'   study.
+#' @param design Experimental design with `sample`, `study` and `condition`
+#'   (and optionally `batch`).
+#' @param batch_method `"model"` (batch in the limma model) or `"none"`;
+#'   ComBat-seq is for RNA-seq counts only.
+#' @inheritParams run_tma_analysis
+#' @return A `tma_analysis` object (see [run_tma_analysis()]) whose results
+#'   hold log2 expression values (`scale = "log2"`), with an extra element
+#'   `preparation` (the report and notes of [prepare_array_studies()]).
+#' @export
+#' @examples
+#' \donttest{
+#' demo <- tma_microarray_demo_data()
+#' analysis <- run_array_analysis(demo$matrices, demo$design, reference = "HC")
+#' analysis
+#' }
+run_array_analysis <- function(matrices, design, reference = NULL, alpha = 0.05,
+                               meta_method = "fisher", batch_method = "none", batch_plots = FALSE,
+                               BPPARAM = tma_bpparam(length(unique(design$study)))) {
+  batch_method <- match.arg(batch_method, batch_methods())
+  if (batch_method == "combat_seq") {
+    stop("ComBat-seq corrects RNA-seq counts; for microarray data use batch_method = 'model' or 'none'.",
+         call. = FALSE)
+  }
+  prepared <- prepare_array_studies(matrices, design)
+  studies <- lapply(prepared$studies, function(s) list(counts = s$values, design = s$design))
+  design <- do.call(rbind, unname(lapply(prepared$studies, `[[`, "design")))
+  rownames(design) <- NULL
+  analysis <- analyse_studies(studies, design, platform = "array", reference = reference,
+                              alpha = alpha, meta_method = meta_method, batch_method = batch_method,
+                              batch_plots = batch_plots, BPPARAM = BPPARAM)
+  analysis$preparation <- prepared[c("report", "notes")]
+  analysis
 }
