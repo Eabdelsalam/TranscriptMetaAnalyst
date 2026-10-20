@@ -120,7 +120,16 @@ plot_pca <- function(result) {
   rownames(design) <- design$sample
   values <- if (use_corrected(result)) result$batch$corrected_log else log2(result$norm_counts + 1)
   se <- SummarizedExperiment::SummarizedExperiment(values, colData = design)
-  suppressMessages(DESeq2::plotPCA(DESeq2::DESeqTransform(se)))
+  pca <- suppressMessages(DESeq2::plotPCA(DESeq2::DESeqTransform(se), intgroup = "condition",
+                                          returnData = TRUE))
+  percent <- round(100 * attr(pca, "percentVar"))
+  pca$study <- design$study[match(pca$name, design$sample)]
+  # no fixed aspect ratio: DESeq2::plotPCA() scales the axes by the explained
+  # variance, which squashes the plot when PC1 dominates
+  ggplot2::ggplot(pca, ggplot2::aes(x = PC1, y = PC2, colour = condition, shape = study)) +
+    ggplot2::geom_point(size = 3) +
+    ggplot2::labs(x = paste0("PC1: ", percent[1], "% variance"),
+                  y = paste0("PC2: ", percent[2], "% variance"))
 }
 
 # Whether the PCA and heatmap use the batch-corrected values

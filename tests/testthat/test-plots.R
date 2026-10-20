@@ -46,3 +46,12 @@ test_that("volcano_data has no zero p-values for the plot", {
   expect_equal(vol$pval[1:2], c(smallest, smallest))
   expect_equal(which(vol$capped), 1:2)
 })
+
+test_that("the PCA plot has no fixed aspect ratio and labels the variance", {
+  res <- demo_result()
+  p <- plot_pca(res)
+  expect_false(inherits(p$coordinates, "CoordFixed"))
+  expect_match(p$labels$x, "^PC1: [0-9]+% variance$")
+  expect_equal(nrow(p$data), nrow(res$design))
+  expect_setequal(p$data$study, res$studies)
+})
