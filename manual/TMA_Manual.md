@@ -29,7 +29,7 @@
 
 ## What is new in this version
 
-These changes fix errors in the results of earlier versions. Results produced with an earlier version (PCA, heatmap, volcano plot and GO/KEGG enrichment) should be regenerated.
+Several of these changes fix errors in the results of earlier versions, so results produced with an earlier version (PCA, heatmap, volcano plot and GO/KEGG enrichment) should be regenerated. The others make the app faster and easier to use.
 
 | Area | Change |
 |------|--------|
@@ -39,6 +39,10 @@ These changes fix errors in the results of earlier versions. Results produced wi
 | Volcano plot | The x-axis now shows the correct mean log2 fold change of each gene across studies. |
 | GO / KEGG enrichment | Enrichment is now run on the meta-analysis DEGs only (significant in the meta-analysis *and* changed in the same direction in every study). Earlier versions used every gene with a consistent direction, whether significant or not. |
 | Closing the app | When the app is started with `runTMA()`, it stops when its browser window is closed, as before. When it is deployed on a Shiny Server, closing one browser window no longer shuts the app down for all other users. |
+| Speed | The studies are analysed in parallel, and an uploaded analysis runs in the background, so the app stays responsive while it runs. The **Start Analysis!** button is disabled until the running analysis has finished. |
+| Demo | The demo analysis is computed the first time the **Run Demo Analysis** tab is opened and then reused, so opening the tab again shows the results immediately. |
+| Low-count genes | Genes with too few reads in every study are removed before the analysis (see [Analysis Pipeline](#5-analysis-pipeline)). They no longer appear in the results table. |
+| Downloads | The downloaded DEG list of each study now has the columns `gene`, `base_mean`, `log2_fc`, `lfc_se`, `stat`, `pvalue` and `padj`. The GO results table can be downloaded again (this download failed in earlier versions). |
 
 ## 1 Introduction
 
@@ -140,9 +144,10 @@ After uploading the required files, several checks are performed to make sure th
 
 If the files pass the checks, the analysis starts automatically and a loading screen appears until the results are ready. Behind the scenes:
 
-1. DEGs are identified in each study separately using the DESeq2 package [4].
-2. The raw *p*-values of the studies are combined using Fisher's method [5] via the metaRNASeq package [3], and the combined *p*-values are adjusted with the Benjamini–Hochberg method. Genes with an adjusted meta-analysis *p*-value ≤ 0.05 are significant.
-3. As a validation step, genes with conflicting directions (up-regulated in one study and down-regulated in another) are removed. The remaining significant genes are the **meta-analysis DEGs**. They are used for the heatmap, the Venn/UpSet plots and the functional annotation.
+1. Genes with too few reads are removed with the `filterByExpr` function of the edgeR package [9]. A gene is kept for all studies if it has enough reads in at least one study; genes that are low in every study are removed. Within each study, DESeq2's own filtering still handles genes that are low there.
+2. DEGs are identified in each study separately using the DESeq2 package [4]. The studies are analysed in parallel.
+3. The raw *p*-values of the studies are combined using Fisher's method [5] via the metaRNASeq package [3], and the combined *p*-values are adjusted with the Benjamini–Hochberg method. Genes with an adjusted meta-analysis *p*-value ≤ 0.05 are significant.
+4. As a validation step, genes with conflicting directions (up-regulated in one study and down-regulated in another) are removed. The remaining significant genes are the **meta-analysis DEGs**. They are used for the heatmap, the Venn/UpSet plots and the functional annotation.
 
 If the user would like to perform further functional annotation of the identified DEGs, Gene Ontology (GO) and KEGG pathway enrichment analyses can be run on the **meta-analysis DEGs**. For GO, the user selects the studied organism from the drop-down menu (Figure 7a) and runs the analysis. This analysis is based on the PANTHER Classification System v17.0 [6] and is performed with the `rbioapi` package. The KEGG pathway enrichment analysis is performed with the clusterProfiler package [7]. For KEGG, the user types the 3-letter code of the studied organism, which can be found in the [KEGG Organisms Database](https://www.genome.jp/kegg-bin/get_htext?br08601), before running the analysis (Figure 7b). If the meta-analysis found no DEGs, the app shows a message instead of running the enrichment.
 
@@ -151,6 +156,17 @@ If the user would like to perform further functional annotation of the identifie
 | ![Figure 7a](figures/fig07a_go_input.png) | ![Figure 7b](figures/fig07b_kegg_input.png) |
 
 *Figure 7: Gene Ontology (GO) and KEGG pathway enrichment analysis in TMA. The user should (a) select the organism from the drop-down menu before running the GO analysis or (b) type the 3-letter code of the studied organism before running the KEGG pathway analysis.*
+
+The same analysis can also be run from R without the app, for example to reproduce or extend the results:
+
+```r
+library(TranscriptMetaAnalyst)
+counts <- read_tma_table("counts.txt")
+design <- read_tma_table("design.txt")
+res <- run_tma_pipeline(counts, design)
+res$meta_degs              # meta-analysis DEGs
+plot_volcano(volcano_data(res))
+```
 
 Finally, the different outputs (discussed in the next section) are produced with in-house scripts along with built-in functions and other R packages. The outputs are grouped and shown in different boxes. All the outputs can be downloaded as PDF files for the figures or CSV files for the tables.
 
@@ -230,3 +246,4 @@ If the user performs functional annotation of the meta-analysis DEGs via GO and 
 6. Mi, H. *et al.* Protocol update for large-scale genome and gene function analysis with the PANTHER classification system (v.14.0). *Nature Protocols* **14**, 703–721 (2019).
 7. Wu, T. *et al.* clusterProfiler 4.0: A universal enrichment tool for interpreting omics data. *The Innovation* **2**, 100141 (2021).
 8. Galili, T., O'Callaghan, A., Sidi, J. & Sievert, C. Heatmaply: An R package for creating interactive cluster heatmaps for online publishing. *Bioinformatics* **34**, 1600–1602 (2017).
+9. Chen, Y., Lun, A. T. L. & Smyth, G. K. From reads to genes to pathways: differential expression analysis of RNA-Seq experiments using Rsubread and the edgeR quasi-likelihood pipeline. *F1000Research* **5**, 1438 (2016).
