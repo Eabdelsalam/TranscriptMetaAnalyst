@@ -126,6 +126,7 @@ test_that("the RNA-seq tab shows one results tab per contrast and the left-out s
   design_file <- withr::local_tempfile(fileext = ".txt")
   utils::write.table(counts, counts_file, sep = "\t", quote = FALSE, row.names = FALSE)
   utils::write.table(design, design_file, sep = "\t", quote = FALSE, row.names = FALSE)
+  mock_organism_lists()
   app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
   shiny::testServer(app, {
     session$setInputs(rnaseq_counts = list(datapath = counts_file),

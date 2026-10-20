@@ -7,8 +7,8 @@
 #'
 #' @param id Module id.
 #' @param select_organism If `TRUE`, the functional annotation tabs show inputs
-#'   to choose the GO organism and the KEGG organism code. If `FALSE`, the
-#'   organism given to `mod_results_server()` is used.
+#'   to choose the gene ID type and the PANTHER, KEGG and STRING organisms. If
+#'   `FALSE`, the ones given to `mod_results_server()` are used.
 #' @param hidden If `TRUE`, the results stay hidden until the first result is
 #'   available.
 #' @param venn,batch Include the Venn diagram and Batch effects tabs. When the
@@ -16,7 +16,8 @@
 #'   for more than 3 studies, Batch effects without a batch column).
 #' @param result A reactive returning a `tma_result` (see [run_tma_pipeline()]).
 #' @param organism `NULL` to let the user choose, or a list with `go` (PANTHER
-#'   taxon ID) and `kegg` (KEGG organism code).
+#'   taxon ID), `kegg` (KEGG organism code), `string` (STRING taxon ID) and
+#'   `id_type` (see [id_types()]).
 #' @param file_prefix A reactive giving the start of the download file names;
 #'   `NULL` uses the module id (e.g. "demo_pca.pdf").
 #' @return `mod_results_ui()` returns UI; `mod_results_server()` is called for
@@ -29,13 +30,34 @@ mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE, venn = T
     shiny::tabPanel(title = title, shiny::plotOutput(ns(output), height = "480px"), ...)
   }
   go_inputs <- if (select_organism) {
-    shiny::selectizeInput(ns("organism_go"), "Select organism", choices = "", multiple = FALSE)
+    shiny::selectizeInput(ns("organism_go"), "Organism (PANTHER)", choices = NULL,
+                          options = list(placeholder = "Type to search the PANTHER organisms"))
   }
   kegg_inputs <- if (select_organism) {
-    shiny::textInput(ns("organism_kegg"),
-                     label = shiny::p("Enter organism code found at", shiny::tags$a(
-                       "KEGG database", target = "_blank",
-                       href = "https://www.genome.jp/kegg-bin/get_htext?br08601")))
+    shiny::tagList(
+      shiny::textInput(ns("organism_kegg"),
+                       label = shiny::p("KEGG organism code, from the", shiny::tags$a(
+                         "KEGG organism list", target = "_blank",
+                         href = "https://www.genome.jp/kegg-bin/get_htext?br08601"))),
+      shiny::textOutput(ns("kegg_organism_check"))
+    )
+  }
+  string_inputs <- if (select_organism) {
+    shiny::selectizeInput(ns("organism_string"), "Organism (STRING)", choices = NULL,
+                          options = list(placeholder = "Type to search the STRING organisms"))
+  }
+  id_type_input <- if (select_organism) {
+    shiny::selectizeInput(ns("id_type"), "Gene ID type of the counts file ('Geneid' column)",
+                          choices = c("Choose the ID type" = "", id_types()))
+  }
+  enrichment_tab <- function(title, key, inputs, run_label, table_label) {
+    shiny::tabPanel(title = title,
+                    inputs,
+                    shiny::actionButton(ns(paste0("run_", key)), run_label, icon = shiny::icon("person-running")),
+                    shiny::uiOutput(ns(paste0(key, "_report"))),
+                    shinycssloaders::withSpinner(shiny::plotOutput(ns(paste0(key, "_plot")), height = "450px"), type = 6),
+                    shiny::downloadButton(ns(paste0("download_", key, "_table")), label = table_label),
+                    shiny::downloadButton(ns(paste0("download_", key, "_plot")), label = "Download plot"))
   }
 
   ui <- shiny::tagList(
@@ -97,20 +119,20 @@ mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE, venn = T
                           shiny::downloadButton(ns("download_meta_table"), label = "Download table"))
     ),
     shiny::fluidRow(
-      shinydashboard::tabBox(
-        title = "Functional Annotation",
-        shiny::tabPanel(title = "Gene Ontology",
-                        go_inputs,
-                        shiny::actionButton(ns("run_go"), "Run GO enrichment", icon = shiny::icon("person-running")),
-                        shinycssloaders::withSpinner(shiny::plotOutput(ns("go_plot"), height = "450px"), type = 6),
-                        shiny::downloadButton(ns("download_go_table"), label = "Download GO table"),
-                        shiny::downloadButton(ns("download_go_plot"), label = "Download GO plot")),
-        shiny::tabPanel(title = "KEGG pathway",
-                        kegg_inputs,
-                        shiny::actionButton(ns("run_kegg"), "Run KEGG enrichment", icon = shiny::icon("person-running")),
-                        shinycssloaders::withSpinner(shiny::plotOutput(ns("kegg_plot"), height = "450px"), type = 6),
-                        shiny::downloadButton(ns("download_kegg_table"), label = "Download KEGG table"),
-                        shiny::downloadButton(ns("download_kegg_plot"), label = "Download KEGG plot"))
+      shiny::column(
+        6,
+        shinydashboard::tabBox(
+          title = "Functional Annotation", width = NULL,
+          enrichment_tab("Gene Ontology", "go", go_inputs, "Run GO enrichment (PANTHER)", "Download GO table"),
+          enrichment_tab("KEGG pathway", "kegg", kegg_inputs, "Run KEGG enrichment", "Download KEGG table"),
+          enrichment_tab("STRING", "string", string_inputs, "Run STRING enrichment", "Download STRING table")
+        ),
+        shinydashboard::box(
+          title = "Enrichment input", width = NULL, status = "primary", solidHeader = FALSE,
+          id_type_input,
+          shiny::textOutput(ns("enrichment_input")),
+          shiny::helpText("The meta-analysis DEGs are tested against all genes tested in the analysis (the background). PANTHER and STRING recognise most ID types; KEGG accepts locus tags / KEGG gene IDs, NCBI Entrez Gene IDs and UniProt accessions.")
+        )
       ),
       shinydashboard::box(title = "Count plots", status = "primary", solidHeader = TRUE,
                           shiny::textOutput(ns("counts_message")),
@@ -336,26 +358,55 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL) 
     )
 
     # functional annotation --------------------------------------------------
-    # fetched once and shared by every tab and session
+    # organism lists, fetched once and shared by every tab and session
     go_organisms <- shiny::reactive(organisms_go()) |>
       shiny::bindCache("panther-organisms", cache = "app")
+    string_organisms <- shiny::reactive(organisms_string()) |>
+      shiny::bindCache("string-organisms", cache = "app")
     if (is.null(organism)) {
       shiny::observeEvent(result(), {
-        choices <- go_organisms()$long_name
-        session$onFlushed(function() {
-          shiny::updateSelectizeInput(session, "organism_go", choices = choices, server = TRUE)
-        }, once = TRUE)
+        lists <- list(
+          organism_go = function() {
+            o <- go_organisms()
+            stats::setNames(o$taxon_id, paste0(o$long_name, " (", o$taxon_id, ")"))
+          },
+          organism_string = function() {
+            o <- string_organisms()
+            stats::setNames(o$taxon_id, paste0(o$name, " (", o$taxon_id, ")"))
+          }
+        )
+        for (input_id in names(lists)) {
+          choices <- tryCatch(lists[[input_id]](), error = function(e) NULL)
+          local({
+            id <- input_id
+            ch <- choices
+            session$onFlushed(function() shiny::withReactiveDomain(session, {
+              shiny::updateSelectizeInput(session, id, choices = ch, selected = character(0),
+                                          server = TRUE)
+            }), once = TRUE)
+          })
+        }
       }, once = TRUE)
     }
-    go_taxon <- shiny::reactive({
-      if (!is.null(organism)) return(organism$go)
-      shiny::req(input$organism_go)
-      go_organisms()$taxon_id[go_organisms()$long_name == input$organism_go]
+    chosen <- function(fixed, value, what) {
+      if (!is.null(organism)) return(organism[[fixed]])
+      if (is.null(value) || !nzchar(value)) {
+        shinyalert::shinyalert("Missing choice", paste("Please choose the", what, "first."))
+        shiny::req(FALSE)
+      }
+      value
+    }
+    id_type <- function() chosen("id_type", input$id_type, "gene ID type of the counts file")
+    output$kegg_organism_check <- shiny::renderText({
+      code <- trimws(if (is.null(input$organism_kegg)) "" else input$organism_kegg)
+      if (!nzchar(code)) return("")
+      name <- kegg_organism_name(code)
+      if (is.na(name)) "Unknown KEGG organism code." else paste("Organism:", name)
     })
-    kegg_code <- shiny::reactive({
-      if (!is.null(organism)) return(organism$kegg)
-      shiny::req(input$organism_kegg)
-      input$organism_kegg
+    output$enrichment_input <- shiny::renderText({
+      res <- result()
+      sprintf("Input: %d meta-analysis DEGs; background: all %d tested genes.",
+              length(res$meta_degs), length(res$genes))
     })
     have_degs <- function() {
       if (length(result()$meta_degs) == 0) {
@@ -365,31 +416,60 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL) 
       TRUE
     }
 
-    go_table <- shiny::eventReactive(input$run_go, {
-      shiny::req(have_degs())
-      shinycssloaders::showSpinner("go_plot")
-      on.exit(shinycssloaders::hideSpinner("go_plot"))
-      run_go_enrichment(result()$meta_degs, organism = go_taxon())
-    })
-    go_plot <- shiny::reactive(plot_go_lollipop(go_table()))
-    output$go_plot <- shiny::renderPlot(go_plot())
-    output$download_go_table <- shiny::downloadHandler(function() fname("GO_results.txt"), content = function(file) {
-      utils::write.table(go_table(), file, quote = FALSE, sep = "\t", row.names = FALSE)
-    }, contentType = "text/plain")
-    output$download_go_plot <- plot_download("go_plot", go_plot, 30, 20)
+    # one enrichment service: run on click, show the mapping report, plot and
+    # downloads; failures are shown as a message instead of an error
+    enrichment <- function(key, service, run, plot_fun) {
+      res <- shiny::eventReactive(input[[paste0("run_", key)]], {
+        shiny::req(have_degs())
+        args <- run()
+        shinycssloaders::showSpinner(paste0(key, "_plot"))
+        on.exit(shinycssloaders::hideSpinner(paste0(key, "_plot")))
+        out <- tryCatch(do.call(args$fun, args$args), error = function(e) {
+          shinyalert::shinyalert(paste(service, "enrichment"), enrichment_message(e, service), type = "error")
+          NULL
+        })
+        shiny::req(out)
+        out
+      })
+      plot <- shiny::reactive({
+        shiny::validate(shiny::need(nrow(res()$table) > 0,
+                                    sprintf("No enriched terms were found with %s.", service)))
+        plot_fun(res()$table)
+      })
+      output[[paste0(key, "_plot")]] <- shiny::renderPlot(plot())
+      output[[paste0(key, "_report")]] <- shiny::renderUI(mapping_report_ui(res(), session$ns(paste0("download_", key, "_unmapped"))))
+      output[[paste0("download_", key, "_table")]] <- shiny::downloadHandler(
+        function() fname(paste0(key, "_enrichment.txt")),
+        content = function(file) write_enrichment(res(), file),
+        contentType = "text/plain"
+      )
+      output[[paste0("download_", key, "_unmapped")]] <- shiny::downloadHandler(
+        function() fname(paste0(key, "_unmapped_ids.txt")),
+        content = function(file) writeLines(res()$mapping$unmapped_ids, file),
+        contentType = "text/plain"
+      )
+      output[[paste0("download_", key, "_plot")]] <- plot_download(paste0(key, "_plot"), plot, 30, 20)
+      res
+    }
 
-    kegg_table <- shiny::eventReactive(input$run_kegg, {
-      shiny::req(have_degs())
-      shinycssloaders::showSpinner("kegg_plot")
-      on.exit(shinycssloaders::hideSpinner("kegg_plot"))
-      run_kegg_enrichment(result()$meta_degs, organism = kegg_code())
-    })
-    kegg_plot <- shiny::reactive(plot_kegg_lollipop(kegg_table()))
-    output$kegg_plot <- shiny::renderPlot(kegg_plot())
-    output$download_kegg_table <- shiny::downloadHandler(function() fname("KEGG_results.csv"), content = function(file) {
-      utils::write.csv(kegg_table(), file, quote = FALSE)
-    }, contentType = "text/csv")
-    output$download_kegg_plot <- plot_download("kegg_plot", kegg_plot, 30, 20)
+    go_result <- enrichment("go", "PANTHER", function() {
+      list(fun = run_go_enrichment,
+           args = list(genes = result()$meta_degs,
+                       organism = chosen("go", input$organism_go, "PANTHER organism"),
+                       background = result()$genes, id_type = id_type()))
+    }, plot_go_lollipop)
+    kegg_result <- enrichment("kegg", "KEGG", function() {
+      list(fun = run_kegg_enrichment,
+           args = list(genes = result()$meta_degs,
+                       organism = trimws(chosen("kegg", input$organism_kegg, "KEGG organism code")),
+                       background = result()$genes, id_type = id_type()))
+    }, plot_kegg_lollipop)
+    string_result <- enrichment("string", "STRING", function() {
+      list(fun = run_string_enrichment,
+           args = list(genes = result()$meta_degs,
+                       species = chosen("string", input$organism_string, "STRING organism"),
+                       background = result()$genes, id_type = id_type()))
+    }, plot_string_lollipop)
   })
 }
 
@@ -472,4 +552,32 @@ volcano_options <- function(ns) {
       half(shiny::helpText("With very small p-values the axis is long and the cutoff line sits near the bottom; a lower maximum spreads that region out."))
     )
   )
+}
+
+# The ID-mapping report and the label shown above an enrichment result
+mapping_report_ui <- function(enrichment, download_id) {
+  m <- enrichment$mapping
+  shiny::div(
+    style = "margin: 10px 0;",
+    shiny::tags$table(
+      class = "table table-condensed", style = "width: auto; margin-bottom: 5px;",
+      shiny::tags$tr(shiny::tags$th("IDs submitted"), shiny::tags$th("Mapped"),
+                     shiny::tags$th("Not mapped"), shiny::tags$th("Mapping rate")),
+      shiny::tags$tr(shiny::tags$td(m$submitted), shiny::tags$td(m$mapped),
+                     shiny::tags$td(m$unmapped), shiny::tags$td(sprintf("%.0f%%", 100 * m$rate)))
+    ),
+    if (!is.null(m$warning)) shiny::div(class = "alert alert-warning", style = "padding: 6px 10px;", m$warning),
+    if (m$unmapped > 0) shiny::downloadLink(download_id, "Download the IDs that were not mapped"),
+    shiny::p(shiny::em(enrichment_label(enrichment)), style = "margin-top: 6px;")
+  )
+}
+
+# The enrichment table, preceded by the service, version and background
+write_enrichment <- function(enrichment, file) {
+  header <- c(paste("#", enrichment_label(enrichment)),
+              sprintf("# IDs submitted: %d; mapped: %d (%.0f%%)", enrichment$mapping$submitted,
+                      enrichment$mapping$mapped, 100 * enrichment$mapping$rate))
+  writeLines(header, file)
+  suppressWarnings(utils::write.table(enrichment$table, file, sep = "\t", quote = FALSE,
+                                      row.names = FALSE, append = TRUE))
 }

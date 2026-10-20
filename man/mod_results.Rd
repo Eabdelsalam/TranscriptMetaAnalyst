@@ -20,8 +20,8 @@ mod_results_server(id, result, organism = NULL, file_prefix = NULL)
 \item{id}{Module id.}
 
 \item{select_organism}{If \code{TRUE}, the functional annotation tabs show inputs
-to choose the GO organism and the KEGG organism code. If \code{FALSE}, the
-organism given to \code{mod_results_server()} is used.}
+to choose the gene ID type and the PANTHER, KEGG and STRING organisms. If
+\code{FALSE}, the ones given to \code{mod_results_server()} are used.}
 
 \item{hidden}{If \code{TRUE}, the results stay hidden until the first result is
 available.}
@@ -33,7 +33,8 @@ for more than 3 studies, Batch effects without a batch column).}
 \item{result}{A reactive returning a \code{tma_result} (see \code{\link[=run_tma_pipeline]{run_tma_pipeline()}}).}
 
 \item{organism}{\code{NULL} to let the user choose, or a list with \code{go} (PANTHER
-taxon ID) and \code{kegg} (KEGG organism code).}
+taxon ID), \code{kegg} (KEGG organism code), \code{string} (STRING taxon ID) and
+\code{id_type} (see \code{\link[=id_types]{id_types()}}).}
 
 \item{file_prefix}{A reactive giving the start of the download file names;
 \code{NULL} uses the module id (e.g. "demo_pca.pdf").}
