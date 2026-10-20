@@ -15,7 +15,7 @@ validate_match(counts, design)
 }
 \arguments{
 \item{design}{Experimental design data frame with \code{sample}, \code{study} and
-\code{condition} columns.}
+\code{condition} columns, and optionally a \code{batch} column.}
 
 \item{counts}{Counts data frame with a \code{Geneid} column and one column per
 sample.}

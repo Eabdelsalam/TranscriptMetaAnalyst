@@ -6,7 +6,7 @@
 #' Shiny.
 #'
 #' @param design Experimental design data frame with `sample`, `study` and
-#'   `condition` columns.
+#'   `condition` columns, and optionally a `batch` column.
 #' @param counts Counts data frame with a `Geneid` column and one column per
 #'   sample.
 #' @return A character vector of error messages; empty when the input is valid.
@@ -30,6 +30,10 @@ validate_design <- function(design) {
   }
   if (length(unique(design$condition)) != 2) {
     return("The Experimental Design file should have two unique conditions only!")
+  }
+  if ("batch" %in% colnames(design) &&
+      any(is.na(design$batch) | trimws(as.character(design$batch)) == "")) {
+    return("The optional 'batch' column in the Experimental Design file has empty values; give every sample a batch or remove the column!")
   }
   if (anyDuplicated(design$sample) > 0) {
     return("The 'sample' column in the Experimental Design file has duplicated sample names, please correct and re-upload it!")

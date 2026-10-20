@@ -4,7 +4,7 @@
 \alias{run_limma_voom}
 \title{Differential expression of one study with limma-voom}
 \usage{
-run_limma_voom(counts, design, alpha = 0.05)
+run_limma_voom(counts, design, alpha = 0.05, use_batch = FALSE)
 }
 \arguments{
 \item{counts}{Count matrix (genes x samples) with gene names as row names.}
@@ -13,13 +13,17 @@ run_limma_voom(counts, design, alpha = 0.05)
 names, in the same order as the columns of \code{counts}.}
 
 \item{alpha}{Significance level used by DESeq2's independent filtering.}
+
+\item{use_batch}{If \code{TRUE}, \code{design} must have a \code{batch} column, and batch
+is added to the model as \code{~ batch + condition}.}
 }
 \value{
 A list with \code{table} and \code{norm_counts}, as for \code{\link[=run_deseq2]{run_deseq2()}}. \code{stat}
 is the moderated t statistic.
 }
 \description{
-Fits \code{~ condition} with limma after the voom transformation (TMM
+Fits \code{~ condition} (or \code{~ batch + condition}) with limma after the voom
+transformation (TMM
 normalisation, \code{voom()}, \code{lmFit()}, \code{eBayes()}) and returns the same
 standardised table as \code{\link[=run_deseq2]{run_deseq2()}}.
 }

@@ -1,6 +1,7 @@
 #' Differential expression of one study with DESeq2
 #'
-#' Fits `~ condition` with DESeq2 and returns a standardised result table and
+#' Fits `~ condition` (or `~ batch + condition`) with DESeq2 and returns a
+#' standardised result table and
 #' the normalised counts. The full `DESeqDataSet` is not kept, so the result is
 #' small enough to hold for many studies.
 #'
@@ -8,6 +9,8 @@
 #' @param design Data frame with a `condition` column and sample names as row
 #'   names, in the same order as the columns of `counts`.
 #' @param alpha Significance level used by DESeq2's independent filtering.
+#' @param use_batch If `TRUE`, `design` must have a `batch` column, and batch
+#'   is added to the model as `~ batch + condition`.
 #' @return A list with
 #'   \describe{
 #'     \item{table}{data frame with `gene`, `base_mean`, `log2_fc`, `lfc_se`,
@@ -22,9 +25,15 @@
 #' de <- run_deseq2(study$counts, study$design)
 #' head(de$table)
 #' }
-run_deseq2 <- function(counts, design, alpha = 0.05) {
+run_deseq2 <- function(counts, design, alpha = 0.05, use_batch = FALSE) {
+  design$condition <- factor(design$condition)
+  formula <- ~condition
+  if (use_batch) {
+    design$batch <- factor(design$batch)
+    formula <- ~ batch + condition
+  }
   dds <- suppressMessages(suppressWarnings(
-    DESeq2::DESeqDataSetFromMatrix(countData = counts, colData = design, design = ~condition)
+    DESeq2::DESeqDataSetFromMatrix(countData = counts, colData = design, design = formula)
   ))
   dds <- DESeq2::DESeq(dds, quiet = TRUE)
   res <- DESeq2::results(dds, alpha = alpha)
@@ -44,7 +53,8 @@ run_deseq2 <- function(counts, design, alpha = 0.05) {
 
 #' Differential expression of one study with edgeR
 #'
-#' Fits `~ condition` with the edgeR quasi-likelihood pipeline (TMM
+#' Fits `~ condition` (or `~ batch + condition`) with the edgeR
+#' quasi-likelihood pipeline (TMM
 #' normalisation, `glmQLFit()`, `glmQLFTest()`) and returns the same
 #' standardised table as [run_deseq2()].
 #'
@@ -59,14 +69,14 @@ run_deseq2 <- function(counts, design, alpha = 0.05) {
 #' study <- split_studies(demo$counts, demo$design)$A
 #' head(run_edger(study$counts, study$design)$table)
 #' }
-run_edger <- function(counts, design, alpha = 0.05) {
+run_edger <- function(counts, design, alpha = 0.05, use_batch = FALSE) {
   condition <- factor(design$condition)
-  model <- stats::model.matrix(~condition)
+  model <- de_model_matrix(design, use_batch)
   y <- edgeR::DGEList(counts = counts, group = condition)
   y <- edgeR::normLibSizes(y)
   y <- edgeR::estimateDisp(y, model)
   fit <- edgeR::glmQLFit(y, model)
-  tab <- edgeR::topTags(edgeR::glmQLFTest(fit, coef = 2), n = Inf, sort.by = "none")$table
+  tab <- edgeR::topTags(edgeR::glmQLFTest(fit, coef = ncol(model)), n = Inf, sort.by = "none")$table
   norm_counts <- size_factor_normalise(counts)
   list(
     table = data.frame(
@@ -84,7 +94,8 @@ run_edger <- function(counts, design, alpha = 0.05) {
 
 #' Differential expression of one study with limma-voom
 #'
-#' Fits `~ condition` with limma after the voom transformation (TMM
+#' Fits `~ condition` (or `~ batch + condition`) with limma after the voom
+#' transformation (TMM
 #' normalisation, `voom()`, `lmFit()`, `eBayes()`) and returns the same
 #' standardised table as [run_deseq2()].
 #'
@@ -98,25 +109,37 @@ run_edger <- function(counts, design, alpha = 0.05) {
 #' study <- split_studies(demo$counts, demo$design)$A
 #' head(run_limma_voom(study$counts, study$design)$table)
 #' }
-run_limma_voom <- function(counts, design, alpha = 0.05) {
+run_limma_voom <- function(counts, design, alpha = 0.05, use_batch = FALSE) {
   condition <- factor(design$condition)
-  model <- stats::model.matrix(~condition)
+  model <- de_model_matrix(design, use_batch)
   y <- edgeR::normLibSizes(edgeR::DGEList(counts = counts, group = condition))
   fit <- limma::eBayes(limma::lmFit(limma::voom(y, model), model))
-  tab <- limma::topTable(fit, coef = 2, number = Inf, sort.by = "none")
+  tab <- limma::topTable(fit, coef = ncol(model), number = Inf, sort.by = "none")
   norm_counts <- size_factor_normalise(counts)
   list(
     table = data.frame(
       gene = rownames(counts),
       base_mean = rowMeans(norm_counts),
       log2_fc = tab$logFC,
-      lfc_se = unname(fit$stdev.unscaled[, 2] * sqrt(fit$s2.post)),
+      lfc_se = unname(fit$stdev.unscaled[, ncol(model)] * sqrt(fit$s2.post)),
       stat = tab$t,
       pvalue = tab$P.Value,
       padj = tab$adj.P.Val
     ),
     norm_counts = norm_counts
   )
+}
+
+# Model matrix ~ condition or ~ batch + condition; the condition effect is
+# always the last column
+de_model_matrix <- function(design, use_batch) {
+  condition <- factor(design$condition)
+  if (use_batch) {
+    batch <- factor(design$batch)
+    stats::model.matrix(~ batch + condition)
+  } else {
+    stats::model.matrix(~condition)
+  }
 }
 
 # Median-of-ratios normalised counts (as DESeq2), used for the plots whatever
@@ -147,13 +170,14 @@ de_methods <- function() {
 #' @inheritParams run_deseq2
 #' @param method One of [de_methods()].
 #' @export
-run_de <- function(counts, design, method = "DESeq2", alpha = 0.05) {
+#' @param use_batch Passed to the DE method, see [run_deseq2()].
+run_de <- function(counts, design, method = "DESeq2", alpha = 0.05, use_batch = FALSE) {
   method <- match.arg(method, de_methods())
   fun <- switch(method,
                 "DESeq2" = run_deseq2,
                 "edgeR" = run_edger,
                 "limma-voom" = run_limma_voom)
-  fun(counts, design, alpha = alpha)
+  fun(counts, design, alpha = alpha, use_batch = use_batch)
 }
 
 #' Differential expression of every study
@@ -165,6 +189,9 @@ run_de <- function(counts, design, method = "DESeq2", alpha = 0.05) {
 #' @param methods DE method for all studies (one of [de_methods()]), or a
 #'   named character vector with one method per study.
 #' @param alpha Significance level passed to the DE method.
+#' @param batch_method How to use a `batch` column of the design, one of
+#'   [batch_methods()]; applied only in studies where [batch_status()] is
+#'   `"applied"`.
 #' @param BPPARAM A BiocParallel back-end; by default [tma_bpparam()].
 #' @return A named list with one DE result (see [run_deseq2()]) per study.
 #' @export
@@ -174,12 +201,19 @@ run_de <- function(counts, design, method = "DESeq2", alpha = 0.05) {
 #' de <- run_de_studies(split_studies(demo$counts, demo$design))
 #' names(de)
 #' }
-run_de_studies <- function(studies, methods = "DESeq2", alpha = 0.05,
+run_de_studies <- function(studies, methods = "DESeq2", alpha = 0.05, batch_method = "none",
                            BPPARAM = tma_bpparam(length(studies))) {
   methods <- study_methods(methods, names(studies))
-  jobs <- lapply(names(studies), function(id) c(studies[[id]], method = methods[[id]]))
+  batch_method <- match.arg(batch_method, batch_methods())
+  jobs <- lapply(names(studies), function(id) {
+    applied <- batch_status(studies[[id]]$design, batch_method) == "applied"
+    c(studies[[id]], method = methods[[id]],
+      combat = applied && batch_method == "combat_seq",
+      use_batch = applied && batch_method == "model")
+  })
   res <- BiocParallel::bplapply(jobs, function(s) {
-    run_de(s$counts, s$design, method = s$method, alpha = alpha)
+    counts <- if (s$combat) combat_seq_counts(s$counts, s$design) else s$counts
+    run_de(counts, s$design, method = s$method, alpha = alpha, use_batch = s$use_batch)
   }, BPPARAM = BPPARAM)
   stats::setNames(res, names(studies))
 }

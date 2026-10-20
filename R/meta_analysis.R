@@ -175,6 +175,11 @@ consistent_direction <- function(fold_changes) {
 #'   named character vector with one method per study.
 #' @param meta_method Meta-analysis method, `"fisher"` or `"invnorm"` (see
 #'   [run_meta()]).
+#' @param batch_method How to use an optional `batch` column of `design`, one
+#'   of [batch_methods()]. By default batch is added to the DE model in every
+#'   study where that is possible (see [batch_status()]).
+#' @param batch_plots If `TRUE`, the PCA and heatmap of the results use the
+#'   batch-corrected values (see [batch_diagnostics]).
 #' @param filter If `TRUE`, remove genes with low counts in every study
 #'   before the analysis (see [filter_low_counts()]).
 #' @param BPPARAM BiocParallel back-end for the per-study analyses, see
@@ -195,6 +200,10 @@ consistent_direction <- function(fold_changes) {
 #'     \item{idd_irr}{integration-driven discoveries and lost DEGs
 #'       ([metaRNASeq::IDD.IRR()]).}
 #'     \item{de_methods}{the DE method used for each study.}
+#'     \item{batch}{`NULL` without a `batch` column; otherwise a list with the
+#'       `method` requested, its `status` in each study (see
+#'       [batch_status()]), the batch-corrected log2 values
+#'       `corrected_log`, and `plots` (use them in the PCA and heatmap).}
 #'     \item{meta_method}{the meta-analysis method used.}
 #'     \item{alpha}{the significance level used.}
 #'   }
@@ -208,12 +217,15 @@ consistent_direction <- function(fold_changes) {
 #'                          meta_method = "invnorm")
 #' }
 run_tma_pipeline <- function(counts, design, alpha = 0.05, de_method = "DESeq2",
-                             meta_method = "fisher", filter = TRUE,
+                             meta_method = "fisher", batch_method = "model",
+                             batch_plots = FALSE, filter = TRUE,
                              BPPARAM = tma_bpparam(length(unique(design$study)))) {
   studies <- split_studies(counts, design)
   if (filter) studies <- filter_low_counts(studies)
   de_methods_used <- study_methods(de_method, names(studies))
-  de <- run_de_studies(studies, methods = de_methods_used, alpha = alpha, BPPARAM = BPPARAM)
+  batch_method <- match.arg(batch_method, batch_methods())
+  de <- run_de_studies(studies, methods = de_methods_used, alpha = alpha,
+                       batch_method = batch_method, BPPARAM = BPPARAM)
   genes <- rownames(studies[[1]]$counts)
   study_ids <- names(studies)
   tables <- lapply(de, `[[`, "table")
@@ -249,7 +261,9 @@ run_tma_pipeline <- function(counts, design, alpha = 0.05, de_method = "DESeq2",
     studies = study_ids,
     genes = genes,
     de = tables,
-    norm_counts = combine_study_matrices(lapply(de, `[[`, "norm_counts"), design$sample),
+    norm_counts = combine_study_matrices(
+      lapply(studies, function(st) size_factor_normalise(st$counts)), design$sample
+    ),
     fold_changes = fold_changes,
     meta = meta,
     fc_select = fc_select,
@@ -257,6 +271,7 @@ run_tma_pipeline <- function(counts, design, alpha = 0.05, de_method = "DESeq2",
     study_degs = study_degs,
     idd_irr = metaRNASeq::IDD.IRR(meta_degs, unname(study_degs)),
     de_methods = de_methods_used,
+    batch = batch_info(studies, design, batch_method, batch_plots),
     meta_method = unname(match.arg(meta_method, meta_methods())),
     alpha = alpha
   ), class = "tma_result")
@@ -292,4 +307,16 @@ print.tma_result <- function(x, ...) {
       " meta-analysis:", names(meta_methods())[meta_methods() == x$meta_method], "\n")
   cat(" ", length(x$meta_degs), "meta-analysis DEGs (alpha =", x$alpha, ")\n")
   invisible(x)
+}
+
+# Batch information of a result: NULL when the design has no batch column
+batch_info <- function(studies, design, method, plots) {
+  if (is.null(design$batch)) return(NULL)
+  status <- vapply(studies, function(st) batch_status(st$design, method), character(1))
+  corrected <- lapply(names(studies), function(id) {
+    batch_corrected_log(studies[[id]]$counts, studies[[id]]$design, status[[id]], method)
+  })
+  list(method = method, status = status,
+       corrected_log = combine_study_matrices(corrected, design$sample),
+       plots = isTRUE(plots))
 }
