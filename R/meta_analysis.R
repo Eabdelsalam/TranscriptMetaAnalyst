@@ -68,12 +68,18 @@ select_meta_degs <- function(fc_select) {
 #' Meta-analysis of per-study p-values
 #'
 #' Combines the raw p-values of the studies with Fisher's method
-#' ([metaRNASeq::fishercomb()]) or the inverse-normal method
-#' ([metaRNASeq::invnorm()], each study weighted by the square root of its
+#' ([metaRNASeq::fishercomb()]) or the inverse-normal method (as in
+#' [metaRNASeq::invnorm()]: each study weighted by the square root of its
 #' number of samples), and adjusts the combined p-values with
 #' Benjamini-Hochberg. As in DESeq2's independent filtering, a gene whose
 #' adjusted p-value is `NA` in a study does not contribute that study's
 #' p-value.
+#'
+#' The combined p-values are computed from the upper tail of the chi-squared
+#' (Fisher) or normal (inverse normal) distribution, and the inverse-normal
+#' z-scores from the upper tail of the normal distribution, so p-values far
+#' below 1e-16 stay accurate instead of being rounded to 0 (or, for the
+#' z-scores, to infinity).
 #'
 #' For the inverse-normal method, p-values of exactly 1 are moved just below 1,
 #' so that a study with p = 1 cannot turn the combined statistic into `NaN`.
@@ -99,11 +105,32 @@ run_meta <- function(pvalues, padj, method = "fisher", nrep = NULL, alpha = 0.05
     }
     pvalues <- pmin(pvalues, 1 - .Machine$double.eps)
   }
-  indpval <- lapply(seq_len(ncol(pvalues)), function(i) pvalues[, i])
-  res <- switch(method,
-                fisher = metaRNASeq::fishercomb(indpval, BHth = alpha),
-                invnorm = metaRNASeq::invnorm(indpval, nrep = nrep, BHth = alpha))
-  data.frame(TestStatistic = res$TestStatistic, rawpval = res$rawpval, adjpval = res$adjpval)
+  if (method == "fisher") {
+    indpval <- lapply(seq_len(ncol(pvalues)), function(i) pvalues[, i])
+    stat <- metaRNASeq::fishercomb(indpval, BHth = alpha)$TestStatistic
+    # metaRNASeq returns 1 - pchisq(), which rounds p-values below ~1e-16 to
+    # exactly 0; take the upper tail directly to keep them accurate
+    rawpval <- stats::pchisq(stat, df = 2 * rowSums(!is.na(pvalues)), lower.tail = FALSE)
+  } else {
+    stat <- inverse_normal_statistic(pvalues, nrep)
+    rawpval <- stats::pnorm(stat, lower.tail = FALSE)
+  }
+  data.frame(TestStatistic = stat, rawpval = rawpval,
+             adjpval = stats::p.adjust(rawpval, method = "BH"))
+}
+
+# Inverse-normal combination as in metaRNASeq::invnorm(): each study's
+# z-score weighted by sqrt(n_s / sum(n)), over the studies with a p-value.
+# The z-scores use qnorm(p, lower.tail = FALSE) instead of qnorm(1 - p), which
+# is Inf for p below ~1e-16.
+inverse_normal_statistic <- function(pvalues, nrep) {
+  z <- stats::qnorm(pvalues, lower.tail = FALSE)
+  n <- matrix(nrep, nrow = nrow(z), ncol = ncol(z), byrow = TRUE)
+  n[is.na(z)] <- 0
+  weighted <- sqrt(n / rowSums(n)) * z
+  stat <- rowSums(weighted, na.rm = TRUE)
+  stat[rowSums(!is.na(z)) == 0] <- NA
+  stat
 }
 
 #' Meta-analysis methods

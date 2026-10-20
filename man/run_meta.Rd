@@ -23,14 +23,20 @@ A data frame with one row per gene and columns \code{TestStatistic},
 }
 \description{
 Combines the raw p-values of the studies with Fisher's method
-(\code{\link[metaRNASeq:fishercomb]{metaRNASeq::fishercomb()}}) or the inverse-normal method
-(\code{\link[metaRNASeq:invnorm]{metaRNASeq::invnorm()}}, each study weighted by the square root of its
+(\code{\link[metaRNASeq:fishercomb]{metaRNASeq::fishercomb()}}) or the inverse-normal method (as in
+\code{\link[metaRNASeq:invnorm]{metaRNASeq::invnorm()}}: each study weighted by the square root of its
 number of samples), and adjusts the combined p-values with
 Benjamini-Hochberg. As in DESeq2's independent filtering, a gene whose
 adjusted p-value is \code{NA} in a study does not contribute that study's
 p-value.
 }
 \details{
+The combined p-values are computed from the upper tail of the chi-squared
+(Fisher) or normal (inverse normal) distribution, and the inverse-normal
+z-scores from the upper tail of the normal distribution, so p-values far
+below 1e-16 stay accurate instead of being rounded to 0 (or, for the
+z-scores, to infinity).
+
 For the inverse-normal method, p-values of exactly 1 are moved just below 1,
 so that a study with p = 1 cannot turn the combined statistic into \code{NaN}.
 }

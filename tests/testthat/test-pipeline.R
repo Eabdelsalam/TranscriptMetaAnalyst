@@ -153,3 +153,45 @@ test_that("the inverse-normal meta-analysis weights studies by their sample size
   direct <- run_meta(pval, padj, method = "invnorm", nrep = c(4, 4, 4))
   expect_equal(inv$meta$adjpval, direct$adjpval)
 })
+
+test_that("meta-analysis p-values keep their precision below 1e-16", {
+  # metaRNASeq computes 1 - pchisq() / 1 - pnorm(), which rounds very small
+  # p-values to exactly 0; they must stay positive
+  res <- demo_result()
+  expect_false(any(res$meta$rawpval == 0, na.rm = TRUE))
+  expect_false(any(res$meta$adjpval == 0, na.rm = TRUE))
+
+  p <- matrix(c(1e-12, 0.3, 1e-10, 0.2, 1e-9, 0.5), ncol = 3)
+  for (m in meta_methods()) {
+    meta <- run_meta(p, p, method = m, nrep = c(4, 4, 4))
+    expect_gt(meta$rawpval[1], 0)
+    expect_lt(meta$rawpval[1], 1e-20)
+  }
+  fisher <- run_meta(p, p)
+  expect_equal(fisher$rawpval[1], stats::pchisq(-2 * sum(log(p[1, ])), df = 6, lower.tail = FALSE))
+})
+
+test_that("inverse normal stays finite when a study has p below 1e-16", {
+  # metaRNASeq::invnorm uses qnorm(1 - p), which is Inf for p < ~1e-16, so one
+  # tiny p-value made the gene infinitely significant whatever the others say
+  p <- matrix(c(1e-30, 0.5, 0.6), nrow = 1)
+  meta <- run_meta(p, p, method = "invnorm", nrep = c(4, 4, 4))
+  w <- sqrt(c(4, 4, 4) / 12)
+  z <- sum(w * stats::qnorm(c(1e-30, 0.5, 0.6), lower.tail = FALSE))
+  expect_true(is.finite(meta$TestStatistic))
+  expect_equal(meta$TestStatistic, z)
+  expect_equal(meta$rawpval, stats::pnorm(z, lower.tail = FALSE))
+
+  # a missing p-value drops that study and renormalises the weights
+  p_na <- matrix(c(1e-30, NA, 0.6), nrow = 1)
+  meta_na <- run_meta(p_na, p_na, method = "invnorm", nrep = c(4, 4, 4))
+  z_na <- sum(sqrt(c(4, 4) / 8) * stats::qnorm(c(1e-30, 0.6), lower.tail = FALSE))
+  expect_equal(meta_na$TestStatistic, z_na)
+})
+
+test_that("the inverse-normal demo result has no infinite statistics", {
+  demo <- tma_demo_data()
+  res <- run_tma_pipeline(demo$counts, demo$design, meta_method = "invnorm")
+  expect_false(any(is.infinite(res$meta$TestStatistic)))
+  expect_false(any(res$meta$rawpval == 0, na.rm = TRUE))
+})
