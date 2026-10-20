@@ -36,7 +36,7 @@ Several of these changes fix errors in the results of earlier versions, so resul
 | Heatmap | The heatmap values are now attached to the correct gene and sample. Earlier versions could place values in the wrong cells. The heatmap no longer fails when the meta-analysis finds fewer DEGs than there are samples. |
 | Heatmap clusters | A new **Number of gene clusters** input (default 2) sets how many clusters the genes are split into, both in the interactive heatmap and in the downloaded PDF. |
 | PCA | The PCA now uses the correct normalized counts for every sample. Earlier versions mixed values between genes and samples. |
-| Volcano plot | The x-axis now shows the correct mean log2 fold change of each gene across studies. |
+| Volcano plot | The x-axis now shows the correct mean log2 fold change of each gene across studies. Very small *p*-values are now kept exact, so the most significant genes are drawn at their real height instead of on a flat line at the top of the plot. |
 | GO / KEGG enrichment | Enrichment is now run on the meta-analysis DEGs only (significant in the meta-analysis *and* changed in the same direction in every study). Earlier versions used every gene with a consistent direction, whether significant or not. |
 | Closing the app | When the app is started with `runTMA()`, it stops when its browser window is closed, as before. When it is deployed on a Shiny Server, closing one browser window no longer shuts the app down for all other users. |
 | Methods | Besides DESeq2, the differential expression can now be run with edgeR or limma-voom, for all studies or chosen per study. Besides Fisher's method, the *p*-values can be combined with the inverse-normal method. See [Analysis settings](#422-analysis-settings). |
@@ -233,7 +233,7 @@ TMA generates several main plots to give the user an overview of the analyzed da
 
    *Figure 12: The intersection of identified DEGs is shown via (a) a Venn diagram, if the number of analyzed studies is 3 or fewer, and (b) an UpSet plot.*
 
-5. Finally, a **volcano plot** (Figure 13) shows the adjusted meta-analysis *p*-values (−log10) on the y-axis and the mean log2 fold change of each gene across all studies on the x-axis. It is generated with the `EnhancedVolcano` package. The figure and the data used to create it are available for download.
+5. Finally, a **volcano plot** (Figure 13) shows the adjusted meta-analysis *p*-values (−log10) on the y-axis and the mean log2 fold change of each gene across all studies on the x-axis. It is generated with the `EnhancedVolcano` package. TMA computes the meta-analysis *p*-values so that values far below 10⁻¹⁶ stay exact; in the rare case that a *p*-value is still exactly 0, it is drawn at the height of the smallest non-zero *p*-value. The figure and the data used to create it are available for download.
 
    ![Figure 13](figures/fig13_volcano.png)
 
