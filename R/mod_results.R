@@ -205,7 +205,7 @@ mod_results_server <- function(id, result, organism = NULL) {
     }, contentType = "text/csv")
 
     # meta-analysis table and count plots ------------------------------------
-    output$meta_table <- DT::renderDT(result()$meta, selection = "single")
+    output$meta_table <- DT::renderDT(meta_table_widget(result()$meta))
     output$download_meta_table <- shiny::downloadHandler(fname("meta_analysis_results.csv"), content = function(file) {
       utils::write.csv(result()$meta, file, quote = FALSE)
     }, contentType = "text/csv")
@@ -290,4 +290,12 @@ mod_results_server <- function(id, result, organism = NULL) {
       ggplot2::ggsave(file, kegg_plot(), device = "pdf", width = 30, height = 20, units = "cm")
     })
   })
+}
+
+# The meta-analysis table as shown in the app: numbers rounded to 4
+# significant digits for reading (so very small p-values stay visible); the
+# downloaded table keeps full precision
+meta_table_widget <- function(meta) {
+  numeric_cols <- names(meta)[vapply(meta, is.numeric, logical(1))]
+  DT::formatSignif(DT::datatable(meta, selection = "single"), columns = numeric_cols, digits = 4)
 }

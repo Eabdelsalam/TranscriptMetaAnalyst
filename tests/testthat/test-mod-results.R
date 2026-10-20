@@ -116,3 +116,19 @@ test_that("the RNA-seq tab validates the uploads and runs the pipeline on click"
     expect_equal(rnaseq_result()$design, tma_demo_data()$design)
   })
 })
+
+test_that("the meta-analysis table shows 4 significant digits but keeps the data", {
+  res <- demo_result()
+  widget <- meta_table_widget(res$meta)
+  expect_s3_class(widget, "datatables")
+  defs <- widget$x$options$columnDefs
+  rendered <- Filter(function(d) !is.null(d$render), defs)
+  # columns are counted after the row-name column: TestStatistic, rawpval, adjpval
+  expect_setequal(unlist(lapply(rendered, `[[`, "targets")), 1:3)
+  for (d in rendered) {
+    # 4 significant digits on display; sorting and searching use the full value
+    expect_match(as.character(d$render), "formatSignif\\(data, 4,")
+    expect_match(as.character(d$render), "type !== 'display' \\? data")
+  }
+  expect_equal(widget$x$data$adjpval, res$meta$adjpval)
+})
