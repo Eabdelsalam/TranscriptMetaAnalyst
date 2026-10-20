@@ -1,20 +1,9 @@
 #' @keywords internal
 "_PACKAGE"
 
-#' @rawNamespace import(shiny, except = c(dataTableOutput, renderDataTable, runExample))
-#' @rawNamespace import(shinyjs, except = runExample)
-#' @import shinydashboard
-#' @import shinyalert
-#' @import shinycssloaders
-#' @rawNamespace import(DESeq2, except = show)
-#' @import metaRNASeq
-#' @import dplyr
-#' @import ggplot2
-#' @import ggrepel
-#' @import ggvenn
-#' @rawNamespace import(ComplexHeatmap, except = pheatmap)
-#' @import EnhancedVolcano
-#' @import rbioapi
-#' @import clusterProfiler
-#' @import heatmaply
-NULL
+# column names used inside ggplot2 aesthetics
+utils::globalVariables(c(
+  "full_term", "fold_enrichment", "fdr", "genes", "category",
+  "Description", "FoldEnrichment", "log_fdr", "Count", "subcategory",
+  "condition", "count"
+))

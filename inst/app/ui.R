@@ -95,132 +95,13 @@ ui <- dashboardPage(
                     )),
                   solidHeader = T, width = 12, status = "info")
             )), #close steps box
-        #create general results and information section
-        shinyjs::hidden(div(id = "general_results_rnaseq",
-                            fluidRow(
-                              #number of studies
-                              infoBoxOutput("num_studies_rnaseq", width = 3),
-                              #download of individual DEGs
-                              box(title = "Download DEGs of individual studies", solidHeader = T, width = 4, height = 90, status = "primary",
-                                  column(7, selectInput("download_individual_rnaseq", label = NULL,
-                                                        choices = "", multiple = F)),
-                                  column(4, downloadButton("download_individual_button_rnaseq", label = "Download DEGs"))),
-                              #number of identified DEGs box
-                              infoBoxOutput("num_degs_rnaseq", width = 5)
-                            ))), #close general results section
-        #create plots section
-        shinyjs::hidden(div(id= "mainplots",
-                            fluidRow(
-                              #create a tab box for the main plots
-                              tabBox(title = "Main Plots",
-                                     tabPanel(title = "p-Values Dist", plotOutput("p_dist_rnaseq", height = "480px"),
-                                              downloadButton("download_pdist_rnaseq", label = "Download plot")),
-                                     tabPanel(title = "PCA", plotOutput("pca_rnaseq", height = "480px"),
-                                              downloadButton("download_pca_rnaseq", label = "Download plot")),
-                                     tabPanel(title = "Heatmap",
-                                              numericInput("heatmap_k_rnaseq", label = "Number of gene clusters",
-                                                           value = 2, min = 1, step = 1, width = "200px"),
-                                              plotlyOutput("heatmap_rnaseq", height = "480px"),
-                                              downloadButton("download_heatmap_rnaseq", label = "Download plot"),
-                                              downloadButton("download_heatmap_data_rnaseq", label = "Download data")),
-                                     tabPanel(title = "Venn diagram", plotOutput("venn_rnaseq", height = "480px"),
-                                              downloadButton("download_venn_rnaseq", label = "Download plot")),
-                                     tabPanel(title = "UpSet Plot", plotOutput("upset_rnaseq", height = "480px"),
-                                              downloadButton("download_upset_rnaseq", label = "Download plot")),
-                                     tabPanel(title = "Volcano Plot", plotOutput("volcano_rnaseq", height = "480px"),
-                                              downloadButton("download_volcano_rnaseq", label = "Download plot"),
-                                              downloadButton("download_volcano_data_rnaseq", label = "Download data"))), #close the main plots box
-                              #create a box for DEGs table
-                              box(title = "Meta-analysis DEGs", status = "success", solidHeader = T,
-                                  dataTableOutput("rnaseq_DEGs"),
-                                  downloadButton("download_meta_degs_rnaseq", label = "Download table"))
-                            ))),
-        #create Go and counts section
-        shinyjs::hidden(div(id= "GO_counts",
-                            fluidRow(
-                              #create a tab box for GO and KEGG analysis
-                              tabBox(title = "Functional Annotation",
-                                     tabPanel(title = "Gene Ontology",
-                                              selectizeInput("organism_go_rnaseq", "Select organism", choices = "", multiple = F),
-                                              actionButton("run_go_rnaseq", "Run GO enrichment", icon = icon("person-running")),
-                                              plotOutput("go_plot_rnaseq", height = "450px") %>% withSpinner(type = 6),
-                                              downloadButton("download_go_table_rnaseq", label = "Download GO table"),
-                                              downloadButton("download_go_plot_rnaseq", label = "Download GO plot")
-                                     ),
-                                     tabPanel(title = "KEGG pathway",
-                                              textInput("organism_kegg_rnaseq", 
-                                                        label = p("Enter organism code found at", tags$a(
-                                                          "KEGG database", target = "_blank", href = "https://www.genome.jp/kegg-bin/get_htext?br08601"))),
-                                              actionButton("run_kegg_rnaseq", "Run KEGG enrichment", icon = icon("person-running")),
-                                              plotOutput("kegg_plot_rnaseq", height = "450px") %>% withSpinner(type = 6),
-                                              downloadButton("download_kegg_table_rnaseq", label = "Download KEGG table"),
-                                              downloadButton("download_kegg_plot_rnaseq", label = "Download KEGG plot"))),
-                              box(title = "Count plots", status = "primary", solidHeader = T,
-                                  textOutput("counts_message_rnaseq"),
-                                  plotOutput("counts_plots_rnaseq", height = "550px"),
-                                  downloadButton("download_counts_plot_rnaseq", label = "Download counts plot"))
-                            )))
+        #results of the analysis, shown once it has run
+        mod_results_ui("rnaseq", select_organism = TRUE, hidden = TRUE)
       ), #close rnaseq tab item
       ##### DEMO ANALYSIS TAB #####
       #############################
       tabItem(tabName = "demo",
-              #create general results and information section
-              fluidRow(
-                #number of studies
-                infoBoxOutput("num_studies_demo", width = 3),
-                #download of individual DEGs
-                box(title = "Download DEGs of individual studies", solidHeader = T, width = 4, height = 90, status = "primary",
-                    column(7, selectInput("download_individual_demo", label = NULL,
-                                          choices = "", multiple = F)),
-                    column(4, downloadButton("download_individual_button_demo", label = "Download DEGs"))),
-                #number of identified DEGs box
-                infoBoxOutput("num_degs_demo", width = 5)
-              ), #close general results section
-              #create plots section
-              fluidRow(
-                tabBox(title = "Main Plots",
-                       #p-value distribution box
-                       tabPanel(title = "p-Values Dist", plotOutput("p_dist_demo", height = "480px"),
-                                downloadButton("download_pdist_demo", label = "Download plot")),
-                       tabPanel(title = "PCA", plotOutput("pca_demo", height = "480px"),
-                                downloadButton("download_pca_demo", label = "Download plot")),
-                       tabPanel(title = "Heatmap",
-                                numericInput("heatmap_k_demo", label = "Number of gene clusters",
-                                             value = 2, min = 1, step = 1, width = "200px"),
-                                plotlyOutput("heatmap_demo", height = "480px"),
-                                downloadButton("download_heatmap_demo", label = "Download plot"),
-                                downloadButton("download_heatmap_data_demo", label = "Download data")),
-                       tabPanel(title = "Venn diagram", plotOutput("venn_demo", height = "480px"),
-                                downloadButton("download_venn_demo", label = "Download plot")),
-                       tabPanel(title = "UpSet Plot", plotOutput("upset_demo", height = "480px"),
-                                downloadButton("download_upset_demo", label = "Download plot")),
-                       tabPanel(title = "Volcano Plot", plotOutput("volcano_demo", height = "480px"),
-                                downloadButton("download_volcano_demo", label = "Download plot"),
-                                downloadButton("download_volcano_data_demo", label = "Download data"))),
-                box(title = "Meta-analysis DEGs", status = "success", solidHeader = T,
-                    dataTableOutput("demo_DEGs"),
-                    downloadButton("download_meta_degs_demo", label = "Download table")),
-              ),
-              #create DataTable of the identified DEGs
-              fluidRow(
-                #create a tab box for GO and KEGG analysis
-                tabBox(title = "Functional Annotation",
-                       tabPanel(title = "Gene Ontology",
-                                actionButton("run_go_demo", "Run GO enrichment", icon = icon("person-running")),
-                                plotOutput("go_plot_demo") %>% withSpinner(type = 6),
-                                downloadButton("download_go_table_demo", label = "Download GO table"),
-                                downloadButton("download_go_plot_demo", label = "Download GO plot")
-                       ),
-                       tabPanel(title = "KEGG pathway",
-                                actionButton("run_kegg_demo", "Run KEGG enrichment", icon = icon("person-running")),
-                                plotOutput("kegg_plot_demo") %>% withSpinner(type = 6),
-                                downloadButton("download_kegg_table_demo", label = "Download KEGG table"),
-                                downloadButton("download_kegg_plot_demo", label = "Download KEGG plot"))),
-                box(title = "Counts Plots", status = "primary", solidHeader = T,
-                    textOutput("counts_message_demo"),
-                    plotOutput("counts_plots_demo"),
-                    downloadButton("download_counts_plot_demo", label = "Download counts plot"))
-              )
+              mod_results_ui("demo")
       ), #close demo tab item
       
       ##### USER GUIDE TAB #####
