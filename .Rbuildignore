@@ -5,3 +5,4 @@
 ^TMA_implementation_plan\.md$
 ^doc$
 ^Meta$
+^.*\.BiocCheck$

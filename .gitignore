@@ -51,3 +51,6 @@ rsconnect/
 # built vignettes
 /doc/
 /Meta/
+
+# BiocCheck output
+*.BiocCheck/
