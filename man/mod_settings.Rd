@@ -22,10 +22,12 @@ the studies for the per-study override (\code{NULL} if \code{per_study = FALSE})
 \value{
 \code{mod_settings_ui()} returns UI. \code{mod_settings_server()} returns a
 reactive list with \code{de_method} (one method, or a named vector with one
-method per study) and \code{meta_method}.
+method per study), \code{meta_method}, \code{batch_method} (see \code{\link[=batch_methods]{batch_methods()}})
+and \code{batch_plots}.
 }
 \description{
 A box to choose the differential expression method (for all studies, with
 an optional override per study) and the meta-analysis method, with short
-guidance on when to use each.
+guidance on when to use each. When the design has a \code{batch} column, it also
+offers the batch-effect options.
 }

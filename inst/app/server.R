@@ -45,9 +45,11 @@ function(input, output, session) {
 
   #run the meta-analysis once per click, in a background process so the app
   #stays responsive while it runs
-  rnaseq_task <- ExtendedTask$new(function(counts, design, de_method, meta_method) {
+  rnaseq_task <- ExtendedTask$new(function(counts, design, de_method, meta_method,
+                                            batch_method, batch_plots) {
     promises::future_promise(
-      run_tma_pipeline(counts, design, de_method = de_method, meta_method = meta_method),
+      run_tma_pipeline(counts, design, de_method = de_method, meta_method = meta_method,
+                       batch_method = batch_method, batch_plots = batch_plots),
       seed = TRUE
     )
   })
@@ -60,7 +62,8 @@ function(input, output, session) {
     shinyalert("Running...", "RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
     shinyjs::hide("rnaseq_steps")
-    rnaseq_task$invoke(inputs$counts, inputs$design, inputs$de_method, inputs$meta_method)
+    rnaseq_task$invoke(inputs$counts, inputs$design, inputs$de_method, inputs$meta_method,
+                       inputs$batch_method, inputs$batch_plots)
   })
   rnaseq_result <- reactive({
     #an error in the analysis is shown to the user instead of stopping the app

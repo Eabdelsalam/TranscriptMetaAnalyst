@@ -56,6 +56,9 @@ heatmap_row_clusters <- function(n_genes, k = 2L) {
 #' (see [scale_deg_counts()]); the data behind the heatmap.
 #'
 #' @param result A `tma_result` from [run_tma_pipeline()].
+#' @param corrected If `TRUE`, use the batch-corrected log2 values (see
+#'   [batch_diagnostics]) instead of the normalised counts. By default they
+#'   are used when the result was created with `batch_plots = TRUE`.
 #' @return A numeric matrix (meta DEGs x samples).
 #' @export
 #' @examples
@@ -64,9 +67,10 @@ heatmap_row_clusters <- function(n_genes, k = 2L) {
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' dim(heatmap_matrix(res))
 #' }
-heatmap_matrix <- function(result) {
+heatmap_matrix <- function(result, corrected = use_corrected(result)) {
+  values <- if (corrected) result$batch$corrected_log else result$norm_counts
   samples_by_study <- split(result$design$sample, result$design$study)[result$studies]
-  norm_list <- lapply(samples_by_study, function(s) result$norm_counts[, s, drop = FALSE])
+  norm_list <- lapply(samples_by_study, function(s) values[, s, drop = FALSE])
   scale_deg_counts(norm_list, result$meta_degs, result$design$sample)
 }
 
@@ -114,8 +118,14 @@ plot_pvalue_hist <- function(result) {
 plot_pca <- function(result) {
   design <- result$design
   rownames(design) <- design$sample
-  se <- SummarizedExperiment::SummarizedExperiment(log2(result$norm_counts + 1), colData = design)
+  values <- if (use_corrected(result)) result$batch$corrected_log else log2(result$norm_counts + 1)
+  se <- SummarizedExperiment::SummarizedExperiment(values, colData = design)
   suppressMessages(DESeq2::plotPCA(DESeq2::DESeqTransform(se)))
+}
+
+# Whether the PCA and heatmap use the batch-corrected values
+use_corrected <- function(result) {
+  !is.null(result$batch) && isTRUE(result$batch$plots)
 }
 
 #' @rdname tma_plots

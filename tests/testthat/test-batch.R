@@ -116,3 +116,38 @@ test_that("validate_design rejects empty batch values", {
   design$batch[12] <- "b2"
   expect_identical(validate_design(design), character(0))
 })
+
+test_that("batch_plots switches the PCA and heatmap to the corrected values", {
+  sim <- batch_data_set()
+  plain <- run_tma_pipeline(sim$counts, sim$design, BPPARAM = serial)
+  corrected <- run_tma_pipeline(sim$counts, sim$design, batch_plots = TRUE, BPPARAM = serial)
+  expect_equal(plain$meta_degs, corrected$meta_degs)
+
+  s1 <- sim$design$sample[sim$design$study == "S1"]
+  gene <- corrected$meta_degs[1]
+  x <- corrected$batch$corrected_log[gene, s1]
+  expect_equal(heatmap_matrix(corrected)[gene, s1], (x - mean(x)) / stats::sd(x))
+  expect_false(isTRUE(all.equal(heatmap_matrix(plain), heatmap_matrix(corrected))))
+  expect_false(isTRUE(all.equal(plot_pca(plain)$data$PC1, plot_pca(corrected)$data$PC1)))
+})
+
+test_that("the results module shows the batch status of each study", {
+  sim <- batch_data_set()
+  design <- sim$design
+  design$batch[design$study == "S2"] <- "b1"
+  res <- run_tma_pipeline(sim$counts, design, BPPARAM = serial)
+  shiny::testServer(mod_results_server, args = list(result = shiny::reactive(res),
+                                                    organism = list(go = 1, kegg = "x")), {
+    status <- output$batch_status
+    expect_match(status, "S1")
+    expect_match(status, "Batch in the DE model")
+    expect_match(status, "not used \\(single batch\\)")
+    expect_s3_class(batch_pca(), "ggplot")
+    expect_s3_class(batch_rle(), "ggplot")
+  })
+  # no batch column: no diagnostics
+  shiny::testServer(mod_results_server, args = list(result = shiny::reactive(demo_result()),
+                                                    organism = list(go = 1, kegg = "x")), {
+    expect_error(batch_pca(), class = "shiny.silent.error")
+  })
+})
