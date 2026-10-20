@@ -20,6 +20,10 @@
 #'   `id_type` (see [id_types()]).
 #' @param file_prefix A reactive giving the start of the download file names;
 #'   `NULL` uses the module id (e.g. "demo_pca.pdf").
+#' @param toggle_tabs If `TRUE`, the server hides the Venn diagram and Batch
+#'   effects tabs when they do not apply to the result. Use `FALSE` when the UI
+#'   was drawn for the result with `venn` and `batch` already set: the tabs
+#'   then do not exist, and hiding them would fail in the browser.
 #' @return `mod_results_ui()` returns UI; `mod_results_server()` is called for
 #'   its side effects.
 #' @name mod_results
@@ -145,7 +149,7 @@ mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE, venn = T
 
 #' @rdname mod_results
 #' @export
-mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL) {
+mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, toggle_tabs = TRUE) {
   shiny::moduleServer(id, function(input, output, session) {
     # download file names start with the tab, e.g. "demo_pca.pdf"
     fname <- function(name) {
@@ -164,17 +168,19 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL) 
       session$onFlushed(function() shiny::withReactiveDomain(session, {
         shinyjs::show("results")
         shiny::updateSelectInput(session, "individual_study", choices = res$studies)
-        # Venn diagrams only for up to 4 sets (studies + meta-analysis)
-        if (overlap_plot_type(deg_sets(res)) == "upset") {
-          shiny::hideTab("main_plots", target = "Venn diagram")
-        } else {
-          shiny::showTab("main_plots", target = "Venn diagram")
-        }
-        # the batch diagnostics only exist when the design has a batch column
-        if (is.null(res$batch)) {
-          shiny::hideTab("main_plots", target = "batch")
-        } else {
-          shiny::showTab("main_plots", target = "batch")
+        if (toggle_tabs) {
+          # Venn diagrams only for up to 4 sets (studies + meta-analysis)
+          if (overlap_plot_type(deg_sets(res)) == "upset") {
+            shiny::hideTab("main_plots", target = "Venn diagram")
+          } else {
+            shiny::showTab("main_plots", target = "Venn diagram")
+          }
+          # the batch diagnostics only exist when the design has a batch column
+          if (is.null(res$batch)) {
+            shiny::hideTab("main_plots", target = "batch")
+          } else {
+            shiny::showTab("main_plots", target = "batch")
+          }
         }
       }), once = TRUE)
     })

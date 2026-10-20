@@ -134,8 +134,10 @@ function(input, output, session) {
             req(length(results) >= i)
             results[[i]]
           })
+          #the tabs that do not apply are left out of the UI drawn for the result
           mod_results_server(paste0(prefix, "_c", i), result_i,
-                             file_prefix = reactive(paste0(prefix, "_", gsub("[^A-Za-z0-9]+", "_", result_i()$contrast))))
+                             file_prefix = reactive(paste0(prefix, "_", gsub("[^A-Za-z0-9]+", "_", result_i()$contrast))),
+                             toggle_tabs = FALSE)
         })
       }
       #tell the user which studies or comparisons were left out (replicate rule)
