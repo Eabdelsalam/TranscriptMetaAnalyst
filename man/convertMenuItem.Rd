@@ -18,3 +18,8 @@ The modified \code{menuItem}.
 Lets a \code{\link[shinydashboard:menuItem]{shinydashboard::menuItem()}} that contains inputs also switch the
 body to its tab when clicked (from Stack Overflow).
 }
+\examples{
+item <- shinydashboard::menuItem("RNA-Seq", tabName = "rnaseq",
+                                 shiny::fileInput("counts", "Counts file"))
+convertMenuItem(item, "rnaseq")
+}

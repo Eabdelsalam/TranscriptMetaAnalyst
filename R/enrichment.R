@@ -404,7 +404,7 @@ run_string_enrichment <- function(genes, species, background = NULL, id_type = "
 # STRING reports problems as a data frame with an "error" column
 check_string_response <- function(x) {
   if (is.data.frame(x) && "error" %in% names(x)) {
-    stop(sprintf("STRING returned an error: %s", paste(x$message, collapse = " ")))
+    stop(sprintf("STRING could not run the request: %s", paste(x$message, collapse = " ")))
   }
   invisible(x)
 }
