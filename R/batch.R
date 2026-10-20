@@ -127,7 +127,7 @@ NULL
 
 batch_data <- function(result) {
   if (inherits(result, "tma_batch_check")) return(list(Before = result$log_values))
-  list(Before = log2(result$norm_counts + 1), After = result$batch$corrected_log)
+  list(Before = log_values(result), After = result$batch$corrected_log)
 }
 
 # Colour of the samples in the diagnostic plots: batch, or condition without it

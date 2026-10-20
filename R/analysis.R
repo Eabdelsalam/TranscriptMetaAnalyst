@@ -53,7 +53,9 @@
 #'     \item{design}{the design rows of the samples used in this contrast.}
 #'     \item{studies, genes}{study names and the names of the analysed genes.}
 #'     \item{de}{per-study DE tables of this contrast (see [run_deseq2()]).}
-#'     \item{norm_counts}{normalised counts of the samples used (genes x samples).}
+#'     \item{norm_counts}{normalised counts of the samples used (genes x samples);
+#'       for microarray data, the log2 expression values.}
+#'     \item{scale}{`"counts"` (RNA-seq) or `"log2"` (microarray).}
 #'     \item{fold_changes}{log2 fold changes (genes x studies).}
 #'     \item{meta}{meta-analysis table: `TestStatistic`, `rawpval`, `adjpval`
 #'       and `significant` ("yes"/"no"), one row per gene.}
@@ -94,6 +96,20 @@ run_tma_analysis <- function(counts, design, reference = NULL, alpha = 0.05,
                              de_method = "DESeq2", meta_method = "fisher",
                              batch_method = "model", batch_plots = FALSE, filter = TRUE,
                              BPPARAM = tma_bpparam(length(unique(design$study)))) {
+  analyse_studies(split_studies(counts, design), design, platform = "rnaseq",
+                  reference = reference, alpha = alpha, de_method = de_method,
+                  meta_method = meta_method, batch_method = batch_method,
+                  batch_plots = batch_plots, filter = filter, BPPARAM = BPPARAM)
+}
+
+# The analysis shared by RNA-seq and microarray data. `studies` holds, for
+# each study, `counts` (RNA-seq counts, or log2 expression for microarrays)
+# and `design`.
+analyse_studies <- function(studies, design, platform = c("rnaseq", "array"), reference = NULL,
+                            alpha = 0.05, de_method = "DESeq2", meta_method = "fisher",
+                            batch_method = "model", batch_plots = FALSE, filter = TRUE,
+                            BPPARAM = tma_bpparam(length(studies))) {
+  platform <- match.arg(platform)
   if (is.null(reference)) reference <- default_reference(design$condition)
   conditions <- sort(unique(as.character(design$condition)))
   if (!reference %in% conditions) {
@@ -105,7 +121,6 @@ run_tma_analysis <- function(counts, design, reference = NULL, alpha = 0.05,
   batch_method <- match.arg(batch_method, batch_methods())
 
   # replicate rule: keep the conditions with at least 2 samples in each study
-  studies <- split_studies(counts, design)
   report <- replicate_report(design, reference, others)
   fit_studies <- list()
   for (id in names(studies)) {
@@ -122,15 +137,26 @@ run_tma_analysis <- function(counts, design, reference = NULL, alpha = 0.05,
     stop("No contrast can be meta-analysed. ", paste(summary$reason, collapse = " "), call. = FALSE)
   }
 
-  if (filter) fit_studies <- filter_low_counts(fit_studies)
-  de_methods_used <- study_methods(de_method, names(fit_studies))
-  de <- run_de_studies(fit_studies, methods = de_methods_used, alpha = alpha,
-                       batch_method = batch_method, reference = reference, BPPARAM = BPPARAM)
+  if (platform == "rnaseq") {
+    if (filter) fit_studies <- filter_low_counts(fit_studies)
+    de_methods_used <- study_methods(de_method, names(fit_studies))
+    de <- run_de_studies(fit_studies, methods = de_methods_used, alpha = alpha,
+                         batch_method = batch_method, reference = reference, BPPARAM = BPPARAM)
+  } else {
+    de_methods_used <- stats::setNames(rep("limma", length(fit_studies)), names(fit_studies))
+    de <- run_array_studies(fit_studies, alpha = alpha, batch_method = batch_method,
+                            reference = reference, BPPARAM = BPPARAM)
+  }
   batch <- NULL
   if ("batch" %in% colnames(design)) {
     status <- vapply(fit_studies, function(st) batch_status(st$design, batch_method), character(1))
     corrected <- lapply(names(fit_studies), function(id) {
-      batch_corrected_log(fit_studies[[id]]$counts, fit_studies[[id]]$design, status[[id]], batch_method)
+      st <- fit_studies[[id]]
+      if (platform == "rnaseq") {
+        batch_corrected_log(st$counts, st$design, status[[id]], batch_method)
+      } else {
+        remove_batch_log2(st$counts, st$design)
+      }
     })
     batch <- list(method = batch_method, status = status,
                   corrected_log = do.call(cbind, unname(corrected)), plots = isTRUE(batch_plots))
@@ -145,7 +171,8 @@ run_tma_analysis <- function(counts, design, reference = NULL, alpha = 0.05,
       design, conditions = c(reference, others[i]), contrast = contrasts[i],
       reference = reference, alpha = alpha, meta_method = meta_method,
       de_methods = de_methods_used[used], batch = batch,
-      report = report[report$contrast == contrasts[i], , drop = FALSE]
+      report = report[report$contrast == contrasts[i], , drop = FALSE],
+      scale = if (platform == "rnaseq") "counts" else "log2"
     )
   }
 
@@ -234,7 +261,7 @@ contrast_summary <- function(report, contrasts) {
 
 # The tma_result of one contrast
 build_tma_result <- function(studies, tables, design, conditions, contrast, reference,
-                             alpha, meta_method, de_methods, batch, report) {
+                             alpha, meta_method, de_methods, batch, report, scale = "counts") {
   # samples of the two compared conditions in the studies used
   studies <- lapply(studies, function(st) {
     keep <- st$design$condition %in% conditions
@@ -283,8 +310,10 @@ build_tma_result <- function(studies, tables, design, conditions, contrast, refe
     genes = genes,
     de = tables,
     norm_counts = combine_study_matrices(
-      lapply(studies, function(st) size_factor_normalise(st$counts)), design$sample
+      lapply(studies, function(st) if (scale == "log2") st$counts else size_factor_normalise(st$counts)),
+      design$sample
     ),
+    scale = scale,
     fold_changes = fold_changes,
     meta = meta,
     fc_select = fc_select,

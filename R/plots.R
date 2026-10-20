@@ -170,7 +170,7 @@ plot_pvalue_hist <- function(result) {
 plot_pca <- function(result) {
   design <- result$design
   rownames(design) <- design$sample
-  values <- if (use_corrected(result)) result$batch$corrected_log else log2(result$norm_counts + 1)
+  values <- if (use_corrected(result)) result$batch$corrected_log else log_values(result)
   se <- SummarizedExperiment::SummarizedExperiment(values, colData = design)
   pca <- suppressMessages(DESeq2::plotPCA(DESeq2::DESeqTransform(se), intgroup = "condition",
                                           returnData = TRUE))
@@ -442,14 +442,22 @@ plot_string_lollipop <- function(string_table, n_terms = 30) {
 #' @export
 plot_gene_counts <- function(result, gene, nrows = length(result$studies) %/% 2) {
   design <- result$design
-  # normalised counts + 0.5, as DESeq2::plotCounts() returns them
+  log2_data <- identical(result$scale, "log2")
+  # RNA-seq: normalised counts + 0.5, as DESeq2::plotCounts() returns them;
+  # microarray: the log2 expression values
   counts_df <- data.frame(study = design$study,
                           condition = design$condition,
-                          count = result$norm_counts[gene, design$sample] + 0.5)
-  ggplot2::ggplot(counts_df, ggplot2::aes(x = condition, y = count)) +
+                          count = result$norm_counts[gene, design$sample] + if (log2_data) 0 else 0.5)
+  plot <- ggplot2::ggplot(counts_df, ggplot2::aes(x = condition, y = count)) +
     ggplot2::geom_point(position = ggplot2::position_jitter(w = 0.1, h = 0)) +
-    ggplot2::labs(title = paste("Counts of", gene, "across studies"),
-                  x = "Condition", y = "Normalized counts") +
-    ggplot2::scale_y_log10() +
+    ggplot2::labs(title = paste(if (log2_data) "Expression of" else "Counts of", gene, "across studies"),
+                  x = "Condition", y = if (log2_data) "log2 expression" else "Normalized counts") +
     ggplot2::facet_wrap(~study, nrow = max(1, nrows))
+  if (log2_data) plot else plot + ggplot2::scale_y_log10()
+}
+
+# log2 values of a result for the plots: log2(normalised counts + 1) for
+# RNA-seq, the expression values themselves for microarrays
+log_values <- function(result) {
+  if (identical(result$scale, "log2")) result$norm_counts else log2(result$norm_counts + 1)
 }
