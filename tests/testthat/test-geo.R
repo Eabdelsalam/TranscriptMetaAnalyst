@@ -1,20 +1,4 @@
 # GEO is mocked: a small ExpressionSet stands in for a downloaded series
-fake_eset <- function(two_colour = FALSE) {
-  expr <- matrix(c(5, 6, 7, 8, 9, 10,
-                   7, 7, 8, 8, 9, 9,
-                   1, 2, 1, 2, 1, 2), nrow = 3, byrow = TRUE,
-                 dimnames = list(c("p1", "p2", "p3"), paste0("GSM", 1:6)))
-  pheno <- data.frame(title = paste0("sample", 1:6),
-                      source_name_ch1 = "culture",
-                      characteristics_ch1 = rep(c("treatment: control", "treatment: stress", "treatment: other"), each = 2),
-                      label_ch1 = if (two_colour) rep(c("Cy3", "Cy5"), 3) else "biotin",
-                      channel_count = "1", row.names = colnames(expr))
-  feature <- data.frame(ID = rownames(expr), ORF = c("sll0001", "sll0002", ""),
-                        Gene.symbol = c("abcA", "abcB", ""), row.names = rownames(expr))
-  Biobase::ExpressionSet(expr, phenoData = Biobase::AnnotatedDataFrame(pheno),
-                         featureData = Biobase::AnnotatedDataFrame(feature), annotation = "GPL123")
-}
-
 test_that("fetch_geo checks the accession and names the platforms", {
   seen <- NULL
   local_mocked_bindings(getGEO = function(GEO, ...) {

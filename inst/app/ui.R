@@ -37,6 +37,11 @@ ui <- dashboardPage(
                              actionButton("rnaseq_analyze", "Start Analysis!", icon = icon("laptop"))
                              ),
                     tabName = "rnaseq"), #close rna-seq tab
+
+    #create a microarray tab
+    menuItem("Microarray Meta-Analysis",
+             tabName = "microarray",
+             icon = icon("table-cells")),
     
     #create a tab for demo analysis
     menuItem("Run Demo Analysis",
@@ -100,6 +105,40 @@ ui <- dashboardPage(
         #results of the analysis, shown once it has run
         uiOutput("rnaseq_results")
       ), #close rnaseq tab item
+      ##### MICROARRAY ANALYSIS TAB #####
+      ###################################
+      tabItem(tabName = "microarray",
+        fluidRow(mod_settings_ui("array_settings", per_study = TRUE, platform = "array")),
+        fluidRow(box(
+          title = "Microarray data", status = "primary", solidHeader = TRUE, width = 12,
+          p("Meta-analysis of normalised microarray expression data. Load the demo data, upload one expression file per study with a design file, or import series from GEO."),
+          actionButton("array_demo", "Load demo data", icon = icon("person-running")),
+          hr(),
+          radioButtons("array_source", "Data source", inline = TRUE,
+                       choices = c("Upload expression files" = "upload", "Import from GEO" = "geo")),
+          conditionalPanel(
+            "input.array_source == 'upload'",
+            fluidRow(
+              column(6, fileInput("array_files", "Expression files (tab-delimited, one per study)", multiple = TRUE,
+                                  accept = c("text/plain", ".txt", ".tsv", ".gz"))),
+              column(6, fileInput("array_design", "Experimental design file (tab-delimited)",
+                                  accept = c("text/plain", ".txt", ".tsv")))
+            ),
+            helpText("Each expression file holds one study: the first column has the probe (or gene) IDs, an optional column named 'Symbol' (or 'Gene') gives the gene of each probe, and the other columns are the samples, named as in the 'sample' column of the design file. The design file has the columns 'sample', 'study' and 'condition' (and optionally 'batch'). Values are log2-transformed automatically if they are not log2 already; probes are collapsed to genes by the highest mean expression.")
+          ),
+          conditionalPanel(
+            "input.array_source == 'geo'",
+            fluidRow(
+              column(8, textInput("geo_ids", "GEO series accessions, separated by commas", placeholder = "e.g. GSE82120, GSE63352")),
+              column(4, br(), actionButton("geo_fetch", "Fetch from GEO", icon = icon("download")))
+            ),
+            uiOutput("geo_config")
+          ),
+          actionButton("array_analyze", "Start Analysis!", icon = icon("laptop"))
+        )),
+        uiOutput("array_preparation"),
+        uiOutput("array_results")
+      ), #close microarray tab item
       ##### DEMO ANALYSIS TAB #####
       #############################
       tabItem(tabName = "demo",

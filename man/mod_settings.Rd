@@ -6,16 +6,19 @@
 \alias{mod_settings_server}
 \title{Analysis settings module}
 \usage{
-mod_settings_ui(id, per_study = FALSE)
+mod_settings_ui(id, per_study = FALSE, platform = c("rnaseq", "array"))
 
 mod_settings_server(id, design = NULL)
 }
 \arguments{
 \item{id}{Module id.}
 
-\item{per_study}{If \code{TRUE}, show a DE-method override for each study of
-the design passed to \code{mod_settings_server()}, and the batch-effect
-options.}
+\item{per_study}{If \code{TRUE}, show the reference condition, a DE-method
+override for each study of the design passed to \code{mod_settings_server()}
+(RNA-seq only), and the batch-effect options.}
+
+\item{platform}{\code{"rnaseq"} or \code{"array"}. For microarray data the DE method
+is always limma, and the batch options are the model term or none.}
 
 \item{design}{A reactive returning the experimental design, used to list
 the studies for the per-study override (\code{NULL} if \code{per_study = FALSE}).}
