@@ -11,7 +11,7 @@ fake_panther <- function(genes, organism, annot_dataset, cutoff, ref_genes = NUL
       fdr = c(0.001, 0.02, 0.5, 0.01),
       plus_minus = "+"
     ),
-    input_list = list(mapped_ids = paste(mapped, collapse = ","),
+    input_list = list(organism = "Synechocystis", mapped_ids = paste(mapped, collapse = ","),
                       unmapped_ids = paste(setdiff(genes, mapped), collapse = ",")),
     reference = list(mapped_count = list(content = if (is.null(ref_genes)) NULL else length(ref_genes) - 1)),
     tool_release_date = 20240807,
@@ -45,6 +45,7 @@ test_that("run_go_enrichment uses the tested genes as reference and reports the 
   expect_null(go$mapping$warning)
   expect_match(go$version, "PANTHER release 20240807; GO Ontology database DOI: Released 2026-04-28")
   expect_equal(go$background, "all 20 tested genes (19 recognised by PANTHER)")
+  expect_equal(go$organism, "Synechocystis (1111708)")
   # roots, unclassified and zero-enrichment terms removed; sorted by FDR
   expect_equal(nrow(go$table), 3)
   expect_false(any(go$table$term.id %in% c("GO:0008150", "GO:0005575", "GO:0003674")))
@@ -142,7 +143,8 @@ test_that("kegg_organism_name looks codes up offline", {
 
 fake_string_map <- function(ids, species, ...) {
   known <- ids[!grepl("^unknown", ids)]
-  data.frame(queryItem = known, stringId = paste0(species, ".", known))
+  data.frame(queryItem = known, stringId = paste0(species, ".", known),
+             taxonName = rep("Synechocystis sp. PCC 6803", length(known)))
 }
 
 test_that("run_string_enrichment maps the input and the background to STRING identifiers", {
@@ -176,6 +178,7 @@ test_that("run_string_enrichment maps the input and the background to STRING ide
   expect_equal(string$mapping$mapped, 2)
   expect_equal(string$mapping$unmapped_ids, "unknown1")
   expect_equal(string$version, "STRING version 12.0")
+  expect_equal(string$organism, "Synechocystis sp. PCC 6803 (1148)")
   expect_equal(string$background, "all 5 tested genes (3 recognised by STRING)")
   # FDR cutoff applied, sorted by FDR
   expect_equal(string$table$term, c("GO:0015979", "PMID:1"))

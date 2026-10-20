@@ -256,9 +256,15 @@ run_go_enrichment <- function(genes, organism, background = NULL, id_type = "keg
                       gsub("\\s+", " ", first$annot_version_release_date)),
     background = background_label(background, if (is.null(ref_mapped)) NA else ref_mapped,
                                   "PANTHER", "whole genome (PANTHER default)"),
-    organism = as.character(organism),
+    organism = organism_label(first$input_list$organism, organism),
     id_type = id_type
   )
+}
+
+# "Name (taxon ID)" when the service returned the organism name
+organism_label <- function(name, taxon) {
+  name <- if (is.null(name) || all(is.na(name))) "" else as.character(name[1])
+  if (nzchar(name)) sprintf("%s (%s)", name, taxon) else as.character(taxon)
 }
 
 #' KEGG pathway enrichment
@@ -385,7 +391,7 @@ run_string_enrichment <- function(genes, species, background = NULL, id_type = "
     version = paste("STRING version", version$string_version),
     background = background_label(background, if (is.null(bg)) NA else length(unique(bg$queryItem)),
                                   "STRING", "whole genome (STRING default)"),
-    organism = as.character(species),
+    organism = organism_label(input$taxonName, species),
     id_type = id_type
   )
 }
