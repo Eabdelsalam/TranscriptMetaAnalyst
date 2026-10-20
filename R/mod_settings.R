@@ -104,7 +104,11 @@ batch_inputs <- function(ns) {
 # Short in-app guidance on choosing the methods
 method_guidance <- function() {
   shiny::tags$details(
-    shiny::tags$summary(shiny::strong("Which method should I use?")),
+    # styled as a link so it is clear that it can be clicked to open
+    shiny::tags$summary(
+      style = "color: #337ab7; text-decoration: underline; cursor: pointer; font-weight: bold;",
+      "Which method should I use?"
+    ),
     shiny::tags$p(shiny::strong("Differential expression"), " (run in each study):"),
     shiny::tags$ul(
       shiny::tags$li(shiny::strong("DESeq2"), " (default): negative-binomial model with shrunken dispersion estimates. Works well with few replicates per group."),

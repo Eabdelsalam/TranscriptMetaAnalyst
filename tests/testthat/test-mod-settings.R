@@ -130,3 +130,9 @@ test_that("the reference drop-down lists the design's conditions and guesses the
     expect_equal(session$returned()$reference, "Heat")
   })
 })
+
+test_that("the method guidance link looks clickable", {
+  html <- as.character(mod_settings_ui("x"))
+  expect_match(html, '<summary style="[^"]*cursor: pointer;[^"]*">Which method should I use\\?</summary>')
+  expect_match(html, "text-decoration: underline")
+})
