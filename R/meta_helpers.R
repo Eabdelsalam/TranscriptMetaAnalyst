@@ -86,3 +86,23 @@ heatmap_row_clusters <- function(n_genes, k = 2L) {
 mean_fold_change <- function(fc_list) {
   rowMeans(do.call(cbind, unname(fc_list)), na.rm = TRUE)
 }
+
+#' Meta-significant, direction-consistent DEGs
+#'
+#' Selects the genes that are significant in the Fisher meta-analysis and whose
+#' fold changes have the same sign in every study. These are the genes used for
+#' the heatmap, the Venn/UpSet plots and the GO/KEGG enrichment.
+#'
+#' @param fc_select A data frame with gene names as row names, a
+#'   `DE.fishercomb` column (1 = meta-significant) and a `signFC` column
+#'   (1 or -1 = consistent direction, 0 = conflicting).
+#' @return A character vector of gene names.
+#' @export
+#' @examples
+#' fc_select <- data.frame(DE.fishercomb = c(1, 1, 0), signFC = c(1, 0, -1),
+#'                         row.names = c("g1", "g2", "g3"))
+#' select_meta_degs(fc_select)
+select_meta_degs <- function(fc_select) {
+  keep <- fc_select$DE.fishercomb == 1 & abs(fc_select$signFC) == 1
+  rownames(fc_select)[which(keep)]
+}

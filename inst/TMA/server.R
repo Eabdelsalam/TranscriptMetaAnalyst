@@ -252,7 +252,7 @@ function(input, output, session) {
       })
       
       #new identified or excluded DEGs
-      fishcomb_de <- reactive({rownames(keepDE())[which(keepDE()[, "DE.fishercomb"] == 1)]})
+      fishcomb_de <- reactive({select_meta_degs(FC.selectDE())})
       indstudy_de <- reactive({
         lapply(studies(),
                function(x) {rownames(keepDE())[which(keepDE()[, x] == 1)]})
@@ -474,22 +474,27 @@ function(input, output, session) {
       
       #run the analysis upon hitting the button
       observeEvent(input$run_go_rnaseq, {
+        #enrichment runs on the meta-significant, direction-consistent DEGs only
+        if (length(fishcomb_de()) == 0) {
+          shinyalert("No DEGs", "The meta-analysis found no significant, direction-consistent DEGs to test for enrichment.")
+          return()
+        }
         showSpinner("go_plot_rnaseq")
         go_rnaseq_table <- reactive({
           #biological process
-          bp <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          bp <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = as.numeric(organisms()$taxon_id[organisms()$long_name == input$organism_go_rnaseq]),
                                                     annot_dataset = "GO:0008150", cutoff = 0.05))
           bp_result <- bp$result
           bp_result$category <- "BP"
           #cellular component
-          cc <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          cc <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = as.numeric(organisms()$taxon_id[organisms()$long_name == input$organism_go_rnaseq]),
                                                     annot_dataset = "GO:0005575", cutoff = 0.05))
           cc_result <- cc$result
           cc_result$category <- "CC"
           #molecular function
-          mf <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          mf <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = as.numeric(organisms()$taxon_id[organisms()$long_name == input$organism_go_rnaseq]),
                                                     annot_dataset = "GO:0003674", cutoff = 0.05))
           mf_result <- mf$result
@@ -566,9 +571,14 @@ function(input, output, session) {
       ## KEGG analysis
       #start the analysis upon hitting the button
       observeEvent(input$run_kegg_rnaseq, {
+        #enrichment runs on the meta-significant, direction-consistent DEGs only
+        if (length(fishcomb_de()) == 0) {
+          shinyalert("No DEGs", "The meta-analysis found no significant, direction-consistent DEGs to test for enrichment.")
+          return()
+        }
         showSpinner("kegg_plot_rnaseq")
         kegg_rnaseq_table <- reactive({
-          temp <- suppressMessages(enrichKEGG(gene = rownames(keepDE()),
+          temp <- suppressMessages(enrichKEGG(gene = fishcomb_de(),
                                               organism = input$organism_kegg_rnaseq,
                                               qvalueCutoff = 0.05,
                                               pAdjustMethod = "BH"))
@@ -810,7 +820,7 @@ function(input, output, session) {
       })
       
       #new identified or excluded DEGs
-      fishcomb_de <- reactive({rownames(keepDE())[which(keepDE()[, "DE.fishercomb"] == 1)]})
+      fishcomb_de <- reactive({select_meta_degs(FC.selectDE())})
       indstudy_de <- reactive({
         lapply(studies(),
                function(x) {rownames(keepDE())[which(keepDE()[, x] == 1)]})
@@ -1019,22 +1029,27 @@ function(input, output, session) {
       ## GO analysis
       #run the analysis upon hitting the button
       observeEvent(input$run_go_demo, {
+        #enrichment runs on the meta-significant, direction-consistent DEGs only
+        if (length(fishcomb_de()) == 0) {
+          shinyalert("No DEGs", "The meta-analysis found no significant, direction-consistent DEGs to test for enrichment.")
+          return()
+        }
         showSpinner("go_plot_demo")
         go_table_demo <- reactive({
           #biological process
-          bp <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          bp <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = 1111708,
                                                     annot_dataset = "GO:0008150", cutoff = 0.05))
           bp_result <- bp$result
           bp_result$category <- "BP"
           #cellular component
-          cc <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          cc <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = 1111708,
                                                     annot_dataset = "GO:0005575", cutoff = 0.05))
           cc_result <- cc$result
           cc_result$category <- "CC"
           #molecular function
-          mf <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          mf <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = 1111708,
                                                     annot_dataset = "GO:0003674", cutoff = 0.05))
           mf_result <- mf$result
@@ -1109,9 +1124,14 @@ function(input, output, session) {
       ## KEGG analysis
       #start the analysis upon hitting the button
       observeEvent(input$run_kegg_demo, {
+        #enrichment runs on the meta-significant, direction-consistent DEGs only
+        if (length(fishcomb_de()) == 0) {
+          shinyalert("No DEGs", "The meta-analysis found no significant, direction-consistent DEGs to test for enrichment.")
+          return()
+        }
         showSpinner("kegg_plot_demo")
         kegg_table_demo <- reactive({
-          temp <- suppressMessages(enrichKEGG(gene = rownames(keepDE()),
+          temp <- suppressMessages(enrichKEGG(gene = fishcomb_de(),
                                               organism = "syn",
                                               qvalueCutoff = 0.05,
                                               pAdjustMethod = "BH"))
