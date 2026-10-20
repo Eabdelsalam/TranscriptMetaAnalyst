@@ -54,3 +54,23 @@ test_that("study_significant applies the padj and fold-change thresholds", {
   all_b <- res$de$B
   expect_equal(nrow(sig), sum(all_b$padj < 0.05 & abs(all_b$log2_fc) > 1, na.rm = TRUE))
 })
+
+test_that("per-study DE gives the same result in parallel and serially", {
+  skip_on_os("windows")
+  demo <- tma_demo_data()
+  studies <- split_studies(demo$counts, demo$design)
+  serial <- run_de_studies(studies, BPPARAM = BiocParallel::SerialParam())
+  parallel <- run_de_studies(studies, BPPARAM = BiocParallel::MulticoreParam(workers = 3))
+  expect_equal(parallel, serial)
+})
+
+test_that("tma_bpparam uses at most one worker per study", {
+  withr::local_options(tma.workers = 8)
+  param <- tma_bpparam(3)
+  if (.Platform$OS.type == "windows") {
+    expect_s4_class(param, "SerialParam")
+  } else {
+    expect_equal(BiocParallel::bpnworkers(param), 3)
+  }
+  expect_s4_class(tma_bpparam(1), "SerialParam")
+})

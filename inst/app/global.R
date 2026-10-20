@@ -9,3 +9,8 @@ library(shiny)
 library(shinydashboard)
 library(shinyjs)
 library(shinyalert)
+
+#run long analyses in background processes, unless a future plan was set;
+#the previous plan is restored when the app stops
+old_plan <- tma_use_background_workers()
+onStop(function() future::plan(old_plan))

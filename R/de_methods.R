@@ -44,8 +44,12 @@ run_deseq2 <- function(counts, design, alpha = 0.05) {
 
 #' Differential expression of every study
 #'
+#' Runs [run_deseq2()] on every study. The studies are independent, so they
+#' are fitted in parallel with BiocParallel.
+#'
 #' @param studies Output of [split_studies()].
 #' @param alpha Significance level passed to [run_deseq2()].
+#' @param BPPARAM A BiocParallel back-end; by default [tma_bpparam()].
 #' @return A named list with one [run_deseq2()] result per study.
 #' @export
 #' @examples
@@ -54,6 +58,31 @@ run_deseq2 <- function(counts, design, alpha = 0.05) {
 #' de <- run_de_studies(split_studies(demo$counts, demo$design))
 #' names(de)
 #' }
-run_de_studies <- function(studies, alpha = 0.05) {
-  lapply(studies, function(s) run_deseq2(s$counts, s$design, alpha = alpha))
+run_de_studies <- function(studies, alpha = 0.05, BPPARAM = tma_bpparam(length(studies))) {
+  BiocParallel::bplapply(studies, function(s) run_deseq2(s$counts, s$design, alpha = alpha),
+                         BPPARAM = BPPARAM)
+}
+
+#' Parallel back-end for the per-study analyses
+#'
+#' Uses one worker per study, up to the number of cores minus one, as forked
+#' processes (`MulticoreParam`). On Windows, or when only one worker is
+#' available, the studies are run one after the other (`SerialParam`). Set
+#' `options(tma.workers = n)` to choose the number of workers.
+#'
+#' @param n_jobs Number of independent jobs (studies).
+#' @return A `BiocParallelParam` object.
+#' @export
+#' @examples
+#' tma_bpparam(3)
+tma_bpparam <- function(n_jobs) {
+  cores <- parallel::detectCores()
+  if (is.na(cores)) cores <- 1L
+  workers <- getOption("tma.workers", max(1L, cores - 1L))
+  workers <- min(n_jobs, workers)
+  if (.Platform$OS.type == "windows" || workers < 2) {
+    BiocParallel::SerialParam()
+  } else {
+    BiocParallel::MulticoreParam(workers = workers)
+  }
 }

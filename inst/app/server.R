@@ -34,13 +34,29 @@ function(input, output, session) {
     list(counts = counts, design = design)
   })
 
-  #run the meta-analysis once per click
-  rnaseq_result <- reactive({
+  #run the meta-analysis once per click, in a background process so the app
+  #stays responsive while it runs
+  rnaseq_task <- ExtendedTask$new(function(counts, design) {
+    promises::future_promise(run_tma_pipeline(counts, design), seed = TRUE)
+  })
+  #disable "Start Analysis!" while an analysis is running
+  observe({
+    shinyjs::toggleState("rnaseq_analyze", condition = rnaseq_task$status() != "running")
+  })
+  observeEvent(rnaseq_inputs(), {
     inputs <- rnaseq_inputs()
     shinyalert("Running...", "RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
     shinyjs::hide("rnaseq_steps")
-    run_tma_pipeline(inputs$counts, inputs$design)
+    rnaseq_task$invoke(inputs$counts, inputs$design)
+  })
+  rnaseq_result <- reactive({
+    #an error in the analysis is shown to the user instead of stopping the app
+    tryCatch(rnaseq_task$result(), error = function(e) {
+      if (inherits(e, "shiny.silent.error")) stop(e)
+      shinyalert("Analysis failed", conditionMessage(e), type = "error")
+      req(FALSE)
+    })
   })
   mod_results_server("rnaseq", rnaseq_result)
 

@@ -84,10 +84,12 @@ test_that("the app computes the demo once, when the Demo tab is first opened", {
 
 test_that("the RNA-seq tab validates the uploads and runs the pipeline on click", {
   res <- demo_result()
-  received <- NULL
+  # the mock runs inside the background task, so it reports its input through
+  # the returned result
   local_mocked_bindings(run_tma_pipeline = function(counts, design, ...) {
-    received <<- list(counts = counts, design = design)
-    res
+    out <- res
+    out$design <- design
+    out
   })
   bad_design <- withr::local_tempfile(fileext = ".txt")
   utils::write.table(tma_demo_data()$design[, c("sample", "condition")], bad_design,
@@ -98,11 +100,18 @@ test_that("the RNA-seq tab validates the uploads and runs the pipeline on click"
                       rnaseq_design = list(datapath = bad_design),
                       rnaseq_analyze = 1)
     expect_error(rnaseq_result(), class = "shiny.silent.error")
-    expect_null(received)
+    expect_equal(rnaseq_task$status(), "initial")
 
     session$setInputs(rnaseq_design = list(datapath = tma_example_file("design")),
                       rnaseq_analyze = 2)
+    # the analysis runs as an ExtendedTask; wait for its promise to resolve
+    for (i in 1:200) {
+      later::run_now(0.05)
+      session$flushReact()
+      if (rnaseq_task$status() != "running") break
+    }
+    expect_equal(rnaseq_task$status(), "success")
     expect_s3_class(rnaseq_result(), "tma_result")
-    expect_equal(received$design, tma_demo_data()$design)
+    expect_equal(rnaseq_result()$design, tma_demo_data()$design)
   })
 })

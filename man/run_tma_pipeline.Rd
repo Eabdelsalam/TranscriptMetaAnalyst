@@ -4,7 +4,12 @@
 \alias{run_tma_pipeline}
 \title{Run the TMA RNA-seq meta-analysis}
 \usage{
-run_tma_pipeline(counts, design, alpha = 0.05)
+run_tma_pipeline(
+  counts,
+  design,
+  alpha = 0.05,
+  BPPARAM = tma_bpparam(length(unique(design$study)))
+)
 }
 \arguments{
 \item{counts}{Counts data frame with a \code{Geneid} column and one column per
@@ -14,6 +19,9 @@ sample.}
 \code{condition} columns.}
 
 \item{alpha}{Significance level for the per-study and meta-analysis tests.}
+
+\item{BPPARAM}{BiocParallel back-end for the per-study analyses, see
+\code{\link[=tma_bpparam]{tma_bpparam()}}.}
 }
 \value{
 An object of class \code{tma_result}, a list with

@@ -113,6 +113,8 @@ consistent_direction <- function(fold_changes) {
 #' @param design Experimental design data frame with `sample`, `study` and
 #'   `condition` columns.
 #' @param alpha Significance level for the per-study and meta-analysis tests.
+#' @param BPPARAM BiocParallel back-end for the per-study analyses, see
+#'   [tma_bpparam()].
 #' @return An object of class `tma_result`, a list with
 #'   \describe{
 #'     \item{design}{the experimental design.}
@@ -137,9 +139,10 @@ consistent_direction <- function(fold_changes) {
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' length(res$meta_degs)
 #' }
-run_tma_pipeline <- function(counts, design, alpha = 0.05) {
+run_tma_pipeline <- function(counts, design, alpha = 0.05,
+                             BPPARAM = tma_bpparam(length(unique(design$study)))) {
   studies <- split_studies(counts, design)
-  de <- run_de_studies(studies, alpha = alpha)
+  de <- run_de_studies(studies, alpha = alpha, BPPARAM = BPPARAM)
   genes <- counts$Geneid
   study_ids <- names(studies)
   tables <- lapply(de, `[[`, "table")
