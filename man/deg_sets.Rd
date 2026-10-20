@@ -17,9 +17,7 @@ meta-analysis DEGs (\code{Meta}).
 Gene sets for the Venn and UpSet plots
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 res <- run_tma_pipeline(demo$counts, demo$design)
 lengths(deg_sets(res))
-}
 }

@@ -27,6 +27,14 @@
 #' @return `mod_results_ui()` returns UI; `mod_results_server()` is called for
 #'   its side effects.
 #' @name mod_results
+#' @examples
+#' # the UI part; the server part runs inside a Shiny app
+#' ui <- mod_results_ui("demo")
+#' if (interactive()) {
+#'   shiny::shinyApp(shinydashboard::dashboardPage(
+#'     shinydashboard::dashboardHeader(), shinydashboard::dashboardSidebar(),
+#'     shinydashboard::dashboardBody(ui)), function(input, output, session) NULL)
+#' }
 #' @export
 mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE, venn = TRUE, batch = TRUE) {
   ns <- shiny::NS(id)

@@ -299,11 +299,9 @@ remove_batch_log2 <- function(values, design) {
 #'   `preparation` (the report and notes of [prepare_array_studies()]).
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_microarray_demo_data()
 #' analysis <- run_array_analysis(demo$matrices, demo$design, reference = "HC")
 #' analysis
-#' }
 run_array_analysis <- function(matrices, design, reference = NULL, alpha = 0.05,
                                meta_method = "fisher", batch_method = "none", batch_plots = FALSE,
                                BPPARAM = tma_bpparam(length(unique(design$study)))) {

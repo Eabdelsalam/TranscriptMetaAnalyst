@@ -53,9 +53,7 @@ RNA-seq: same replicate rule, meta-analysis methods, direction filter and
 results.
 }
 \examples{
-\donttest{
 demo <- tma_microarray_demo_data()
 analysis <- run_array_analysis(demo$matrices, demo$design, reference = "HC")
 analysis
-}
 }

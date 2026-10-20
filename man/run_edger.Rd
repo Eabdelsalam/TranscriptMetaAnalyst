@@ -32,9 +32,7 @@ normalisation, \code{glmQLFit()}, \code{glmQLFTest()}) and returns the same
 standardised table as \code{\link[=run_deseq2]{run_deseq2()}}.
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 study <- split_studies(demo$counts, demo$design)$A
 head(run_edger(study$counts, study$design)$table)
-}
 }

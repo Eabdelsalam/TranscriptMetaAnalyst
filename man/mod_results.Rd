@@ -60,3 +60,12 @@ main plots, the meta-analysis table, functional annotation and gene count
 plots. The server part renders a \code{tma_result}; every output is declared once
 and updates when the result changes.
 }
+\examples{
+# the UI part; the server part runs inside a Shiny app
+ui <- mod_results_ui("demo")
+if (interactive()) {
+  shiny::shinyApp(shinydashboard::dashboardPage(
+    shinydashboard::dashboardHeader(), shinydashboard::dashboardSidebar(),
+    shinydashboard::dashboardBody(ui)), function(input, output, session) NULL)
+}
+}

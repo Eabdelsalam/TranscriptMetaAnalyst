@@ -21,9 +21,7 @@ where a p-value of 0 was replaced).
 Data for the volcano plot
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 res <- run_tma_pipeline(demo$counts, demo$design)
 head(volcano_data(res))
-}
 }

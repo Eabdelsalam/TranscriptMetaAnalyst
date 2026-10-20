@@ -21,9 +21,7 @@ The per-study DEG list offered for download: genes with an adjusted p-value
 below \code{alpha} and an absolute log2 fold change above \code{lfc}.
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 res <- run_tma_pipeline(demo$counts, demo$design)
 head(study_significant(res, "A"))
-}
 }

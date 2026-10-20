@@ -21,6 +21,14 @@
 #'   `batch_plots` and `reference` (the reference condition, `NULL` until a
 #'   design is available).
 #' @name mod_settings
+#' @examples
+#' # the UI part; the server part runs inside a Shiny app
+#' ui <- mod_settings_ui("settings", per_study = TRUE)
+#' if (interactive()) {
+#'   shiny::shinyApp(shinydashboard::dashboardPage(
+#'     shinydashboard::dashboardHeader(), shinydashboard::dashboardSidebar(),
+#'     shinydashboard::dashboardBody(ui)), function(input, output, session) NULL)
+#' }
 #' @export
 mod_settings_ui <- function(id, per_study = FALSE, platform = c("rnaseq", "array")) {
   ns <- shiny::NS(id)

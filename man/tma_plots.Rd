@@ -123,11 +123,9 @@ derived from it) and returns a plot object, except \code{plot_pvalue_hist()} and
 \code{plot_heatmap_static()}, which draw on the current graphics device.
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 res <- run_tma_pipeline(demo$counts, demo$design)
 plot_pca(res)
 plot_volcano(volcano_data(res))
 plot_gene_counts(res, res$meta_degs[1])
-}
 }

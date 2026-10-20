@@ -26,10 +26,8 @@ smallest adjusted p-values. This only changes what the heatmap shows; the
 DEGs themselves are defined by the analysis.
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 res <- run_tma_pipeline(demo$counts, demo$design)
 length(heatmap_genes(res))
 length(heatmap_genes(res, lfc_cutoff = 2, top_n = 50))
-}
 }

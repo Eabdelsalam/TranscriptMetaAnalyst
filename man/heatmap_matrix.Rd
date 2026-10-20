@@ -28,9 +28,7 @@ Normalised counts of the meta-analysis DEGs, z-scored within each study
 (see \code{\link[=scale_deg_counts]{scale_deg_counts()}}); the data behind the heatmap.
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 res <- run_tma_pipeline(demo$counts, demo$design)
 dim(heatmap_matrix(res))
-}
 }

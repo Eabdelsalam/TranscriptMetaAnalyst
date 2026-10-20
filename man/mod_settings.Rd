@@ -38,3 +38,12 @@ also offers the batch-effect options; they need a \code{batch} column in the
 design, which is checked when the analysis starts (see
 \code{\link[=validate_batch_choice]{validate_batch_choice()}}).
 }
+\examples{
+# the UI part; the server part runs inside a Shiny app
+ui <- mod_settings_ui("settings", per_study = TRUE)
+if (interactive()) {
+  shiny::shinyApp(shinydashboard::dashboardPage(
+    shinydashboard::dashboardHeader(), shinydashboard::dashboardSidebar(),
+    shinydashboard::dashboardBody(ui)), function(input, output, session) NULL)
+}
+}

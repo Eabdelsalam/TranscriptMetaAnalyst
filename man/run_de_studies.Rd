@@ -37,9 +37,7 @@ Runs the chosen DE method on every study. The studies are independent, so
 they are fitted in parallel with BiocParallel.
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 de <- run_de_studies(split_studies(demo$counts, demo$design))
 names(de)
-}
 }

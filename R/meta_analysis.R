@@ -169,11 +169,9 @@ consistent_direction <- function(fold_changes) {
 #' @return The rows of the study's DE table that pass both thresholds.
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' head(study_significant(res, "A"))
-#' }
 study_significant <- function(result, study, lfc = 1) {
   tab <- result$de[[study]]
   tab[which(tab$padj < result$alpha & abs(tab$log2_fc) > lfc), , drop = FALSE]

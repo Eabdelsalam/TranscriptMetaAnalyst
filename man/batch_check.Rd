@@ -41,10 +41,8 @@ unrecorded batch effect. These flags are guides for looking at the PCA and
 RLE plots (\code{\link[=plot_batch_pca]{plot_batch_pca()}}, \code{\link[=plot_rle]{plot_rle()}}), not statistical tests.
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 check <- batch_check(demo$counts, demo$design)
 check$table
 plot_batch_pca(check)
-}
 }

@@ -64,11 +64,9 @@ heatmap_row_clusters <- function(n_genes, k = 2L) {
 #' @return A numeric matrix (meta DEGs x samples).
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' dim(heatmap_matrix(res))
-#' }
 heatmap_matrix <- function(result, corrected = use_corrected(result), genes = result$meta_degs) {
   values <- if (corrected) result$batch$corrected_log else result$norm_counts
   samples_by_study <- split(result$design$sample, result$design$study)[result$studies]
@@ -91,12 +89,10 @@ heatmap_matrix <- function(result, corrected = use_corrected(result), genes = re
 #' @return A character vector of genes, in the order of `result$meta_degs`.
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' length(heatmap_genes(res))
 #' length(heatmap_genes(res, lfc_cutoff = 2, top_n = 50))
-#' }
 heatmap_genes <- function(result, padj_cutoff = result$alpha, lfc_cutoff = 0, top_n = NULL) {
   degs <- result$meta_degs
   padj <- result$meta[degs, "adjpval"]
@@ -147,13 +143,11 @@ heatmap_genes <- function(result, padj_cutoff = result$alpha, lfc_cutoff = 0, to
 #'   the functions that draw directly.
 #' @name tma_plots
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' plot_pca(res)
 #' plot_volcano(volcano_data(res))
 #' plot_gene_counts(res, res$meta_degs[1])
-#' }
 NULL
 
 #' @rdname tma_plots
@@ -259,11 +253,9 @@ heatmap_palette <- function(name = "yellow_black_purple", n = 150) {
 #'   meta-analysis DEGs (`Meta`).
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' lengths(deg_sets(res))
-#' }
 deg_sets <- function(result) {
   c(result$study_degs, list(Meta = result$meta_degs))
 }
@@ -295,11 +287,9 @@ plot_upset <- function(sets) {
 #'   where a p-value of 0 was replaced).
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' head(volcano_data(res))
-#' }
 volcano_data <- function(result) {
   pval <- result$meta$adjpval
   capped <- !is.na(pval) & pval == 0
