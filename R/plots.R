@@ -172,8 +172,13 @@ plot_upset <- function(sets) {
 #' Data for the volcano plot
 #'
 #' @param result A `tma_result` from [run_tma_pipeline()].
+#' An adjusted p-value of exactly 0 (possible only when a study's own p-value
+#' underflowed) cannot be drawn on a -log10 scale. Such values are set to the
+#' smallest non-zero p-value in the data and flagged in `capped`.
+#'
 #' @return A data frame with `genes`, `fc` (mean log2 fold change across
-#'   studies) and `pval` (adjusted meta-analysis p-value).
+#'   studies), `pval` (adjusted meta-analysis p-value) and `capped` (`TRUE`
+#'   where a p-value of 0 was replaced).
 #' @export
 #' @examples
 #' \donttest{
@@ -182,9 +187,13 @@ plot_upset <- function(sets) {
 #' head(volcano_data(res))
 #' }
 volcano_data <- function(result) {
+  pval <- result$meta$adjpval
+  capped <- !is.na(pval) & pval == 0
+  if (any(capped)) pval[capped] <- min(pval[!is.na(pval) & pval > 0])
   data.frame(genes = result$genes,
              fc = mean_fold_change(result$fold_changes),
-             pval = result$meta$adjpval)
+             pval = pval,
+             capped = capped)
 }
 
 #' @rdname tma_plots

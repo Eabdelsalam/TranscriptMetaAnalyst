@@ -7,11 +7,15 @@
 volcano_data(result)
 }
 \arguments{
-\item{result}{A \code{tma_result} from \code{\link[=run_tma_pipeline]{run_tma_pipeline()}}.}
+\item{result}{A \code{tma_result} from \code{\link[=run_tma_pipeline]{run_tma_pipeline()}}.
+An adjusted p-value of exactly 0 (possible only when a study's own p-value
+underflowed) cannot be drawn on a -log10 scale. Such values are set to the
+smallest non-zero p-value in the data and flagged in \code{capped}.}
 }
 \value{
 A data frame with \code{genes}, \code{fc} (mean log2 fold change across
-studies) and \code{pval} (adjusted meta-analysis p-value).
+studies), \code{pval} (adjusted meta-analysis p-value) and \code{capped} (\code{TRUE}
+where a p-value of 0 was replaced).
 }
 \description{
 Data for the volcano plot
