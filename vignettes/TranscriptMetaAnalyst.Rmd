@@ -1,0 +1,142 @@
+---
+title: "Meta-analysis of transcriptomic studies with TranscriptMetaAnalyst"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Meta-analysis of transcriptomic studies with TranscriptMetaAnalyst}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6, fig.height = 4.5)
+```
+
+TranscriptMetaAnalyst (TMA) combines several transcriptomic studies of the
+same conditions into one gene-level meta-analysis. Most users run it as a
+Shiny app with `runTMA()`; every step of the app is also an R function, which
+this vignette shows. The app can write the same code for an analysis with its
+**Download R script** button.
+
+```{r}
+library(TranscriptMetaAnalyst)
+```
+
+## Scope and study requirements
+
+TMA analyses **bulk RNA-seq** (raw read counts per gene) and **single-colour
+microarray** data (normalised expression per probe or gene), one platform at a
+time. Transcript-level, isoform and splicing analyses are out of scope.
+
+- Every condition needs **at least 2 samples in a study**. A condition with
+  fewer samples is left out of that study.
+- Every comparison needs **at least 2 studies**. A comparison with fewer
+  studies is not meta-analysed.
+- All studies use the **same gene-level IDs**. For the enrichment, the ID
+  type must be one that the service accepts (see `id_types()`): PANTHER and
+  STRING accept all of them; KEGG accepts locus tags / KEGG gene IDs, NCBI
+  Gene IDs and UniProt accessions.
+
+The app and the functions below report the studies and comparisons they leave
+out, and why.
+
+## RNA-seq
+
+The input is a counts table with a `Geneid` column and one column per sample,
+and a design table with the columns `sample`, `study` and `condition` (and
+optionally `batch`). The package includes a small demo dataset with three
+studies:
+
+```{r}
+demo <- tma_demo_data()
+head(demo$counts[, 1:5])
+table(demo$design$study, demo$design$condition)
+```
+
+`run_tma_analysis()` filters genes that are low in every study, fits every
+study with the chosen DE method (`"DESeq2"`, `"edgeR"` or `"limma-voom"`),
+compares every condition with the reference, and combines the studies'
+p-values with Fisher's method or the inverse-normal method:
+
+```{r}
+analysis <- run_tma_analysis(demo$counts, demo$design, reference = "Cont",
+                             de_method = "DESeq2", meta_method = "fisher")
+analysis
+```
+
+There is one result per comparison. Its `meta` table holds the combined
+statistics of every tested gene, and `meta_degs` the genes that are
+significant in the meta-analysis and change in the same direction in every
+study:
+
+```{r}
+res <- analysis$results[["Treated vs Cont"]]
+head(res$meta[order(res$meta$adjpval), ])
+length(res$meta_degs)
+```
+
+The plots of the app are available as functions:
+
+```{r pca}
+plot_pca(res)
+```
+
+```{r volcano, fig.width = 7, fig.height = 6}
+plot_volcano(volcano_data(res))
+```
+
+### Batch effects
+
+With a `batch` column in the design, `batch_check()` shows how much of the
+variation in each study is explained by batch and by condition, and
+`run_tma_analysis(batch_method = "model")` adds batch to the model of every
+study where batch can be estimated (`"combat_seq"` corrects the counts
+instead). The *Methods Guide* tab of the app discusses when to use which
+method.
+
+## Microarrays
+
+Each microarray study is one expression table (first column: probe IDs;
+optional `Symbol` column: the gene of each probe; other columns: samples),
+read with `read_array_matrix()`, or imported from GEO with `fetch_geo()` and
+`geo_study()`. The demo has three GEO series of *Synechocystis* sp. PCC 6803
+shifted from high to low CO2:
+
+```{r}
+arrays <- tma_microarray_demo_data()
+table(arrays$design$study, arrays$design$condition)
+```
+
+`run_array_analysis()` log2-transforms values that are not log2 yet, collapses
+probes to genes (the probe with the highest mean expression is kept), keeps
+the genes measured in every study and analyses each study with limma. The
+preparation report gives the numbers for every study:
+
+```{r}
+array_analysis <- run_array_analysis(arrays$matrices, arrays$design, reference = "HC")
+array_analysis$preparation$report
+array_analysis
+```
+
+GSE82120 has no 3 h samples, so the *LC_3h vs HC* comparison uses the other
+two studies.
+
+## Functional enrichment
+
+The meta-analysis DEGs can be tested for enriched GO terms (PANTHER), KEGG
+pathways and STRING annotations against all tested genes. These functions
+query online services, so they are not run here:
+
+```{r, eval = FALSE}
+go <- run_go_enrichment(res$meta_degs, organism = 1111708, background = res$genes,
+                        id_type = "kegg")
+string <- run_string_enrichment(res$meta_degs, species = 1148, background = res$genes,
+                                id_type = "kegg")
+string$mapping   # how many IDs STRING recognised
+enrichment_label(string)
+```
+
+## Session information
+
+```{r}
+sessionInfo()
+```

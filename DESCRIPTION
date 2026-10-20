@@ -10,7 +10,12 @@ Imports:
 Suggests:
   testthat (>= 3.0.0),
   withr,
-  later
+  later,
+  shinytest2,
+  chromote,
+  knitr,
+  rmarkdown
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 biocViews: Software
 Roxygen: list(markdown = TRUE)
