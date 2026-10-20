@@ -126,10 +126,13 @@ length(res$meta_degs)
 res2 <- run_tma_pipeline(demo$counts, demo$design, de_method = "edgeR",
                          meta_method = "invnorm")
 
-# three conditions: one result per contrast against the reference
+# three conditions: study C's treated samples become "High". "Treated vs
+# Cont" is meta-analysed with studies A and B; "High vs Cont" exists only in
+# study C, so it is not meta-analysed (the replicate rule needs 2 studies)
 design3 <- demo$design
-design3$condition[design3$sample \%in\% c("Sample1", "Sample7", "Sample11")] <- "High"
+design3$condition[design3$study == "C" & design3$condition == "Treated"] <- "High"
 analysis <- run_tma_analysis(demo$counts, design3, reference = "Cont")
 analysis
+analysis_messages(analysis)
 }
 }
