@@ -34,13 +34,17 @@ function(input, output, session) {
     req(input$rnaseq_counts, input$rnaseq_design)
     counts <- read_tma_table(input$rnaseq_counts$datapath)
     design <- read_tma_table(input$rnaseq_design$datapath)
+    settings <- rnaseq_settings()
     problems <- c(validate_counts(counts), validate_design(design))
     if (length(problems) == 0) problems <- validate_match(counts, design)
+    if (length(problems) == 0) {
+      problems <- validate_batch_choice(design, settings$batch_method, settings$batch_plots)
+    }
     if (length(problems) > 0) {
       shinyalert(text = problems[1])
       req(FALSE)
     }
-    c(list(counts = counts, design = design), rnaseq_settings())
+    c(list(counts = counts, design = design), settings)
   })
 
   #run the meta-analysis once per click, in a background process so the app

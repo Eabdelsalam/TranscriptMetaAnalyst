@@ -144,12 +144,12 @@ Changes take effect the next time **Start Analysis!** is clicked. The methods us
 
 #### 4.2.3 Batch effects
 
-If the experimental design file has a `batch` column, the **Analysis settings** box also shows the batch options. Batch is handled within each study:
+The **Analysis settings** box of the RNA-Seq tab has three batch options. The first two need a `batch` column in the experimental design file; if it is missing, the analysis does not start and a message asks you to add the column or choose **Ignore batch**. Batch is handled within each study:
 
-- **Batch in the DE model (~ batch + condition)** (default): the batch effect is estimated together with the condition effect. The counts are not changed.
-- **ComBat-seq on the raw counts**: the raw counts of each study are corrected for batch with ComBat-seq [13], keeping the condition effect, and then analysed with `~ condition`. This needs at least two samples in every batch.
-- **Ignore batch**: the `batch` column is not used.
-- **Use batch-corrected values in the PCA and heatmap**: draws these two plots from batch-corrected values (the ComBat-seq counts if ComBat-seq was used, otherwise values from `limma::removeBatchEffect()` [11]). This option only changes the plots, not the DE analysis.
+- **Batch in the DE model (~ batch + condition)** (recommended when there is a batch column): the batch effect is estimated together with the condition effect, so the *p*-values take it into account. The counts are not changed.
+- **ComBat-seq on the raw counts**: the raw counts of each study are corrected for batch with ComBat-seq [13], keeping the condition effect, and then analysed with `~ condition`. The DE test then treats the corrected counts as raw data and does not account for the estimated batch effects, which can make *p*-values too small in small studies [14]. ComBat-seq also needs at least two samples in every batch.
+- **Ignore batch** (default): the `batch` column, if any, is not used.
+- **Use batch-corrected values in the PCA and heatmap** (also needs a `batch` column): draws these two plots from batch-corrected values (the ComBat-seq counts if ComBat-seq was used, otherwise values from `limma::removeBatchEffect()` [11]). This option only changes the plots, not the DE analysis.
 
 Batch can only be used in a study that has at least two batches, whose batches are not confounded with the condition, and that keeps enough samples to estimate the model. A study that does not meet these conditions is analysed with `~ condition`, and the **Batch effects** tab of the results names the study and the reason.
 
@@ -288,3 +288,4 @@ If the user performs functional annotation of the meta-analysis DEGs via GO and 
 11. Ritchie, M. E. *et al.* limma powers differential expression analyses for RNA-sequencing and microarray studies. *Nucleic Acids Research* **43**, e47 (2015).
 12. Schurch, N. J. *et al.* How many biological replicates are needed in an RNA-seq experiment and which differential expression tool should you use? *RNA* **22**, 839–851 (2016).
 13. Zhang, Y., Parmigiani, G. & Johnson, W. E. ComBat-seq: batch effect adjustment for RNA-seq count data. *NAR Genomics and Bioinformatics* **2**, lqaa078 (2020).
+14. Nygaard, V., Rødland, E. A. & Hovig, E. Methods that remove batch effects while retaining group differences may lead to exaggerated confidence in downstream analyses. *Biostatistics* **17**, 29–39 (2016).

@@ -14,7 +14,8 @@ mod_settings_server(id, design = NULL)
 \item{id}{Module id.}
 
 \item{per_study}{If \code{TRUE}, show a DE-method override for each study of
-the design passed to \code{mod_settings_server()}.}
+the design passed to \code{mod_settings_server()}, and the batch-effect
+options.}
 
 \item{design}{A reactive returning the experimental design, used to list
 the studies for the per-study override (\code{NULL} if \code{per_study = FALSE}).}
@@ -28,6 +29,8 @@ and \code{batch_plots}.
 \description{
 A box to choose the differential expression method (for all studies, with
 an optional override per study) and the meta-analysis method, with short
-guidance on when to use each. When the design has a \code{batch} column, it also
-offers the batch-effect options.
+guidance on when to use each. With \code{per_study = TRUE} (the RNA-seq tab) it
+also offers the batch-effect options; they need a \code{batch} column in the
+design, which is checked when the analysis starts (see
+\code{\link[=validate_batch_choice]{validate_batch_choice()}}).
 }

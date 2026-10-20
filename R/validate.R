@@ -16,6 +16,7 @@
 #' validate_design(demo$design)
 #' validate_counts(demo$counts)
 #' validate_match(demo$counts, demo$design)
+#' validate_batch_choice(demo$design, "model")
 #' validate_design(data.frame(sample = "S1"))
 NULL
 
@@ -37,6 +38,24 @@ validate_design <- function(design) {
   }
   if (anyDuplicated(design$sample) > 0) {
     return("The 'sample' column in the Experimental Design file has duplicated sample names, please correct and re-upload it!")
+  }
+  character(0)
+}
+
+#' @rdname validate_inputs
+#' @param batch_method,batch_plots The batch settings, see
+#'   [run_tma_pipeline()].
+#' @export
+validate_batch_choice <- function(design, batch_method = "none", batch_plots = FALSE) {
+  uses_batch <- batch_method != "none" || isTRUE(batch_plots)
+  if (uses_batch && !"batch" %in% colnames(design)) {
+    choice <- if (batch_method != "none") {
+      names(batch_methods())[batch_methods() == batch_method]
+    } else {
+      "Use batch-corrected values in the PCA and heatmap"
+    }
+    return(sprintf("'%s' needs a 'batch' column in the Experimental Design file. Add the column or choose 'Ignore batch'.",
+                   choice))
   }
   character(0)
 }

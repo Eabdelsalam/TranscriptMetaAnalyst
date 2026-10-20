@@ -2,7 +2,7 @@ test_that("mod_settings_server returns the global methods by default", {
   shiny::testServer(mod_settings_server, {
     session$setInputs(de_method = "edgeR", meta_method = "invnorm")
     expect_equal(session$returned(), list(de_method = "edgeR", meta_method = "invnorm",
-                                          batch_method = "model", batch_plots = FALSE))
+                                          batch_method = "none", batch_plots = FALSE))
   })
 })
 
@@ -67,20 +67,50 @@ test_that("the RNA-seq run uses the chosen settings", {
     }
     expect_equal(rnaseq_result()$de_methods, c(A = "edgeR", B = "edgeR", C = "limma-voom"))
     expect_equal(rnaseq_result()$meta_method, "invnorm")
-    expect_equal(rnaseq_result()$batch, list(method = "model", plots = FALSE))
+    expect_equal(rnaseq_result()$batch, list(method = "none", plots = FALSE))
   })
 })
 
-test_that("mod_settings_server offers batch options only for a design with batch", {
-  design <- tma_demo_data()$design
-  shiny::testServer(mod_settings_server, args = list(design = shiny::reactive(design)), {
-    expect_error(output$batch, class = "shiny.silent.error")
-  })
-  design$batch <- rep(c("b1", "b2"), 6)
-  shiny::testServer(mod_settings_server, args = list(design = shiny::reactive(design)), {
-    expect_match(as.character(output$batch$html), "ComBat-seq")
+test_that("the batch options are always shown on the RNA-seq tab, defaulting to Ignore", {
+  rnaseq_ui <- as.character(mod_settings_ui("x", per_study = TRUE))
+  expect_match(rnaseq_ui, "Batch in the DE model")
+  expect_match(rnaseq_ui, "ComBat-seq on the raw counts")
+  expect_match(rnaseq_ui, 'value="none" checked')
+  expect_match(rnaseq_ui, "Use batch-corrected values")
+  # the demo data have no batch column, so the Demo tab has no batch options
+  expect_false(grepl("ComBat-seq on the raw counts", as.character(mod_settings_ui("y"))))
+
+  shiny::testServer(mod_settings_server, {
     session$setInputs(batch_method = "combat_seq", batch_plots = TRUE)
     expect_equal(session$returned()$batch_method, "combat_seq")
     expect_true(session$returned()$batch_plots)
   })
+})
+
+test_that("validate_batch_choice needs a batch column for any batch option", {
+  design <- tma_demo_data()$design
+  expect_identical(validate_batch_choice(design, "none", FALSE), character(0))
+  expect_match(validate_batch_choice(design, "model"), "'Batch in the DE model.*needs a 'batch' column")
+  expect_match(validate_batch_choice(design, "combat_seq"), "'ComBat-seq on the raw counts' needs")
+  expect_match(validate_batch_choice(design, "none", TRUE), "'Use batch-corrected values.*needs")
+  design$batch <- rep(c("b1", "b2"), 6)
+  expect_identical(validate_batch_choice(design, "model", TRUE), character(0))
+})
+
+test_that("the RNA-seq run is blocked when a batch option is chosen without a batch column", {
+  called <- FALSE
+  local_mocked_bindings(run_tma_pipeline = function(...) {
+    called <<- TRUE
+    demo_result()
+  })
+  app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
+  shiny::testServer(app, {
+    session$setInputs(rnaseq_counts = list(datapath = tma_example_file("counts")),
+                      rnaseq_design = list(datapath = tma_example_file("design")),
+                      `rnaseq_settings-batch_method` = "model",
+                      rnaseq_analyze = 1)
+    expect_error(rnaseq_inputs(), class = "shiny.silent.error")
+    expect_equal(rnaseq_task$status(), "initial")
+  })
+  expect_false(called)
 })
