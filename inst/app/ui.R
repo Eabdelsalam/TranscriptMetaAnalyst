@@ -105,6 +105,10 @@ ui <- dashboardPage(
       tabItem(tabName = "demo",
               fluidRow(mod_settings_ui("demo_settings")),
               fluidRow(mod_batch_check_ui("demo_batch_check")),
+              fluidRow(box(title = "Reproducible R script", status = "primary", solidHeader = TRUE,
+                           width = 12, collapsible = TRUE,
+                           downloadButton("demo_script", "Download R script"),
+                           helpText("An R script that repeats the demo analysis with the current settings, using the demo data bundled with the package. For your own data, use the button in the Comparisons box of the RNA-Seq tab; its input file paths are placeholders that you replace with the paths of your files."))),
               mod_results_ui("demo")
       ), #close demo tab item
       
