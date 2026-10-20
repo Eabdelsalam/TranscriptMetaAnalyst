@@ -4,8 +4,8 @@
 # before the Phase 2 refactor) with the current package pipeline, on
 #   - the bundled demo data (3 studies x 4 samples x 3405 genes), and
 #   - a simulated dataset of 6 studies x 6 samples (3 vs 3) x 30,000 genes.
-# For each it reports the run time, the memory allocated during the run, and
-# the size of the result that the app keeps in memory.
+# For each it reports the run time, the memory allocated during the run (main
+# R process only), and the size of the result that the app keeps in memory.
 #
 # Run from the package root:
 #   Rscript dev/benchmark.R
@@ -66,22 +66,29 @@ demo_file <- function(which) {
 }
 
 # Pipelines to compare ------------------------------------------------------
+# "current, serial" is the fair memory comparison: bench::mark() only counts
+# memory allocated in the main R process, not in parallel workers.
 pipelines <- list(baseline = baseline_pipeline)
 if (exists("run_tma_pipeline", mode = "function")) {
-  pipelines$current <- function(counts, design) run_tma_pipeline(counts, design)
+  pipelines$`current, serial` <- function(counts, design) {
+    run_tma_pipeline(counts, design, BPPARAM = BiocParallel::SerialParam())
+  }
+  pipelines$`current, parallel` <- function(counts, design) run_tma_pipeline(counts, design)
 }
 
 run_benchmark <- function(data, label, iterations) {
   rows <- lapply(names(pipelines), function(p) {
     f <- pipelines[[p]]
     result <- NULL
+    in_parallel <- grepl("parallel", p)
     bm <- bench::mark(result <- f(data$counts, data$design),
-                      iterations = iterations, check = FALSE, filter_gc = FALSE)
+                      iterations = iterations, check = FALSE, filter_gc = FALSE,
+                      memory = !in_parallel)
     data.frame(
       dataset = label,
       pipeline = p,
       median_time = format(bm$median),
-      mem_alloc = format(bm$mem_alloc),
+      mem_alloc = if (in_parallel) "n/a" else format(bm$mem_alloc),
       result_size = format(structure(utils::object.size(result), class = "object_size"),
                            units = "auto"),
       meta_degs = length(result$meta_degs)
