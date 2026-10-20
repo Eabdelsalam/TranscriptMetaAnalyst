@@ -34,3 +34,15 @@ The app could be installed locally via [GitHub](https://github.com/Eabdelsalam/T
 - **Studies**: at least 2 studies per comparison. A comparison with fewer studies is not meta-analysed; if no comparison can be meta-analysed, the analysis stops with an explanation.
 
 The app tells you which studies and comparisons it left out and why. See the [user manual](manual/TMA_Manual.md) for details.
+
+## Reproducibility
+
+After an analysis, the app can write an R script that repeats it with the same settings (**Download R script**). For your own data, the input file paths in the script are placeholders that you replace with the paths of your files. The analysis can also be run directly from R:
+
+```r
+library(TranscriptMetaAnalyst)
+counts <- read_tma_table("counts.txt")
+design <- read_tma_table("design.txt")
+analysis <- run_tma_analysis(counts, design, de_method = "DESeq2", meta_method = "fisher")
+analysis
+```
