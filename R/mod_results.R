@@ -138,7 +138,8 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL) 
       res <- result()
       # sent after the page is updated, so it also works when the results UI is
       # drawn at the same time (one tab per contrast)
-      session$onFlushed(function() {
+      # the callback runs outside the module's reactive domain, so set it again
+      session$onFlushed(function() shiny::withReactiveDomain(session, {
         shinyjs::show("results")
         shiny::updateSelectInput(session, "individual_study", choices = res$studies)
         # Venn diagrams only for up to 4 sets (studies + meta-analysis)
@@ -153,7 +154,7 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL) 
         } else {
           shiny::showTab("main_plots", target = "batch")
         }
-      }, once = TRUE)
+      }), once = TRUE)
     })
 
     # information boxes ------------------------------------------------------
@@ -404,46 +405,65 @@ number_or <- function(x, default) {
   if (length(x) == 1 && is.numeric(x) && !is.na(x)) x else default
 }
 
+# A clickable toggle (styled as a link) that shows or hides plot options
+options_toggle <- function(label, ...) {
+  shiny::tags$details(
+    shiny::tags$summary(
+      style = "color: #337ab7; text-decoration: underline; cursor: pointer; margin-bottom: 8px;",
+      label
+    ),
+    ...
+  )
+}
+
 # Display options of the heatmap (they do not change the DEGs)
 heatmap_options <- function(ns) {
+  half <- function(...) shiny::column(6, ...)
   shiny::tagList(
     shiny::fluidRow(
-      shiny::column(3, shiny::numericInput(ns("heatmap_k"), "Number of gene clusters",
-                                           value = 2, min = 1, step = 1)),
-      shiny::column(3, shiny::numericInput(ns("heatmap_padj"), "Show DEGs with adj. p <=",
-                                           value = 0.05, min = 0, max = 1, step = 0.01)),
-      shiny::column(3, shiny::numericInput(ns("heatmap_lfc"), "and |mean log2FC| >=",
-                                           value = 0, min = 0, step = 0.5)),
-      shiny::column(3, shiny::numericInput(ns("heatmap_top"), "Top N genes (empty = all)",
-                                           value = NA, min = 2, step = 10))
+      half(shiny::numericInput(ns("heatmap_k"), "Number of gene clusters", value = 2, min = 1, step = 1)),
+      half(shiny::numericInput(ns("heatmap_top"), "Top N genes (empty = all)", value = NA, min = 2, step = 10))
     ),
-    shiny::fluidRow(
-      shiny::column(3, shiny::selectInput(ns("heatmap_palette"), "Colours",
-                                          choices = heatmap_palettes(), selected = "yellow_black_purple")),
-      shiny::column(3, shiny::selectInput(ns("heatmap_method"), "Clustering method",
-                                          choices = c("complete", "average", "ward.D2", "single"),
-                                          selected = "complete")),
-      shiny::column(6,
-                    shiny::checkboxInput(ns("heatmap_cluster_rows"), "Cluster genes", value = TRUE),
-                    shiny::checkboxInput(ns("heatmap_cluster_cols"), "Cluster samples", value = TRUE),
-                    shiny::checkboxInput(ns("heatmap_names"), "Show gene names", value = FALSE))
+    options_toggle(
+      "More heatmap options",
+      shiny::fluidRow(
+        half(shiny::numericInput(ns("heatmap_padj"), "Show DEGs with adj. p <=",
+                                 value = 0.05, min = 0, max = 1, step = 0.01)),
+        half(shiny::numericInput(ns("heatmap_lfc"), "and |mean log2FC| >=", value = 0, min = 0, step = 0.5))
+      ),
+      shiny::fluidRow(
+        half(shiny::selectInput(ns("heatmap_palette"), "Colours",
+                                choices = heatmap_palettes(), selected = "yellow_black_purple")),
+        half(shiny::selectInput(ns("heatmap_method"), "Clustering method",
+                                choices = c("complete", "average", "ward.D2", "single"),
+                                selected = "complete"))
+      ),
+      shiny::fluidRow(
+        half(shiny::checkboxInput(ns("heatmap_cluster_rows"), "Cluster genes", value = TRUE),
+             shiny::checkboxInput(ns("heatmap_cluster_cols"), "Cluster samples", value = TRUE)),
+        half(shiny::checkboxInput(ns("heatmap_names"), "Show gene names", value = FALSE))
+      ),
+      shiny::helpText("These options only change the heatmap; the DEGs are those of the analysis.")
     )
   )
 }
 
 # Display options of the volcano plot
 volcano_options <- function(ns) {
-  shiny::fluidRow(
-    shiny::column(3, shiny::numericInput(ns("volcano_p"), "Adj. p cutoff",
-                                         value = 0.05, min = 0, max = 1, step = 0.01)),
-    shiny::column(3, shiny::numericInput(ns("volcano_fc"), "|log2FC| cutoff",
-                                         value = 1, min = 0, step = 0.5)),
-    shiny::column(3, shiny::selectInput(ns("volcano_labels"), "Gene labels",
-                                        choices = c("All past both cutoffs" = "significant",
-                                                    "Top N most significant" = "top",
-                                                    "None" = "none"),
-                                        selected = "significant")),
-    shiny::column(3, shiny::numericInput(ns("volcano_top"), "N (for top N)",
-                                         value = 10, min = 1, step = 5))
+  half <- function(...) shiny::column(6, ...)
+  options_toggle(
+    "Volcano plot options",
+    shiny::fluidRow(
+      half(shiny::numericInput(ns("volcano_p"), "Adj. p cutoff", value = 0.05, min = 0, max = 1, step = 0.01)),
+      half(shiny::numericInput(ns("volcano_fc"), "|log2FC| cutoff", value = 1, min = 0, step = 0.5))
+    ),
+    shiny::fluidRow(
+      half(shiny::selectInput(ns("volcano_labels"), "Gene labels",
+                              choices = c("All past both cutoffs" = "significant",
+                                          "Top N most significant" = "top",
+                                          "None" = "none"),
+                              selected = "significant")),
+      half(shiny::numericInput(ns("volcano_top"), "N (for top N)", value = 10, min = 1, step = 5))
+    )
   )
 }

@@ -132,3 +132,22 @@ test_that("the meta-analysis table shows 4 significant digits but keeps the data
   }
   expect_equal(widget$x$data$adjpval, res$meta$adjpval)
 })
+
+test_that("the Batch effects tab is hidden for a result without a batch column", {
+  # (the browser-only part, running the update outside the reactive domain,
+  # cannot be reproduced in testServer)
+  calls <- list()
+  local_mocked_bindings(
+    hideTab = function(inputId, target, session = shiny::getDefaultReactiveDomain()) {
+      calls[[length(calls) + 1]] <<- list(target = target)
+    },
+    .package = "shiny"
+  )
+  res <- demo_result() # no batch column
+  shiny::testServer(mod_results_server, args = list(result = shiny::reactive(res),
+                                                    organism = list(go = 1, kegg = "syn")), {
+    session$flushReact()
+  })
+  hidden <- vapply(calls, `[[`, "", "target")
+  expect_true("batch" %in% hidden)
+})
