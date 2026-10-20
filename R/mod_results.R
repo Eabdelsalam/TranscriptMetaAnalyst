@@ -272,7 +272,8 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL) 
                    p_cutoff = number_or(input$volcano_p, 0.05),
                    fc_cutoff = number_or(input$volcano_fc, 1),
                    labels = if (is.null(input$volcano_labels)) "significant" else input$volcano_labels,
-                   top_n = number_or(input$volcano_top, 10))
+                   top_n = number_or(input$volcano_top, 10),
+                   y_max = number_or(input$volcano_ymax, NA))
     })
     output$volcano <- shiny::renderPlot(volcano_plot())
     output$download_volcano <- plot_download("volcano_plot", volcano_plot, 30, 25)
@@ -464,6 +465,11 @@ volcano_options <- function(ns) {
                                           "None" = "none"),
                               selected = "significant")),
       half(shiny::numericInput(ns("volcano_top"), "N (for top N)", value = 10, min = 1, step = 5))
+    ),
+    shiny::fluidRow(
+      half(shiny::numericInput(ns("volcano_ymax"), "Y-axis maximum (-log10 adj. p, empty = all)",
+                               value = NA, min = 1, step = 5)),
+      half(shiny::helpText("With very small p-values the axis is long and the cutoff line sits near the bottom; a lower maximum spreads that region out."))
     )
   )
 }

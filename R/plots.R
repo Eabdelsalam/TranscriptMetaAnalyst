@@ -133,6 +133,9 @@ heatmap_genes <- function(result, padj_cutoff = result$alpha, lfc_cutoff = 0, to
 #'   (genes past both thresholds), `"top"` (the `top_n` genes with the
 #'   smallest adjusted p-values among those) or `"none"`.
 #' @param top_n Number of genes to label with `labels = "top"`.
+#' @param y_max Largest -log10 adjusted p-value shown on the volcano plot;
+#'   genes above it are drawn at the top edge (and counted in the caption).
+#'   `NULL` shows the whole range.
 #' @param design Experimental design, used to annotate the static heatmap.
 #' @param sets Named list of gene sets for the Venn and UpSet plots.
 #' @param volcano A data frame from [volcano_data()].
@@ -310,7 +313,7 @@ volcano_data <- function(result) {
 #' @rdname tma_plots
 #' @export
 plot_volcano <- function(volcano, p_cutoff = 0.05, fc_cutoff = 1,
-                         labels = c("significant", "top", "none"), top_n = 10) {
+                         labels = c("significant", "top", "none"), top_n = 10, y_max = NULL) {
   labels <- match.arg(labels)
   passing <- volcano$pval <= p_cutoff & abs(volcano$fc) >= fc_cutoff
   passing[is.na(passing)] <- FALSE
@@ -318,7 +321,14 @@ plot_volcano <- function(volcano, p_cutoff = 0.05, fc_cutoff = 1,
                    significant = NULL,
                    top = volcano$genes[passing][utils::head(order(volcano$pval[passing]), top_n)],
                    none = character(0))
-  suppressWarnings(EnhancedVolcano::EnhancedVolcano(
+  # genes above the y-axis maximum are drawn at the top edge
+  capped <- 0
+  if (length(y_max) == 1 && !is.na(y_max) && y_max > 0) {
+    above <- !is.na(volcano$pval) & -log10(volcano$pval) > y_max
+    capped <- sum(above)
+    volcano$pval[above] <- 10^-y_max
+  }
+  plot <- suppressWarnings(EnhancedVolcano::EnhancedVolcano(
     volcano,
     lab = volcano$genes,
     selectLab = select,
@@ -329,8 +339,12 @@ plot_volcano <- function(volcano, p_cutoff = 0.05, fc_cutoff = 1,
     pCutoff = p_cutoff,
     FCcutoff = fc_cutoff,
     border = "full",
-    caption = NULL
+    caption = if (capped > 0) sprintf("%d gene(s) above the y-axis maximum are drawn at the top", capped) else NULL
   ))
+  # label the threshold line so its position is clear on any y scale
+  x_right <- max(abs(volcano$fc), na.rm = TRUE)
+  plot + ggplot2::annotate("text", x = x_right, y = -log10(p_cutoff), hjust = 1, vjust = -0.4,
+                           size = 3.5, label = paste("adj. p =", format(p_cutoff, digits = 3)))
 }
 
 #' Which plot shows the overlap of DEG lists

@@ -50,7 +50,8 @@ plot_volcano(
   p_cutoff = 0.05,
   fc_cutoff = 1,
   labels = c("significant", "top", "none"),
-  top_n = 10
+  top_n = 10,
+  y_max = NULL
 )
 
 plot_go_lollipop(go_table)
@@ -92,6 +93,10 @@ thresholds drawn on the volcano plot.}
 smallest adjusted p-values among those) or \code{"none"}.}
 
 \item{top_n}{Number of genes to label with \code{labels = "top"}.}
+
+\item{y_max}{Largest -log10 adjusted p-value shown on the volcano plot;
+genes above it are drawn at the top edge (and counted in the caption).
+\code{NULL} shows the whole range.}
 
 \item{go_table}{A table from \code{\link[=run_go_enrichment]{run_go_enrichment()}}.}
 

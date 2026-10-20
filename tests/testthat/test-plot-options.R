@@ -49,7 +49,8 @@ test_that("the volcano plot uses the chosen cutoffs and labels", {
     text <- Filter(function(x) "label" %in% names(x), d)
     if (length(text) == 0) return(character(0))
     labs <- unlist(lapply(text, `[[`, "label"))
-    labs[!is.na(labs) & labs != ""]
+    # gene labels only, not the label of the cutoff line
+    labs[!is.na(labs) & labs != "" & !grepl("^adj\\. p =", labs)]
   }
   expect_length(labelled(plot_volcano(vol, labels = "none")), 0)
   top <- labelled(plot_volcano(vol, labels = "top", top_n = 5))
@@ -112,4 +113,19 @@ test_that("the results module applies the plot options and download format", {
     heat_png <- output$download_heatmap
     expect_equal(readBin(heat_png, "raw", 4), as.raw(c(0x89, 0x50, 0x4e, 0x47)))
   })
+})
+
+test_that("the volcano cutoff line is labelled and the y-axis can be capped", {
+  vol <- volcano_data(demo_result())
+  built <- ggplot2::ggplot_build(plot_volcano(vol, p_cutoff = 1e-5))
+  texts <- unlist(lapply(built$data, function(d) if ("label" %in% names(d)) d$label))
+  expect_true("adj. p = 1e-05" %in% texts)
+
+  capped <- plot_volcano(vol, p_cutoff = 1e-5, y_max = 20)
+  y <- ggplot2::ggplot_build(capped)$data[[1]]$y
+  expect_lte(max(y, na.rm = TRUE), 20 + 1e-8)
+  n_above <- sum(-log10(vol$pval) > 20, na.rm = TRUE)
+  expect_gt(n_above, 0)
+  expect_match(capped$labels$caption, sprintf("^%d gene\\(s\\) above the y-axis maximum", n_above))
+  expect_null(plot_volcano(vol)$labels$caption)
 })
