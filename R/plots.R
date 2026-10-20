@@ -59,6 +59,8 @@ heatmap_row_clusters <- function(n_genes, k = 2L) {
 #' @param corrected If `TRUE`, use the batch-corrected log2 values (see
 #'   [batch_diagnostics]) instead of the normalised counts. By default they
 #'   are used when the result was created with `batch_plots = TRUE`.
+#' @param genes Genes to show (default all meta-analysis DEGs); see
+#'   [heatmap_genes()] to select them by cutoffs.
 #' @return A numeric matrix (meta DEGs x samples).
 #' @export
 #' @examples

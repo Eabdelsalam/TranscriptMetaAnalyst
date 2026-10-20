@@ -16,6 +16,9 @@ heatmap_matrix(
 \item{corrected}{If \code{TRUE}, use the batch-corrected log2 values (see
 \link{batch_diagnostics}) instead of the normalised counts. By default they
 are used when the result was created with \code{batch_plots = TRUE}.}
+
+\item{genes}{Genes to show (default all meta-analysis DEGs); see
+\code{\link[=heatmap_genes]{heatmap_genes()}} to select them by cutoffs.}
 }
 \value{
 A numeric matrix (meta DEGs x samples).
