@@ -167,7 +167,7 @@ ui <- dashboardPage(
               fluidPage(
                 box(title = "Detailed User Guide",
                     solidHeader = T, width = 12, status = "danger",
-                    h3("TranscriptMetaAnalyst: Datailed User Manual"),
+                    h3("TranscriptMetaAnalyst: Detailed User Manual"),
                     span("A detailed user manual could be downloaded via this"), ##### ADD LINK OF PDF FILE
                     tags$a(href = "https://drive.google.com/file/d/1Ro-DhYj4ctxnVgNov2ZchJbeZYx_cUR_/view?usp=sharing",
                            "file",
