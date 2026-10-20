@@ -4,8 +4,8 @@ demo_cache <- new.env()
 demo_pipeline <- function() {
   skip_if_not_installed("DESeq2")
   skip_if_not_installed("metaRNASeq")
-  counts_path <- system.file("data", "example_rnaseq_counts.txt", package = "TranscriptMetaAnalyst")
-  design_path <- system.file("data", "example_rnaseq_design.txt", package = "TranscriptMetaAnalyst")
+  counts_path <- system.file("extdata", "example_rnaseq_counts.txt", package = "TranscriptMetaAnalyst")
+  design_path <- system.file("extdata", "example_rnaseq_design.txt", package = "TranscriptMetaAnalyst")
   skip_if(counts_path == "" || design_path == "", "demo data files not available")
 
   if (!is.null(demo_cache$result)) {

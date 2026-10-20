@@ -30,9 +30,9 @@ function(input, output, session) {
   options(shiny.maxRequestSize=30*1024^2)
   
   # make reactive inputs and examples
-  example_counts_path <- system.file("data", "example_rnaseq_counts.txt", package = "TranscriptMetaAnalyst")
+  example_counts_path <- system.file("extdata", "example_rnaseq_counts.txt", package = "TranscriptMetaAnalyst")
   example_counts <- reactive({read.delim(example_counts_path)})
-  example_design_path <- system.file("data", "example_rnaseq_design.txt", package = "TranscriptMetaAnalyst")
+  example_design_path <- system.file("extdata", "example_rnaseq_design.txt", package = "TranscriptMetaAnalyst")
   example_design <- reactive({read.delim(example_design_path)})
   
   #download example counts file

@@ -1,7 +1,7 @@
 runTMA <- function() {
-  appDir <- system.file("TMA", package = "TranscriptMetaAnalyst")
+  appDir <- system.file("app", package = "TranscriptMetaAnalyst")
   if (appDir == "") {
-    stop("Could not find TMA Try re-installing `TranscriptMetaAnalyst`.", call. = FALSE)
+    stop("Could not find the TMA app. Try re-installing `TranscriptMetaAnalyst`.", call. = FALSE)
   }
   
   #local run: let the app stop when the browser window is closed
