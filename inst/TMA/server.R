@@ -263,10 +263,8 @@ function(input, output, session) {
       full_cts_rnaseq <- reactive({
         temp_list <- lapply(studies_deseq(),
                             function(x) {DESeq2::counts(x, normalized = T)})
-        temp_matrix <- matrix(unlist(temp_list), ncol = num_samples(), byrow = T)
-        colnames(temp_matrix) <- samples()
-        rownames(temp_matrix) <- genenames()
-        return(temp_matrix)
+        #bind the studies on aligned genes, columns in design order
+        return(combine_study_matrices(temp_list, samples()))
       })
       
       #create DEGs counts matrix for heatmap
@@ -427,10 +425,9 @@ function(input, output, session) {
       
       #volcano plot
       for_volcano <- reactive({
-        fc_matrix <- matrix(unlist(fold_changes_rnaseq()), ncol = num_studies(), byrow = T)
         temp <- data.frame(
           genes = genenames(),
-          fc = rowMeans(fc_matrix, na.rm = T),
+          fc = mean_fold_change(fold_changes_rnaseq()),
           pval = fishcomb()$adjpval
         )
         return(temp)      
@@ -824,10 +821,8 @@ function(input, output, session) {
       full_cts_demo <- reactive({
         temp_list <- lapply(studies_deseq(),
                             function(x) {DESeq2::counts(x, normalized = T)})
-        temp_matrix <- matrix(unlist(temp_list), ncol = num_samples(), byrow = T)
-        colnames(temp_matrix) <- samples()
-        rownames(temp_matrix) <- genenames()
-        return(temp_matrix)
+        #bind the studies on aligned genes, columns in design order
+        return(combine_study_matrices(temp_list, samples()))
       })
       
       #create DEGs counts matrix for heatmap
@@ -981,10 +976,9 @@ function(input, output, session) {
       
       #volcano plot
       for_volcano <- reactive({
-        fc_matrix <- matrix(unlist(fold_changes_demo()), ncol = num_studies(), byrow = T)
         temp <- data.frame(
           genes = genenames(),
-          fc = rowMeans(fc_matrix, na.rm = T),
+          fc = mean_fold_change(fold_changes_demo()),
           pval = fishcomb()$adjpval
         )
         return(temp)      

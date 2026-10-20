@@ -74,3 +74,15 @@ scale_deg_counts <- function(norm_list, genes, samples = NULL) {
 heatmap_row_clusters <- function(n_genes, k = 2L) {
   as.integer(max(1L, min(k, n_genes)))
 }
+
+#' Mean log2 fold change of each gene across studies
+#'
+#' @param fc_list A list of numeric vectors of log2 fold changes, one per
+#'   study, all in the same gene order.
+#' @return A numeric vector with one mean log2 fold change per gene.
+#' @export
+#' @examples
+#' mean_fold_change(list(A = c(1, -2), B = c(3, NA)))
+mean_fold_change <- function(fc_list) {
+  rowMeans(do.call(cbind, unname(fc_list)), na.rm = TRUE)
+}
