@@ -1,3 +1,14 @@
+#' Run the TranscriptMetaAnalyst app
+#'
+#' Starts the TMA Shiny app locally. The app stops when its browser window is
+#' closed.
+#'
+#' @return Called for its side effect of running the app.
+#' @export
+#' @examples
+#' \dontrun{
+#' runTMA()
+#' }
 runTMA <- function() {
   appDir <- system.file("app", package = "TranscriptMetaAnalyst")
   if (appDir == "") {

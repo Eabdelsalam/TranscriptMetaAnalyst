@@ -1,4 +1,16 @@
-##test experimental design
+#' Input checks that show an alert (superseded)
+#'
+#' Superseded by [validate_design()], [validate_counts()] and
+#' [validate_match()]; kept until the app uses the results module.
+#'
+#' @param exp_design,counts Input data frames.
+#' @return Called for the alert it shows.
+#' @name legacy_input_checks
+#' @keywords internal
+NULL
+
+#' @rdname legacy_input_checks
+#' @export
 test_exp_design <- function(exp_design) {
   col_names <- colnames(exp_design)
   
@@ -26,7 +38,8 @@ test_exp_design <- function(exp_design) {
   }
 }
 
-##test rna-seq counts
+#' @rdname legacy_input_checks
+#' @export
 test_counts <- function(counts) {
   col_names <- colnames(counts)
   
@@ -41,7 +54,8 @@ test_counts <- function(counts) {
   }
 }
 
-##test if column names and row names match in uploaded files
+#' @rdname legacy_input_checks
+#' @export
 test_match <- function(counts, exp_design) {
   if (!all(exp_design$sample %in% colnames(counts))) {
     shinyalert(text = "All the samples included in the experimental design 'sample' column should have a correponding counts column with the same sample name in the counts file, and vice versa!")

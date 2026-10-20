@@ -1,16 +1,29 @@
-#Stack Overflow convert menu item
+#' Make a sidebar menu item with sub-items behave as a tab
+#'
+#' Lets a [shinydashboard::menuItem()] that contains inputs also switch the
+#' body to its tab when clicked (from Stack Overflow).
+#'
+#' @param mi A `menuItem`.
+#' @param tabName The tab name the item should open.
+#' @return The modified `menuItem`.
+#' @export
 convertMenuItem <- function(mi,tabName) {
   mi$children[[1]]$attribs['data-toggle']="tab"
   mi$children[[1]]$attribs['data-value'] = tabName
   mi
 }
 
-#create GO organisms list
-organisms_go <- function() {
-  suppressMessages(rbioapi::rba_panther_info(what = "organisms"))
-}
-
-#draw counts of a gene
+#' Plot the normalised counts of a gene from DESeq2 objects
+#'
+#' Superseded by [plot_gene_counts()]; kept until the app uses the results
+#' module.
+#'
+#' @param dds_list Named list of `DESeqDataSet` objects, one per study.
+#' @param gene_name Gene to plot.
+#' @param nrows,ncols Facet layout.
+#' @return A ggplot.
+#' @keywords internal
+#' @export
 draw_counts <- function(dds_list, gene_name, nrows, ncols) {
   #extract counts of the selected gene
   counts_list <- lapply(dds_list, function(x) {
