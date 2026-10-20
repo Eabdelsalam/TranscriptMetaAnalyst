@@ -398,7 +398,7 @@ function(input, output, session) {
         validate(need(nrow(cts_matrix()) >= 2,
                       "At least two meta-analysis DEGs are needed to draw a heatmap."))
         suppressWarnings(heatmaply(cts_matrix(),
-                                   k_row = heatmap_row_clusters(nrow(cts_matrix())),
+                                   k_row = heatmap_row_clusters(nrow(cts_matrix()), input$heatmap_k_rnaseq),
                                    k_col = num_studies()))
       })
       #download button heatmap
@@ -410,7 +410,7 @@ function(input, output, session) {
                                                                         "At least two meta-analysis DEGs are needed to draw a heatmap."))
                                                           pdf(filename, height = 10)
                                                           pheatmap(cts_matrix(),
-                                                                   cutree_rows = heatmap_row_clusters(nrow(cts_matrix())),
+                                                                   cutree_rows = heatmap_row_clusters(nrow(cts_matrix()), input$heatmap_k_rnaseq),
                                                                    cutree_cols = num_studies(),
                                                                    show_rownames = F,
                                                                    color = colorRampPalette(c("yellow", "black", "purple"))(150),
@@ -959,7 +959,7 @@ function(input, output, session) {
         validate(need(nrow(cts_matrix()) >= 2,
                       "At least two meta-analysis DEGs are needed to draw a heatmap."))
         suppressWarnings(heatmaply(cts_matrix(),
-                                   k_row = heatmap_row_clusters(nrow(cts_matrix())),
+                                   k_row = heatmap_row_clusters(nrow(cts_matrix()), input$heatmap_k_demo),
                                    k_col = num_studies()))
       })
       #download button heatmap
@@ -971,7 +971,7 @@ function(input, output, session) {
                                                                       "At least two meta-analysis DEGs are needed to draw a heatmap."))
                                                         pdf(filename, height = 10)
                                                         pheatmap(cts_matrix(),
-                                                                 cutree_rows = heatmap_row_clusters(nrow(cts_matrix())),
+                                                                 cutree_rows = heatmap_row_clusters(nrow(cts_matrix()), input$heatmap_k_demo),
                                                                  cutree_cols = num_studies(),
                                                                  show_rownames = F,
                                                                  color = colorRampPalette(c("yellow", "black", "purple"))(150),

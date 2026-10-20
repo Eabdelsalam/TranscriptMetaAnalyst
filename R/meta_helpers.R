@@ -60,18 +60,27 @@ scale_deg_counts <- function(norm_list, genes, samples = NULL) {
 
 #' Number of row clusters for the DEG heatmap
 #'
-#' The number of row clusters must not exceed the number of genes shown, so it
-#' depends on the number of genes and not on the number of samples.
+#' Returns the number of gene (row) clusters to cut the heatmap dendrogram
+#' into. The user's choice `k` is used when it is a valid whole number, and it
+#' is capped by the number of genes shown, so it depends on the number of
+#' genes and not on the number of samples.
 #'
 #' @param n_genes Number of genes (rows) in the heatmap.
-#' @param k Preferred number of row clusters (default 2: up- and
-#'   down-regulated genes).
-#' @return An integer between 1 and `k`.
+#' @param k Requested number of row clusters, e.g. from the "Number of gene
+#'   clusters" input. Missing, non-numeric or values below 1 fall back to the
+#'   default of 2 (up- and down-regulated genes).
+#' @return An integer between 1 and `n_genes` (at least 1).
 #' @export
 #' @examples
 #' heatmap_row_clusters(100)
-#' heatmap_row_clusters(1)
+#' heatmap_row_clusters(100, k = 5)
+#' heatmap_row_clusters(3, k = 10)
+#' heatmap_row_clusters(100, k = NA)
 heatmap_row_clusters <- function(n_genes, k = 2L) {
+  k <- suppressWarnings(as.integer(k))
+  if (length(k) != 1 || is.na(k) || k < 1L) {
+    k <- 2L
+  }
   as.integer(max(1L, min(k, n_genes)))
 }
 

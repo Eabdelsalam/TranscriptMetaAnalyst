@@ -36,12 +36,21 @@ test_that("demo heatmap renders with heatmaply and pheatmap", {
     heat[1:3, ], k_row = heatmap_row_clusters(3), k_col = k_col
   )))
 
+  # a user-chosen number of clusters, as set in the app
+  expect_no_error(suppressWarnings(heatmaply::heatmaply(
+    heat, k_row = heatmap_row_clusters(nrow(heat), 5), k_col = k_col
+  )))
+
   annot <- demo$design[, c("condition", "study")]
   rownames(annot) <- demo$design$sample
   pdf_file <- withr::local_tempfile(fileext = ".pdf")
   grDevices::pdf(pdf_file)
   expect_no_error(pheatmap::pheatmap(heat, cutree_rows = k_row, cutree_cols = k_col,
                                      show_rownames = FALSE, annotation_col = annot))
+  # the downloaded heatmap with a user-chosen number of clusters
+  expect_no_error(pheatmap::pheatmap(heat, cutree_rows = heatmap_row_clusters(nrow(heat), 4),
+                                     cutree_cols = k_col, show_rownames = FALSE,
+                                     annotation_col = annot))
   grDevices::dev.off()
 })
 

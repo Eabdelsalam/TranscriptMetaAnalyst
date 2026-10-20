@@ -73,3 +73,17 @@ test_that("heatmap_row_clusters never exceeds the number of genes", {
   expect_equal(heatmap_row_clusters(0), 1L)
   expect_lte(heatmap_row_clusters(3, k = 12), 3L)
 })
+
+test_that("heatmap_row_clusters uses the user's choice, capped by the number of genes", {
+  expect_equal(heatmap_row_clusters(100, k = 5), 5L)
+  expect_equal(heatmap_row_clusters(100, k = 1), 1L)
+  expect_equal(heatmap_row_clusters(4, k = 10), 4L)
+  expect_equal(heatmap_row_clusters(100, k = 3.7), 3L)
+})
+
+test_that("heatmap_row_clusters falls back to 2 for an empty or invalid choice", {
+  expect_equal(heatmap_row_clusters(100, k = NA), 2L)
+  expect_equal(heatmap_row_clusters(100, k = NULL), 2L)
+  expect_equal(heatmap_row_clusters(100, k = 0), 2L)
+  expect_equal(heatmap_row_clusters(100, k = "abc"), 2L)
+})

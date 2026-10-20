@@ -9,17 +9,22 @@ heatmap_row_clusters(n_genes, k = 2L)
 \arguments{
 \item{n_genes}{Number of genes (rows) in the heatmap.}
 
-\item{k}{Preferred number of row clusters (default 2: up- and
-down-regulated genes).}
+\item{k}{Requested number of row clusters, e.g. from the "Number of gene
+clusters" input. Missing, non-numeric or values below 1 fall back to the
+default of 2 (up- and down-regulated genes).}
 }
 \value{
-An integer between 1 and \code{k}.
+An integer between 1 and \code{n_genes} (at least 1).
 }
 \description{
-The number of row clusters must not exceed the number of genes shown, so it
-depends on the number of genes and not on the number of samples.
+Returns the number of gene (row) clusters to cut the heatmap dendrogram
+into. The user's choice \code{k} is used when it is a valid whole number, and it
+is capped by the number of genes shown, so it depends on the number of
+genes and not on the number of samples.
 }
 \examples{
 heatmap_row_clusters(100)
-heatmap_row_clusters(1)
+heatmap_row_clusters(100, k = 5)
+heatmap_row_clusters(3, k = 10)
+heatmap_row_clusters(100, k = NA)
 }
