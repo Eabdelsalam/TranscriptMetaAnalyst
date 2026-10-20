@@ -272,13 +272,9 @@ function(input, output, session) {
       #create DEGs counts matrix for heatmap
       cts_matrix <- reactive({
         temp_list <- lapply(studies_deseq(),
-                            function(x) {DESeq2::counts(x, normalized = T)[fishcomb_de(),]})
-        temp_list <- lapply(temp_list,
-                            function(x) {t(apply(x, 1, scale))})
-        cts_matrix <- matrix(unlist(temp_list), ncol = num_samples(), byrow = T)
-        colnames(cts_matrix) <- rnaseq_design_input()$sample
-        rownames(cts_matrix) <- fishcomb_de()
-        return(cts_matrix)
+                            function(x) {DESeq2::counts(x, normalized = T)})
+        #z-score each gene within each study and bind the studies on aligned genes
+        return(scale_deg_counts(temp_list, fishcomb_de(), samples()))
       })
 
       #create a list for venn and updset plots
@@ -401,8 +397,10 @@ function(input, output, session) {
       
       #heatmap of meta-analysis DEGs
       output$heatmap_rnaseq <- renderPlotly({
+        validate(need(nrow(cts_matrix()) >= 2,
+                      "At least two meta-analysis DEGs are needed to draw a heatmap."))
         suppressWarnings(heatmaply(cts_matrix(),
-                                   k_row = num_samples(),
+                                   k_row = heatmap_row_clusters(nrow(cts_matrix())),
                                    k_col = num_studies()))
       })
       #download button heatmap
@@ -410,9 +408,11 @@ function(input, output, session) {
                                                         content = function(filename) {
                                                           annot <- rnaseq_design_input()[, c("condition", "study")]
                                                           rownames(annot) <- rnaseq_design_input()$sample
+                                                          validate(need(nrow(cts_matrix()) >= 2,
+                                                                        "At least two meta-analysis DEGs are needed to draw a heatmap."))
                                                           pdf(filename, height = 10)
                                                           pheatmap(cts_matrix(),
-                                                                   cutree_rows = num_samples(),
+                                                                   cutree_rows = heatmap_row_clusters(nrow(cts_matrix())),
                                                                    cutree_cols = num_studies(),
                                                                    show_rownames = F,
                                                                    color = colorRampPalette(c("yellow", "black", "purple"))(150),
@@ -833,13 +833,9 @@ function(input, output, session) {
       #create DEGs counts matrix for heatmap
       cts_matrix <- reactive({
         temp_list <- lapply(studies_deseq(),
-                            function(x) {DESeq2::counts(x, normalized = T)[fishcomb_de(),]})
-        temp_list <- lapply(temp_list,
-                            function(x) {t(apply(x, 1, scale))})
-        cts_matrix <- matrix(unlist(temp_list), ncol = num_samples(), byrow = T)
-        colnames(cts_matrix) <- example_design()$sample
-        rownames(cts_matrix) <- fishcomb_de()
-        return(cts_matrix)
+                            function(x) {DESeq2::counts(x, normalized = T)})
+        #z-score each gene within each study and bind the studies on aligned genes
+        return(scale_deg_counts(temp_list, fishcomb_de(), samples()))
       })
       
       #create a list for venn and updset plots
@@ -955,8 +951,10 @@ function(input, output, session) {
       
       #heatmap of DEGs
       output$heatmap_demo <- renderPlotly({
+        validate(need(nrow(cts_matrix()) >= 2,
+                      "At least two meta-analysis DEGs are needed to draw a heatmap."))
         suppressWarnings(heatmaply(cts_matrix(),
-                                   k_row = num_samples(),
+                                   k_row = heatmap_row_clusters(nrow(cts_matrix())),
                                    k_col = num_studies()))
       })
       #download button heatmap
@@ -964,9 +962,11 @@ function(input, output, session) {
                                                       content = function(filename) {
                                                         annot <- example_design()[, c("condition", "study")]
                                                         rownames(annot) <- example_design()$sample
+                                                        validate(need(nrow(cts_matrix()) >= 2,
+                                                                      "At least two meta-analysis DEGs are needed to draw a heatmap."))
                                                         pdf(filename, height = 10)
                                                         pheatmap(cts_matrix(),
-                                                                 cutree_rows = num_samples(),
+                                                                 cutree_rows = heatmap_row_clusters(nrow(cts_matrix())),
                                                                  cutree_cols = num_studies(),
                                                                  show_rownames = F,
                                                                  color = colorRampPalette(c("yellow", "black", "purple"))(150),
