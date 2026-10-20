@@ -24,8 +24,8 @@ function(input, output, session) {
   })
   rnaseq_settings <- mod_settings_server("rnaseq_settings", design = uploaded_design)
 
-  #read and check the uploaded files when "Start Analysis!" is hit
-  rnaseq_inputs <- eventReactive(input$rnaseq_analyze, {
+  #read and check the uploaded files; shows an alert and stops on a problem
+  read_uploads <- function() {
     if (is.null(input$rnaseq_counts)) {
       shinyalert("Missed Counts File!!!", "Please upload the raw counts file first!")
     } else if (is.null(input$rnaseq_design)) {
@@ -34,17 +34,28 @@ function(input, output, session) {
     req(input$rnaseq_counts, input$rnaseq_design)
     counts <- read_tma_table(input$rnaseq_counts$datapath)
     design <- read_tma_table(input$rnaseq_design$datapath)
-    settings <- rnaseq_settings()
     problems <- c(validate_counts(counts), validate_design(design))
     if (length(problems) == 0) problems <- validate_match(counts, design)
-    if (length(problems) == 0) {
-      problems <- validate_batch_choice(design, settings$batch_method, settings$batch_plots)
-    }
     if (length(problems) > 0) {
       shinyalert(text = problems[1])
       req(FALSE)
     }
-    c(list(counts = counts, design = design), settings)
+    list(counts = counts, design = design)
+  }
+
+  #check the uploaded data for batch effects before the analysis
+  mod_batch_check_server("rnaseq_batch_check", data = read_uploads)
+
+  #read and check the uploaded files when "Start Analysis!" is hit
+  rnaseq_inputs <- eventReactive(input$rnaseq_analyze, {
+    uploads <- read_uploads()
+    settings <- rnaseq_settings()
+    problems <- validate_batch_choice(uploads$design, settings$batch_method, settings$batch_plots)
+    if (length(problems) > 0) {
+      shinyalert(text = problems[1])
+      req(FALSE)
+    }
+    c(uploads, settings)
   })
 
   #run the meta-analysis once per click, in a background process so the app
@@ -83,6 +94,7 @@ function(input, output, session) {
   #computed the first time the Demo tab is opened with given settings, then
   #cached for all sessions
   demo_settings <- mod_settings_server("demo_settings")
+  mod_batch_check_server("demo_batch_check", data = tma_demo_data)
   demo_result <- reactive({
     shinyalert("Demo Running!", "Demo RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)

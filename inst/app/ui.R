@@ -83,6 +83,7 @@ ui <- dashboardPage(
       ################################
       tabItem(tabName = "rnaseq",
         fluidRow(mod_settings_ui("rnaseq_settings", per_study = TRUE)),
+        fluidRow(mod_batch_check_ui("rnaseq_batch_check")),
         div(id = "rnaseq_steps",
             fluidPage(
               box(title = "RNA-Seq Quick Start",
@@ -103,6 +104,7 @@ ui <- dashboardPage(
       #############################
       tabItem(tabName = "demo",
               fluidRow(mod_settings_ui("demo_settings")),
+              fluidRow(mod_batch_check_ui("demo_batch_check")),
               mod_results_ui("demo")
       ), #close demo tab item
       

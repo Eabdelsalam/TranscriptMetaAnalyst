@@ -40,7 +40,7 @@ Several of these changes fix errors in the results of earlier versions, so resul
 | GO / KEGG enrichment | Enrichment is now run on the meta-analysis DEGs only (significant in the meta-analysis *and* changed in the same direction in every study). Earlier versions used every gene with a consistent direction, whether significant or not. |
 | Closing the app | When the app is started with `runTMA()`, it stops when its browser window is closed, as before. When it is deployed on a Shiny Server, closing one browser window no longer shuts the app down for all other users. |
 | Methods | Besides DESeq2, the differential expression can now be run with edgeR or limma-voom, for all studies or chosen per study. Besides Fisher's method, the *p*-values can be combined with the inverse-normal method. See [Analysis settings](#422-analysis-settings). |
-| Batch effects | The experimental design file can have an optional `batch` column. Batch can be added to the DE model (`~ batch + condition`) or removed from the raw counts with ComBat-seq, and the PCA and heatmap can use batch-corrected values. A new **Batch effects** tab shows PCA and RLE plots before and after the correction. See [Batch effects](#423-batch-effects). |
+| Batch effects | The experimental design file can have an optional `batch` column. Batch can be added to the DE model (`~ batch + condition`) or removed from the raw counts with ComBat-seq, and the PCA and heatmap can use batch-corrected values. A **Check for batch effects** box detects batch effects before the analysis, and a **Batch effects** results tab shows PCA and RLE plots before and after the correction. See [Batch effects](#423-batch-effects). |
 | Speed | The studies are analysed in parallel, and an uploaded analysis runs in the background, so the app stays responsive while it runs. The **Start Analysis!** button is disabled until the running analysis has finished. |
 | Demo | The demo analysis is computed the first time the **Run Demo Analysis** tab is opened and then reused, so opening the tab again shows the results immediately. |
 | Low-count genes | Genes with too few reads in every study are removed before the analysis (see [Analysis Pipeline](#5-analysis-pipeline)). They no longer appear in the results table. |
@@ -152,6 +152,14 @@ The **Analysis settings** box of the RNA-Seq tab has three batch options. The fi
 - **Use batch-corrected values in the PCA and heatmap** (also needs a `batch` column): draws these two plots from batch-corrected values (the ComBat-seq counts if ComBat-seq was used, otherwise values from `limma::removeBatchEffect()` [11]). This option only changes the plots, not the DE analysis.
 
 Batch can only be used in a study that has at least two batches, whose batches are not confounded with the condition, and that keeps enough samples to estimate the model. A study that does not meet these conditions is analysed with `~ condition`, and the **Batch effects** tab of the results names the study and the reason.
+
+**Detecting batch effects before the analysis.** The **Check for batch effects** box, below the settings, looks at the uploaded data before any differential expression analysis. Click **Check for batch effects** after uploading the two files. For each study it:
+
+- computes a PCA of the log2 normalised counts (500 most variable genes) and reports how much of the variance of the first principal components is explained by the condition and, if the design has a `batch` column, by the batch;
+- gives advice: a study is flagged when batch explains as much variance as condition or more (consider **Batch in the DE model** or ComBat-seq), or when batch is confounded with condition. Without a `batch` column, it warns when the first principal component carries a large share of the variance (30% or more) but is not explained by the condition, which can point to an unrecorded batch effect;
+- shows the PCA and RLE plots of each study (described in [Main Plots](#62-main-plots)).
+
+These flags are guides for looking at the plots, not statistical tests. The Demo tab has the same box for the demo data.
 
 ### 4.3 Run Demo Analysis
 
