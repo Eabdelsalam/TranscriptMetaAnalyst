@@ -19,7 +19,8 @@
   - [4.2 RNA-Seq Meta Analysis](#42-rna-seq-meta-analysis)
   - [4.3 Microarray Meta-Analysis](#43-microarray-meta-analysis)
   - [4.4 Run Demo Analysis](#44-run-demo-analysis)
-  - [4.5 User Manual](#45-user-manual)
+  - [4.5 Methods Guide](#45-methods-guide)
+  - [4.6 User Manual](#46-user-manual)
 - [5 Analysis Pipeline](#5-analysis-pipeline)
 - [6 Outputs](#6-outputs)
   - [6.1 Overview & Information Boxes](#61-overview--information-boxes)
@@ -50,6 +51,7 @@ Several of these changes fix errors in the results of earlier versions, so resul
 | Reproducible R script | A **Download R script** button gives an R script that repeats the analysis with the same settings, for the methods section or for re-running it outside the app. See [Reproducible R Script](#65-reproducible-r-script). |
 | Speed | The studies are analysed in parallel, and an uploaded analysis runs in the background, so the app stays responsive while it runs. The **Start Analysis!** button is disabled until the running analysis has finished. |
 | Microarrays | A new **Microarray Meta-Analysis** tab meta-analyses normalised single-colour microarray data, uploaded as one expression file per study or imported directly from GEO. Values are log2-transformed when needed, probes are collapsed to genes, the genes measured in every study are kept, and each study is analysed with limma. A microarray demo (low-CO2 response of *Synechocystis*) is included. See [Microarray Meta-Analysis](#43-microarray-meta-analysis). |
+| Methods Guide | A new **Methods Guide** tab explains when to use which differential expression, meta-analysis, batch and enrichment method, lists the study requirements, and gives the references. See [Methods Guide](#45-methods-guide). |
 | Demo | The demo analysis is computed the first time the **Run Demo Analysis** tab is opened and then reused, so opening the tab again shows the results immediately. |
 | Low-count genes | Genes with too few reads in every study are removed before the analysis (see [Analysis Pipeline](#5-analysis-pipeline)). They no longer appear in the results table. |
 | Downloads | The downloaded DEG list of each study now has the columns `gene`, `base_mean`, `log2_fc`, `lfc_se`, `stat`, `pvalue` and `padj`. The GO results table can be downloaded again (this download failed in earlier versions). |
@@ -67,6 +69,8 @@ TMA is particularly useful for researchers who want to:
 - Visualize the results of the meta-analysis using different methods, e.g., heatmaps and volcano plots
 
 By providing a user-friendly interface to perform meta-analysis, TMA aims to facilitate the discovery of new insights and robust results in transcriptomics research.
+
+**Scope.** TMA does a **gene-level** meta-analysis of **bulk RNA-seq** data (raw read counts per gene) and of **single-colour microarray** data (normalised expression per probe or gene). In each study, every condition is compared with a reference condition, and the per-gene *p*-values of the studies are combined. Transcript-level, isoform and alternative-splicing analyses are out of scope: the input must hold one value per gene (RNA-seq) or per probe that is collapsed to its gene (microarrays). RNA-seq and microarray studies are analysed in separate tabs and are not combined in one meta-analysis.
 
 ## 2 Installation
 
@@ -177,6 +181,16 @@ TMA applies these rules to every analysis:
 - **At least 2 samples (replicates) per condition in a study.** A condition with fewer than 2 samples in a study is removed from that study: its samples are not used, and the study is left out of the comparisons that involve that condition. A study with fewer than 2 samples of the reference condition is not used at all.
 - **At least 2 studies per comparison.** A comparison (e.g. *Heat vs Control*) is meta-analysed only if at least 2 studies still have both conditions with at least 2 samples each. Otherwise the comparison is not meta-analysed, and the app says why.
 - **At least one comparison.** If no comparison can be meta-analysed, the analysis stops with a message that explains why.
+- **Gene-level IDs.** All studies must use the same type of gene ID, so that genes can be matched across studies. For RNA-Seq, all studies are in one counts file and share its `Geneid` column; for microarrays, only the genes measured in every study are kept (see [Data preparation](#432-data-preparation)).
+- **Supported ID types for the enrichment.** The ID type of the genes is chosen in the *Functional Annotation* tab. The services accept these types:
+
+| ID type | PANTHER (GO) | KEGG | STRING |
+|---|---|---|---|
+| Gene symbol | yes | no | yes |
+| Locus tag / KEGG gene ID | yes | yes | yes |
+| NCBI Entrez Gene ID | yes | yes | yes |
+| UniProt accession | yes | yes | yes |
+| Ensembl gene ID | yes | no | yes |
 
 After each run, a message lists the studies and comparisons that were left out (for example, "Study S2 has only 1 sample of 'Heat' (at least 2 are needed), so it is not used for 'Heat vs Control'"), and the **Comparisons** box at the top of the results shows how many studies each comparison used.
 
@@ -219,7 +233,11 @@ The Demo tab has its own **Analysis settings** box with the differential express
 
 *Figure 5: The Run Demo Analysis tab lets users test the app. Clicking on this tab triggers the analysis, and the results appear shortly.*
 
-### 4.5 User Manual
+### 4.5 Methods Guide
+
+The *Methods Guide* tab summarises, on one page, what TMA analyses (its scope), the study requirements and the supported ID types, and when to use which differential expression method (DESeq2, edgeR, limma-voom, and limma for microarrays), meta-analysis method (Fisher or inverse normal), batch handling and enrichment service, with references [3–6, 9–15, 17, 18]. The *Which method should I use?* link in each **Analysis settings** box gives a short version of the same advice.
+
+### 4.6 User Manual
 
 The last tab on the left panel is the *User Manual* tab. It provides a link to the current detailed guide of TMA, information on contacting the creators of the app, and how to cite the app in scientific publications (Figure 6).
 
@@ -380,3 +398,5 @@ The **Download R script** button (in the *Comparisons* box of the RNA-Seq and Mi
 14. Nygaard, V., Rødland, E. A. & Hovig, E. Methods that remove batch effects while retaining group differences may lead to exaggerated confidence in downstream analyses. *Biostatistics* **17**, 29–39 (2016).
 15. Szklarczyk, D. *et al.* The STRING database in 2023: protein–protein association networks and functional enrichment analyses for any sequenced genome of interest. *Nucleic Acids Research* **51**, D638–D646 (2023).
 16. Davis, S. & Meltzer, P. S. GEOquery: a bridge between the Gene Expression Omnibus (GEO) and BioConductor. *Bioinformatics* **23**, 1846–1847 (2007).
+17. Conesa, A. *et al.* A survey of best practices for RNA-seq data analysis. *Genome Biology* **17**, 13 (2016).
+18. Kanehisa, M. & Goto, S. KEGG: Kyoto Encyclopedia of Genes and Genomes. *Nucleic Acids Research* **28**, 27–30 (2000).
