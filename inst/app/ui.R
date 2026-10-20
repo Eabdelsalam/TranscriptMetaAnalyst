@@ -98,7 +98,7 @@ ui <- dashboardPage(
                   solidHeader = T, width = 12, status = "info")
             )), #close steps box
         #results of the analysis, shown once it has run
-        mod_results_ui("rnaseq", select_organism = TRUE, hidden = TRUE)
+        uiOutput("rnaseq_results")
       ), #close rnaseq tab item
       ##### DEMO ANALYSIS TAB #####
       #############################

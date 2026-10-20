@@ -113,3 +113,37 @@ test_that("run_tma_pipeline is for two conditions", {
   expect_equal(res$contrast, "Treated vs Cont")
   expect_true(all(res$report$used))
 })
+
+test_that("the RNA-seq tab shows one results tab per contrast and the left-out studies", {
+  sim <- multi_data_set()
+  design <- sim$design
+  drop <- design$sample %in% c("S2_5", "S2_6")
+  counts <- sim$counts[, !names(sim$counts) %in% design$sample[drop]]
+  design <- design[!drop, ]
+  analysis <- run_tma_analysis(counts, design, reference = "Cont", BPPARAM = serial)
+  local_mocked_bindings(run_tma_analysis = function(...) analysis)
+  counts_file <- withr::local_tempfile(fileext = ".txt")
+  design_file <- withr::local_tempfile(fileext = ".txt")
+  utils::write.table(counts, counts_file, sep = "\t", quote = FALSE, row.names = FALSE)
+  utils::write.table(design, design_file, sep = "\t", quote = FALSE, row.names = FALSE)
+  app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
+  shiny::testServer(app, {
+    session$setInputs(rnaseq_counts = list(datapath = counts_file),
+                      rnaseq_design = list(datapath = design_file),
+                      rnaseq_analyze = 1)
+    for (i in 1:200) {
+      later::run_now(0.05)
+      session$flushReact()
+      if (rnaseq_task$status() != "running") break
+    }
+    html <- as.character(output$rnaseq_results$html)
+    expect_match(html, "Cold vs Cont")
+    expect_match(html, "Heat vs Cont")
+    expect_match(html, "Study S2 has only 1 sample of .Heat.")
+    expect_match(output$rnaseq_summary, "Heat vs Cont")
+    # each tab's module renders its own contrast
+    expect_match(as.character(output$`rnaseq_c2-num_studies`$html), "Heat vs Cont")
+    expect_match(as.character(output$`rnaseq_c2-num_studies`$html), "2 studies")
+    expect_match(as.character(output$`rnaseq_c1-num_studies`$html), "3 studies")
+  })
+})

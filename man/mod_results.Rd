@@ -6,9 +6,15 @@
 \alias{mod_results_server}
 \title{Results module}
 \usage{
-mod_results_ui(id, select_organism = FALSE, hidden = FALSE)
+mod_results_ui(
+  id,
+  select_organism = FALSE,
+  hidden = FALSE,
+  venn = TRUE,
+  batch = TRUE
+)
 
-mod_results_server(id, result, organism = NULL)
+mod_results_server(id, result, organism = NULL, file_prefix = NULL)
 }
 \arguments{
 \item{id}{Module id.}
@@ -20,10 +26,17 @@ organism given to \code{mod_results_server()} is used.}
 \item{hidden}{If \code{TRUE}, the results stay hidden until the first result is
 available.}
 
+\item{venn, batch}{Include the Venn diagram and Batch effects tabs. When the
+UI is drawn for a known result, leave out the tabs that do not apply (Venn
+for more than 3 studies, Batch effects without a batch column).}
+
 \item{result}{A reactive returning a \code{tma_result} (see \code{\link[=run_tma_pipeline]{run_tma_pipeline()}}).}
 
 \item{organism}{\code{NULL} to let the user choose, or a list with \code{go} (PANTHER
 taxon ID) and \code{kegg} (KEGG organism code).}
+
+\item{file_prefix}{A reactive giving the start of the download file names;
+\code{NULL} uses the module id (e.g. "demo_pca.pdf").}
 }
 \value{
 \code{mod_results_ui()} returns UI; \code{mod_results_server()} is called for

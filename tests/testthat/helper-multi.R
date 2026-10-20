@@ -26,3 +26,14 @@ multi_data_set <- function() {
   if (is.null(multi_cache$data)) multi_cache$data <- simulate_multi_data()
   multi_cache$data
 }
+
+# A tma_analysis wrapping one result, for app tests that mock the analysis
+fake_analysis <- function(result) {
+  contrast <- if (is.null(result$contrast)) "Treated vs Cont" else result$contrast
+  structure(list(reference = "Cont", contrasts = contrast,
+                 results = stats::setNames(list(result), contrast),
+                 report = data.frame(contrast = contrast, study = result$studies, used = TRUE, reason = ""),
+                 summary = data.frame(contrast = contrast, studies = length(result$studies),
+                                      analysed = TRUE, reason = "")),
+            class = "tma_analysis")
+}
