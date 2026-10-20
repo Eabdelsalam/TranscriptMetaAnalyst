@@ -25,3 +25,12 @@ The app could be installed locally via [GitHub](https://github.com/Eabdelsalam/T
 `library(TranscriptMetaAnalyst)`
 
 `runTMA()`
+
+## Study requirements
+
+- **Input files**: a tab-delimited raw counts file with a `Geneid` column and one column per sample, and an experimental design file with the columns `sample`, `study` and `condition` (and optionally `batch`).
+- **Conditions**: at least two. With more than two, every condition is compared with a reference condition chosen in the app (all vs. reference), and each comparison gets its own results tab.
+- **Replicates**: at least 2 samples per condition in a study. A condition with fewer samples is left out of that study, and the study is not used for the comparisons that involve that condition.
+- **Studies**: at least 2 studies per comparison. A comparison with fewer studies is not meta-analysed; if no comparison can be meta-analysed, the analysis stops with an explanation.
+
+The app tells you which studies and comparisons it left out and why. See the [user manual](manual/TMA_Manual.md) for details.
