@@ -38,6 +38,7 @@ Several of these changes fix errors in the results of earlier versions, so resul
 | PCA | The PCA now uses the correct normalized counts for every sample. Earlier versions mixed values between genes and samples. |
 | Volcano plot | The x-axis now shows the correct mean log2 fold change of each gene across studies. Very small *p*-values are now kept exact, so the most significant genes are drawn at their real height instead of on a flat line at the top of the plot. |
 | GO / KEGG enrichment | Enrichment is now run on the meta-analysis DEGs only (significant in the meta-analysis *and* changed in the same direction in every study). Earlier versions used every gene with a consistent direction, whether significant or not. |
+| Enrichment background and ID types | The enrichment now compares the DEGs with **all genes tested** in the analysis (the background) instead of the whole genome, which avoids enrichment of terms only because the tested genes differ from the genome. The user states the ID type of the counts file, a new **STRING** tab covers more than 12,000 organisms and most ID types, and every result shows an **ID-mapping report** and the service version. See [Functional Annotation](#64-functional-annotation). |
 | Closing the app | When the app is started with `runTMA()`, it stops when its browser window is closed, as before. When it is deployed on a Shiny Server, closing one browser window no longer shuts the app down for all other users. |
 | Methods | Besides DESeq2, the differential expression can now be run with edgeR or limma-voom, for all studies or chosen per study. Besides Fisher's method, the *p*-values can be combined with the inverse-normal method. See [Analysis settings](#422-analysis-settings). |
 | Batch effects | The experimental design file can have an optional `batch` column. Batch can be added to the DE model (`~ batch + condition`) or removed from the raw counts with ComBat-seq, and the PCA and heatmap can use batch-corrected values. A **Check for batch effects** box detects batch effects before the analysis, and a **Batch effects** results tab shows PCA and RLE plots before and after the correction. See [Batch effects](#423-batch-effects). |
@@ -204,13 +205,19 @@ If the files pass the checks, the analysis starts automatically and a loading sc
 3. The raw *p*-values of the studies are combined with Fisher's method [5] or the inverse-normal method via the metaRNASeq package [3], and the combined *p*-values are adjusted with the Benjamini–Hochberg method. Genes with an adjusted meta-analysis *p*-value ≤ 0.05 are significant.
 4. As a validation step, genes with conflicting directions (up-regulated in one study and down-regulated in another) are removed. The remaining significant genes are the **meta-analysis DEGs**. They are used for the heatmap, the Venn/UpSet plots and the functional annotation.
 
-If the user would like to perform further functional annotation of the identified DEGs, Gene Ontology (GO) and KEGG pathway enrichment analyses can be run on the **meta-analysis DEGs**. For GO, the user selects the studied organism from the drop-down menu (Figure 7a) and runs the analysis. This analysis is based on the PANTHER Classification System v17.0 [6] and is performed with the `rbioapi` package. The KEGG pathway enrichment analysis is performed with the clusterProfiler package [7]. For KEGG, the user types the 3-letter code of the studied organism, which can be found in the [KEGG Organisms Database](https://www.genome.jp/kegg-bin/get_htext?br08601), before running the analysis (Figure 7b). If the meta-analysis found no DEGs, the app shows a message instead of running the enrichment.
+If the user would like to perform further functional annotation of the identified DEGs, Gene Ontology (GO), KEGG pathway and STRING enrichment analyses can be run on the **meta-analysis DEGs**, compared with all genes tested in the analysis (the background). No organism database is installed: the online services map the gene IDs themselves. First, the user states the **gene ID type** of the counts file (gene symbol, locus tag / KEGG gene ID, NCBI Entrez Gene ID, UniProt accession or Ensembl gene ID) in the *Enrichment input* box. Then:
+
+- **Gene Ontology** (PANTHER [6], via the `rbioapi` package): choose the organism from the searchable list of the ~140 PANTHER organisms (Figure 7a). PANTHER recognises most ID types.
+- **KEGG pathway** (clusterProfiler [7], via the KEGG REST service): type the KEGG code of the organism, found in the [KEGG Organisms Database](https://www.genome.jp/kegg-bin/get_htext?br08601) (Figure 7b). The app checks the code as you type and names the organism. KEGG accepts locus tags / KEGG gene IDs, NCBI Entrez Gene IDs and UniProt accessions; for gene symbols or Ensembl IDs the app explains this and suggests the STRING or Gene Ontology tab.
+- **STRING** [15] (via `rbioapi`): choose the organism from the searchable list of the more than 12,000 STRING organisms. STRING recognises gene symbols, locus tags, UniProt and most other IDs, and tests GO, KEGG, Reactome, Pfam, InterPro and other annotation sources at once. It is the fallback for organisms or ID types that PANTHER or KEGG do not cover.
+
+If the meta-analysis found no DEGs, the app shows a message instead of running the enrichment. If a service cannot be reached or returns an error, the app shows a message (for example, to check the internet connection) instead of stopping.
 
 | (a) GO Enrichment | (b) KEGG Pathway Enrichment |
 |---|---|
 | ![Figure 7a](figures/fig07a_go_input.png) | ![Figure 7b](figures/fig07b_kegg_input.png) |
 
-*Figure 7: Gene Ontology (GO) and KEGG pathway enrichment analysis in TMA. The user should (a) select the organism from the drop-down menu before running the GO analysis or (b) type the 3-letter code of the studied organism before running the KEGG pathway analysis.*
+*Figure 7: Gene Ontology (GO) and KEGG pathway enrichment analysis in TMA (screenshots of an earlier version, without the ID-type selector and the STRING tab). The user should (a) select the organism from the drop-down menu before running the GO analysis or (b) type the code of the studied organism before running the KEGG pathway analysis.*
 
 The same analysis can also be run from R without the app, for example to reproduce or extend the results:
 
@@ -299,11 +306,18 @@ An interactive table (Figure 14a) of all the genes analyzed in the meta-analysis
 
 ### 6.4 Functional Annotation
 
-If the user performs functional annotation of the meta-analysis DEGs via GO and KEGG pathway enrichment analyses, the app generates two outputs for each analysis. First, all the enriched GO terms or KEGG pathways are listed and available for download as a file. Second, the enriched terms are shown in a lollipop figure that can also be downloaded as a PDF file. If there are more than 30 enriched GO terms or KEGG pathways, only the 30 with the lowest FDR values are plotted (Figure 15).
+For each enrichment service (Gene Ontology, KEGG pathway, STRING), the app shows:
 
-![Figure 15](figures/fig15_go_lollipop.png)
+1. An **ID-mapping report**: how many IDs were submitted, how many the service recognised (mapped) and how many it did not, and the mapping rate, with a link to download the IDs that were not mapped. If fewer than half of the IDs were mapped, a warning suggests checking the ID type or trying another service. For KEGG, "mapped" means "in a KEGG pathway", which is often a minority of all genes; the warning is therefore only given when the DEGs map clearly worse than all tested genes.
+2. A **label** with the service, its database version or date, the organism and the background (e.g. "STRING functional enrichment (STRING version 12.0); organism: Synechocystis sp. PCC 6803 (1148); background: all 3405 tested genes (2983 recognised by STRING)"). Report this information together with the results.
+3. A **lollipop figure** of the enriched terms (the 30 with the lowest FDR values if there are more), which can be downloaded in the format chosen under *Plot download options*.
+4. The **table** of all enriched terms, downloadable as a tab-delimited file that starts with the label and the mapping summary.
 
-*Figure 15: Enriched GO terms of the demo meta-analysis DEGs shown as a lollipop figure. If there are more than 30 enriched terms or pathways, the 30 with the lowest FDR values are drawn.*
+Because the background is the set of tested genes, the results can differ from earlier versions, which used the whole genome. For the demo data, PANTHER finds no GO term enriched among the meta-analysis DEGs when they are compared with all tested genes, while STRING finds photosynthesis-related terms (Figure 15).
+
+![Figure 15](figures/fig15_string_lollipop.png)
+
+*Figure 15: STRING enrichment of the demo meta-analysis DEGs against all tested genes, shown as a lollipop figure grouped by annotation source. Publications (PMID) are listed in the table but not drawn.*
 
 ## References
 
@@ -321,3 +335,4 @@ If the user performs functional annotation of the meta-analysis DEGs via GO and 
 12. Schurch, N. J. *et al.* How many biological replicates are needed in an RNA-seq experiment and which differential expression tool should you use? *RNA* **22**, 839–851 (2016).
 13. Zhang, Y., Parmigiani, G. & Johnson, W. E. ComBat-seq: batch effect adjustment for RNA-seq count data. *NAR Genomics and Bioinformatics* **2**, lqaa078 (2020).
 14. Nygaard, V., Rødland, E. A. & Hovig, E. Methods that remove batch effects while retaining group differences may lead to exaggerated confidence in downstream analyses. *Biostatistics* **17**, 29–39 (2016).
+15. Szklarczyk, D. *et al.* The STRING database in 2023: protein–protein association networks and functional enrichment analyses for any sequenced genome of interest. *Nucleic Acids Research* **51**, D638–D646 (2023).
