@@ -56,3 +56,17 @@ demo_pipeline <- function() {
   )
   demo_cache$result
 }
+
+# Reads fixtures/demo-reference.txt: the recorded DEG list and the package
+# versions it was produced with
+read_demo_reference <- function() {
+  lines <- readLines(test_path("fixtures", "demo-reference.txt"))
+  meta <- grep("^# [A-Za-z0-9_]+: ", lines, value = TRUE)
+  fields <- stats::setNames(sub("^# [^:]+: ", "", meta), sub("^# ([^:]+): .*", "\\1", meta))
+  list(
+    degs = grep("^#", lines, value = TRUE, invert = TRUE),
+    deseq2 = fields[["DESeq2"]],
+    metarnaseq = fields[["metaRNASeq"]],
+    consistent_genes = as.integer(fields[["consistent_genes"]])
+  )
+}

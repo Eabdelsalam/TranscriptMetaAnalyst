@@ -82,10 +82,30 @@ test_that("demo enrichment genes are the meta-significant, direction-consistent 
   expect_lt(length(degs), length(consistent))
 })
 
-test_that("demo meta-analysis finds the recorded number of DEGs", {
+test_that("demo meta-analysis reproduces the recorded DEGs", {
   demo <- demo_pipeline()
-  # recorded with DESeq2 1.52.0 / metaRNASeq 1.0.8 on the bundled demo data; a change
-  # here means the statistical pipeline changed and should be reviewed
-  expect_length(demo$meta_degs, 373)
-  expect_equal(sum(abs(demo$fc_select$signFC) == 1, na.rm = TRUE), 908)
+  ref <- read_demo_reference()
+  same_versions <- as.character(utils::packageVersion("DESeq2")) == ref$deseq2 &&
+    as.character(utils::packageVersion("metaRNASeq")) == ref$metarnaseq
+  regenerate <- "If the change is expected, regenerate the reference with tests/testthat/fixtures/make-demo-reference.R."
+
+  if (same_versions) {
+    # same package versions: the result must be identical
+    expect_setequal(demo$meta_degs, ref$degs)
+    expect_equal(sum(abs(demo$fc_select$signFC) == 1, na.rm = TRUE), ref$consistent_genes)
+  } else {
+    # newer DESeq2/metaRNASeq: small numerical changes are allowed, a changed
+    # pipeline is not (>= 95% overlap and <= 5% change in the number of DEGs)
+    overlap <- length(intersect(demo$meta_degs, ref$degs)) /
+      length(union(demo$meta_degs, ref$degs))
+    size_change <- abs(length(demo$meta_degs) - length(ref$degs)) / length(ref$degs)
+    expect(overlap >= 0.95, sprintf(
+      "DEG overlap with the reference (DESeq2 %s) is %.1f%%, below 95%%. %s",
+      ref$deseq2, 100 * overlap, regenerate
+    ))
+    expect(size_change <= 0.05, sprintf(
+      "%d DEGs vs %d in the reference (DESeq2 %s), a %.1f%% change. %s",
+      length(demo$meta_degs), length(ref$degs), ref$deseq2, 100 * size_change, regenerate
+    ))
+  }
 })
