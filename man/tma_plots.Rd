@@ -18,15 +18,40 @@ plot_pvalue_hist(result)
 
 plot_pca(result)
 
-plot_heatmap(mat, k_row, k_col)
+plot_heatmap(
+  mat,
+  k_row,
+  k_col,
+  palette = "yellow_black_purple",
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  method = "complete",
+  show_rownames = FALSE
+)
 
-plot_heatmap_static(mat, design, k_row, k_col)
+plot_heatmap_static(
+  mat,
+  design,
+  k_row,
+  k_col,
+  palette = "yellow_black_purple",
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  method = "complete",
+  show_rownames = FALSE
+)
 
 plot_venn(sets)
 
 plot_upset(sets)
 
-plot_volcano(volcano)
+plot_volcano(
+  volcano,
+  p_cutoff = 0.05,
+  fc_cutoff = 1,
+  labels = c("significant", "top", "none"),
+  top_n = 10
+)
 
 plot_go_lollipop(go_table)
 
@@ -43,11 +68,30 @@ plot_gene_counts(result, gene, nrows = length(result$studies)\%/\%2)
 
 \item{k_col}{Number of sample (column) clusters.}
 
+\item{palette}{Heatmap colours, one of \code{\link[=heatmap_palettes]{heatmap_palettes()}}.}
+
+\item{cluster_rows, cluster_cols}{Cluster (and reorder) the genes and the
+samples. Without clustering, \code{k_row} and \code{k_col} are ignored.}
+
+\item{method}{Agglomeration method for the clustering, passed to
+\code{\link[stats:hclust]{stats::hclust()}}.}
+
+\item{show_rownames}{Show the gene names.}
+
 \item{design}{Experimental design, used to annotate the static heatmap.}
 
 \item{sets}{Named list of gene sets for the Venn and UpSet plots.}
 
 \item{volcano}{A data frame from \code{\link[=volcano_data]{volcano_data()}}.}
+
+\item{p_cutoff, fc_cutoff}{Adjusted p-value and absolute log2 fold-change
+thresholds drawn on the volcano plot.}
+
+\item{labels}{Which genes to label on the volcano plot: \code{"significant"}
+(genes past both thresholds), \code{"top"} (the \code{top_n} genes with the
+smallest adjusted p-values among those) or \code{"none"}.}
+
+\item{top_n}{Number of genes to label with \code{labels = "top"}.}
 
 \item{go_table}{A table from \code{\link[=run_go_enrichment]{run_go_enrichment()}}.}
 

@@ -4,7 +4,11 @@
 \alias{heatmap_matrix}
 \title{Scaled DEG matrix of a TMA result}
 \usage{
-heatmap_matrix(result, corrected = use_corrected(result))
+heatmap_matrix(
+  result,
+  corrected = use_corrected(result),
+  genes = result$meta_degs
+)
 }
 \arguments{
 \item{result}{A \code{tma_result} from \code{\link[=run_tma_pipeline]{run_tma_pipeline()}}.}
