@@ -58,6 +58,14 @@ test_that("the volcano plot uses the chosen cutoffs and labels", {
   expect_setequal(top, passing$genes[order(passing$pval)][1:5])
 })
 
+test_that("Venn diagrams are offered for up to 4 sets, otherwise only UpSet", {
+  sets <- function(n) stats::setNames(lapply(seq_len(n), function(i) paste0("g", i)), paste0("S", seq_len(n)))
+  expect_equal(overlap_plot_type(sets(2)), "venn")
+  expect_equal(overlap_plot_type(sets(4)), "venn")
+  expect_equal(overlap_plot_type(sets(5)), "upset")
+  expect_equal(overlap_plot_type(deg_sets(demo_result())), "venn") # 3 studies + Meta
+})
+
 test_that("save_plot writes PDF, PNG and TIFF files of the chosen size", {
   p <- ggplot2::ggplot(data.frame(x = 1:3, y = 1:3), ggplot2::aes(x, y)) + ggplot2::geom_point()
   signature <- function(file, n) readBin(file, "raw", n)

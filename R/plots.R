@@ -331,6 +331,21 @@ plot_volcano <- function(volcano, p_cutoff = 0.05, fc_cutoff = 1,
   ))
 }
 
+#' Which plot shows the overlap of DEG lists
+#'
+#' Venn diagrams are readable for at most 4 sets (here: the studies plus the
+#' meta-analysis); with more sets, only the UpSet plot is shown.
+#'
+#' @param sets Named list of gene sets, see [deg_sets()].
+#' @return `"venn"` (both plots are offered, the Venn diagram first) or
+#'   `"upset"` (only the UpSet plot).
+#' @export
+#' @examples
+#' overlap_plot_type(list(A = "g1", B = "g2", Meta = "g1"))
+overlap_plot_type <- function(sets) {
+  if (length(sets) <= 4) "venn" else "upset"
+}
+
 #' @rdname tma_plots
 #' @export
 plot_go_lollipop <- function(go_table) {

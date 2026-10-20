@@ -141,8 +141,8 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL) 
       session$onFlushed(function() {
         shinyjs::show("results")
         shiny::updateSelectInput(session, "individual_study", choices = res$studies)
-        # Venn diagrams are only drawn for up to 3 studies (+ the meta-analysis)
-        if (length(res$studies) > 3) {
+        # Venn diagrams only for up to 4 sets (studies + meta-analysis)
+        if (overlap_plot_type(deg_sets(res)) == "upset") {
           shiny::hideTab("main_plots", target = "Venn diagram")
         } else {
           shiny::showTab("main_plots", target = "Venn diagram")

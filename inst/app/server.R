@@ -98,7 +98,7 @@ function(input, output, session) {
     tabs <- lapply(seq_along(results), function(i) {
       tabPanel(names(results)[i],
                mod_results_ui(paste0("rnaseq_c", i), select_organism = TRUE,
-                              venn = length(results[[i]]$studies) <= 3,
+                              venn = overlap_plot_type(deg_sets(results[[i]])) == "venn",
                               batch = !is.null(results[[i]]$batch)))
     })
     tagList(
