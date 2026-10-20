@@ -9,6 +9,7 @@ run_de_studies(
   methods = "DESeq2",
   alpha = 0.05,
   batch_method = "none",
+  reference = NULL,
   BPPARAM = tma_bpparam(length(studies))
 )
 }
@@ -23,6 +24,8 @@ named character vector with one method per study.}
 \item{batch_method}{How to use a \code{batch} column of the design, one of
 \code{\link[=batch_methods]{batch_methods()}}; applied only in studies where \code{\link[=batch_status]{batch_status()}} is
 \code{"applied"}.}
+
+\item{reference}{The reference condition, see \code{\link[=run_deseq2]{run_deseq2()}}.}
 
 \item{BPPARAM}{A BiocParallel back-end; by default \code{\link[=tma_bpparam]{tma_bpparam()}}.}
 }

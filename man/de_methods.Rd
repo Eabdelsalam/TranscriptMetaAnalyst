@@ -7,7 +7,14 @@
 \usage{
 de_methods()
 
-run_de(counts, design, method = "DESeq2", alpha = 0.05, use_batch = FALSE)
+run_de(
+  counts,
+  design,
+  method = "DESeq2",
+  alpha = 0.05,
+  use_batch = FALSE,
+  reference = NULL
+)
 }
 \arguments{
 \item{counts}{Count matrix (genes x samples) with gene names as row names.}
@@ -19,7 +26,7 @@ names, in the same order as the columns of \code{counts}.}
 
 \item{alpha}{Significance level used by DESeq2's independent filtering.}
 
-\item{use_batch}{Passed to the DE method, see \code{\link[=run_deseq2]{run_deseq2()}}.}
+\item{use_batch, reference}{Passed to the DE method, see \code{\link[=run_deseq2]{run_deseq2()}}.}
 }
 \value{
 \code{de_methods()} returns the method names. \code{run_de()} returns the
