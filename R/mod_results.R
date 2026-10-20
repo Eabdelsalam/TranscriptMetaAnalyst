@@ -118,8 +118,11 @@ mod_results_server <- function(id, result, organism = NULL) {
 
     # information boxes ------------------------------------------------------
     output$num_studies <- shinydashboard::renderInfoBox({
+      res <- result()
+      meta <- names(meta_methods())[meta_methods() == res$meta_method]
       shinydashboard::infoBox(title = "Number of studies",
-                              paste(length(result()$studies), "studies"),
+                              paste(length(res$studies), "studies"),
+                              paste0(paste(unique(res$de_methods), collapse = ", "), "; ", meta, " meta-analysis"),
                               width = 3, icon = shiny::icon("list-ol"))
     })
     output$num_degs <- shinydashboard::renderInfoBox({

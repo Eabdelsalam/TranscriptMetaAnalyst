@@ -103,7 +103,8 @@ NULL
 #' @rdname tma_plots
 #' @export
 plot_pvalue_hist <- function(result) {
-  graphics::hist(result$meta$rawpval, main = "Fisher Method p-Values Distribution",
+  method <- names(meta_methods())[meta_methods() == result$meta_method]
+  graphics::hist(result$meta$rawpval, main = paste(method, "Method p-Values Distribution"),
                  breaks = 100, col = "grey", xlab = "Raw p-values (meta-analysis)")
   invisible(NULL)
 }
