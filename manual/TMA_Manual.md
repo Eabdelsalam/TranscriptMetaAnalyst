@@ -40,6 +40,7 @@ Several of these changes fix errors in the results of earlier versions, so resul
 | GO / KEGG enrichment | Enrichment is now run on the meta-analysis DEGs only (significant in the meta-analysis *and* changed in the same direction in every study). Earlier versions used every gene with a consistent direction, whether significant or not. |
 | Closing the app | When the app is started with `runTMA()`, it stops when its browser window is closed, as before. When it is deployed on a Shiny Server, closing one browser window no longer shuts the app down for all other users. |
 | Methods | Besides DESeq2, the differential expression can now be run with edgeR or limma-voom, for all studies or chosen per study. Besides Fisher's method, the *p*-values can be combined with the inverse-normal method. See [Analysis settings](#422-analysis-settings). |
+| Batch effects | The experimental design file can have an optional `batch` column. Batch can be added to the DE model (`~ batch + condition`) or removed from the raw counts with ComBat-seq, and the PCA and heatmap can use batch-corrected values. A new **Batch effects** tab shows PCA and RLE plots before and after the correction. See [Batch effects](#423-batch-effects). |
 | Speed | The studies are analysed in parallel, and an uploaded analysis runs in the background, so the app stays responsive while it runs. The **Start Analysis!** button is disabled until the running analysis has finished. |
 | Demo | The demo analysis is computed the first time the **Run Demo Analysis** tab is opened and then reused, so opening the tab again shows the results immediately. |
 | Low-count genes | Genes with too few reads in every study are removed before the analysis (see [Analysis Pipeline](#5-analysis-pipeline)). They no longer appear in the results table. |
@@ -114,7 +115,7 @@ To perform a meta-analysis of RNA-Seq data using TMA, the user needs two input f
 
 1. The ***raw counts file***: a tab-delimited file that contains the raw counts of all the experiments to be analyzed, where each row represents a single gene and each column represents all counts from a single sample. Figure 3 shows an example of the raw counts file.
 
-2. The ***experimental design file***, which should contain at least 3 columns: sample, study, and condition. An example of this file is shown in Figure 4. The study column should contain records for all the count columns in the raw counts file. The condition column should contain only two unique conditions to be compared via the meta-analysis.
+2. The ***experimental design file***, which should contain at least 3 columns: sample, study, and condition. An example of this file is shown in Figure 4. The study column should contain records for all the count columns in the raw counts file. The condition column should contain only two unique conditions to be compared via the meta-analysis. An optional fourth column, `batch`, gives the batch of each sample within its study (for example the sequencing run or library preparation date); see [Batch effects](#423-batch-effects).
 
 ![Figure 3](figures/fig03_counts_file.png)
 
@@ -140,6 +141,17 @@ The **Which method should I use?** link in the box gives a short guide:
 - The inverse-normal method favours genes with consistent evidence across studies and gives larger studies more weight.
 
 Changes take effect the next time **Start Analysis!** is clicked. The methods used are shown in the *Number of studies* box of the results.
+
+#### 4.2.3 Batch effects
+
+If the experimental design file has a `batch` column, the **Analysis settings** box also shows the batch options. Batch is handled within each study:
+
+- **Batch in the DE model (~ batch + condition)** (default): the batch effect is estimated together with the condition effect. The counts are not changed.
+- **ComBat-seq on the raw counts**: the raw counts of each study are corrected for batch with ComBat-seq [13], keeping the condition effect, and then analysed with `~ condition`. This needs at least two samples in every batch.
+- **Ignore batch**: the `batch` column is not used.
+- **Use batch-corrected values in the PCA and heatmap**: draws these two plots from batch-corrected values (the ComBat-seq counts if ComBat-seq was used, otherwise values from `limma::removeBatchEffect()` [11]). This option only changes the plots, not the DE analysis.
+
+Batch can only be used in a study that has at least two batches, whose batches are not confounded with the condition, and that keeps enough samples to estimate the model. A study that does not meet these conditions is analysed with `~ condition`, and the **Batch effects** tab of the results names the study and the reason.
 
 ### 4.3 Run Demo Analysis
 
@@ -233,11 +245,15 @@ TMA generates several main plots to give the user an overview of the analyzed da
 
    *Figure 12: The intersection of identified DEGs is shown via (a) a Venn diagram, if the number of analyzed studies is 3 or fewer, and (b) an UpSet plot.*
 
-5. Finally, a **volcano plot** (Figure 13) shows the adjusted meta-analysis *p*-values (−log10) on the y-axis and the mean log2 fold change of each gene across all studies on the x-axis. It is generated with the `EnhancedVolcano` package. TMA computes the meta-analysis *p*-values so that values far below 10⁻¹⁶ stay exact; in the rare case that a *p*-value is still exactly 0, it is drawn at the height of the smallest non-zero *p*-value. The figure and the data used to create it are available for download.
+5. A **volcano plot** (Figure 13) shows the adjusted meta-analysis *p*-values (−log10) on the y-axis and the mean log2 fold change of each gene across all studies on the x-axis. It is generated with the `EnhancedVolcano` package. TMA computes the meta-analysis *p*-values so that values far below 10⁻¹⁶ stay exact; in the rare case that a *p*-value is still exactly 0, it is drawn at the height of the smallest non-zero *p*-value. The figure and the data used to create it are available for download.
 
    ![Figure 13](figures/fig13_volcano.png)
 
    *Figure 13: An example of the volcano plot generated by TMA.*
+
+6. When the design has a `batch` column, a **Batch effects** tab shows how batch was handled in each study and two diagnostic plots, each before and after the correction:
+   - a PCA of each study (computed separately per study on its 500 most variable genes), coloured by batch: after a successful correction, the samples should no longer separate by batch;
+   - a relative log expression (RLE) plot: for each sample, the distribution of each gene's log expression minus the gene's median in the study. Boxes centred on 0 and of similar width indicate comparable samples.
 
 ### 6.3 DEGs Table & Count Plots
 
@@ -271,3 +287,4 @@ If the user performs functional annotation of the meta-analysis DEGs via GO and 
 10. Law, C. W., Chen, Y., Shi, W. & Smyth, G. K. voom: precision weights unlock linear model analysis tools for RNA-seq read counts. *Genome Biology* **15**, R29 (2014).
 11. Ritchie, M. E. *et al.* limma powers differential expression analyses for RNA-sequencing and microarray studies. *Nucleic Acids Research* **43**, e47 (2015).
 12. Schurch, N. J. *et al.* How many biological replicates are needed in an RNA-seq experiment and which differential expression tool should you use? *RNA* **22**, 839–851 (2016).
+13. Zhang, Y., Parmigiani, G. & Johnson, W. E. ComBat-seq: batch effect adjustment for RNA-seq count data. *NAR Genomics and Bioinformatics* **2**, lqaa078 (2020).
