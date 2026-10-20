@@ -17,8 +17,9 @@
 - [4 App Layout](#4-app-layout)
   - [4.1 Home Tab](#41-home-tab)
   - [4.2 RNA-Seq Meta Analysis](#42-rna-seq-meta-analysis)
-  - [4.3 Run Demo Analysis](#43-run-demo-analysis)
-  - [4.4 User Manual](#44-user-manual)
+  - [4.3 Microarray Meta-Analysis](#43-microarray-meta-analysis)
+  - [4.4 Run Demo Analysis](#44-run-demo-analysis)
+  - [4.5 User Manual](#45-user-manual)
 - [5 Analysis Pipeline](#5-analysis-pipeline)
 - [6 Outputs](#6-outputs)
   - [6.1 Overview & Information Boxes](#61-overview--information-boxes)
@@ -48,6 +49,7 @@ Several of these changes fix errors in the results of earlier versions, so resul
 | Plot options | The heatmap and volcano plot have display options (which DEGs to show, top-N genes, gene labels and names, colours, clustering, cutoffs), and every plot can be downloaded as PDF, PNG or TIFF at a chosen size. These options change only the plots, never the DEGs. See [Main Plots](#62-main-plots). |
 | Reproducible R script | A **Download R script** button gives an R script that repeats the analysis with the same settings, for the methods section or for re-running it outside the app. See [Reproducible R Script](#65-reproducible-r-script). |
 | Speed | The studies are analysed in parallel, and an uploaded analysis runs in the background, so the app stays responsive while it runs. The **Start Analysis!** button is disabled until the running analysis has finished. |
+| Microarrays | A new **Microarray Meta-Analysis** tab meta-analyses normalised single-colour microarray data, uploaded as one expression file per study or imported directly from GEO. Values are log2-transformed when needed, probes are collapsed to genes, the genes measured in every study are kept, and each study is analysed with limma. A microarray demo (low-CO2 response of *Synechocystis*) is included. See [Microarray Meta-Analysis](#43-microarray-meta-analysis). |
 | Demo | The demo analysis is computed the first time the **Run Demo Analysis** tab is opened and then reused, so opening the tab again shows the results immediately. |
 | Low-count genes | Genes with too few reads in every study are removed before the analysis (see [Analysis Pipeline](#5-analysis-pipeline)). They no longer appear in the results table. |
 | Downloads | The downloaded DEG list of each study now has the columns `gene`, `base_mean`, `log2_fc`, `lfc_se`, `stat`, `pvalue` and `padj`. The GO results table can be downloaded again (this download failed in earlier versions). |
@@ -178,7 +180,36 @@ TMA applies these rules to every analysis:
 
 After each run, a message lists the studies and comparisons that were left out (for example, "Study S2 has only 1 sample of 'Heat' (at least 2 are needed), so it is not used for 'Heat vs Control'"), and the **Comparisons** box at the top of the results shows how many studies each comparison used.
 
-### 4.3 Run Demo Analysis
+### 4.3 Microarray Meta-Analysis
+
+The *Microarray Meta-Analysis* tab does the same meta-analysis for normalised **single-colour** microarray data. It has the same **Analysis settings** box as the RNA-Seq tab, with two differences: every study is analysed with limma (there is no choice of DE method), and batch can be added to the model or ignored (ComBat-seq is for counts and is not offered). The results have the same tabs and downloads as for RNA-Seq data (see [Outputs](#6-outputs)); the PCA, heatmap and expression plots show the log2 expression values.
+
+#### 4.3.1 Input
+
+There are two ways to give the data:
+
+- **Upload files.** One tab-delimited expression file per study (several files can be selected at once; gzip-compressed files are accepted) and one experimental design file. In each expression file, the first column holds the probe (or gene) IDs, an optional column named `Symbol` (or `Gene`, `Gene symbol`) gives the gene each probe measures, and the other columns are the samples, named as in the `sample` column of the design file. The design file is the same as for RNA-Seq data: `sample`, `study`, `condition` and optionally `batch`. Each expression file must hold the samples of one study.
+- **Import from GEO.** Type one or more GEO series accessions (e.g. `GSE82120, GSE63352`) and click **Fetch from GEO**. The series matrices and platform annotations are downloaded with GEOquery [16] (an internet connection is needed the first time; the files are then cached on your computer). For each series, choose the platform (if it has several), the sample annotation column that holds the condition, the label of each of its values (leave a value empty to drop those samples), and the platform column that holds the gene. The study name is the GSE accession.
+
+Only single-colour arrays can be used. For two-colour arrays (two channels per sample, or single channels labelled with both Cy3 and Cy5), the app shows a warning, because their channels are not comparable as independent samples.
+
+#### 4.3.2 Data preparation
+
+Before the analysis, every study goes through these steps, and the **Data preparation** box reports the numbers of samples, probes, dropped probes and genes per study:
+
+1. **log2 transformation if needed.** The app uses the rule of GEO2R: the values are considered not log-transformed when the 99th percentile is above 100, or when the range is wider than 50 and the 25th percentile is positive. Such data are log2-transformed; values of 0 or less become missing. The *log2 applied* column says whether this was done.
+2. **Probes to genes.** When the file has a gene column, probes without a gene and probes that map to several genes (e.g. `geneA /// geneB`) are dropped, and for every gene the probe with the highest mean expression is kept.
+3. **Common genes.** Only the genes measured in every study are used in the meta-analysis. The box gives their number.
+
+#### 4.3.3 Differential expression with limma
+
+Each study is fitted with `~ 0 + condition` (or `~ 0 + condition + batch` when batch is in the model) with `lmFit`, every condition is compared with the reference with `contrasts.fit`, and the statistics are moderated with `eBayes` using an intensity trend (`trend = TRUE`), as recommended for microarray data [11]. The *p*-values of the studies are then combined with Fisher's or the inverse-normal method, as for RNA-Seq data. The [study requirements](#424-study-requirements) are the same: at least 2 samples per condition in a study and at least 2 studies per comparison.
+
+#### 4.3.4 Microarray demo
+
+The **Load demo data** button runs a demo analysis on wild-type *Synechocystis* sp. PCC 6803 grown at high CO2 (`HC`) and 3 h or 24 h after a shift to low CO2 (`LC_3h`, `LC_24h`), from three GEO series on platform GPL15867 (GSE82120, GSE63352 and GSE68250). GSE82120 has no 3 h samples, so *LC_3h vs HC* uses two studies and *LC_24h vs HC* uses three. To keep the package small, each file holds at most 3 probes per gene and a few control probes without a gene, so the demo also shows the probe collapsing.
+
+### 4.4 Run Demo Analysis
 
 The Demo Analysis tab (Figure 5) gives users hands-on experience of how TMA works. By clicking the ***"Run Demo Analysis"*** tab, users run a demo analysis using simulated data of *Synechocystis* sp. based on our previously published meta-analysis [1]. After clicking, a message shows that the demo analysis is running. After a while, the message disappears and the results become visible. The demo analysis generates the entire set of results, including all the meta-analysis outputs and figures discussed in the [Outputs](#6-outputs) section. This lets users test the app's functionality, understand the analysis workflow, and learn how to navigate the app's tabs and sections before working with their own data.
 
@@ -188,7 +219,7 @@ The Demo tab has its own **Analysis settings** box with the differential express
 
 *Figure 5: The Run Demo Analysis tab lets users test the app. Clicking on this tab triggers the analysis, and the results appear shortly.*
 
-### 4.4 User Manual
+### 4.5 User Manual
 
 The last tab on the left panel is the *User Manual* tab. It provides a link to the current detailed guide of TMA, information on contacting the creators of the app, and how to cite the app in scientific publications (Figure 6).
 
@@ -323,10 +354,10 @@ Because the background is the set of tested genes, the results can differ from e
 
 ### 6.5 Reproducible R Script
 
-The **Download R script** button (in the *Comparisons* box of the RNA-Seq tab, and in the *Reproducible R script* box of the Demo tab) gives an R script that repeats the analysis outside the app with the TranscriptMetaAnalyst package. The script:
+The **Download R script** button (in the *Comparisons* box of the RNA-Seq and Microarray tabs, and in the *Reproducible R script* box of the Demo tab) gives an R script that repeats the analysis outside the app with the TranscriptMetaAnalyst package. The script:
 
 - reads the counts and design files. **For your own data, the two file paths in the script are placeholders** (`PATH/TO/<file name you uploaded>`): the app does not know where the files are on your computer. A banner at the top of the script and a note under the button say so; replace the two paths before running the script. The demo script uses the demo data bundled with the package and runs as it is;
-- runs `run_tma_analysis()` with the settings used in the app (reference condition, DE method(s), meta-analysis method, batch handling);
+- runs `run_tma_analysis()` (or `run_array_analysis()` for microarrays; for GEO studies the script downloads the series again with `fetch_geo()` and `geo_study()`) with the settings used in the app (reference condition, DE method(s), meta-analysis method, batch handling);
 - saves, for every comparison, the meta-analysis table and the PCA, volcano, heatmap, Venn (up to 4 sets) and UpSet plots in a `tma_results` folder, with the default plot options;
 - contains a commented-out section for the GO, KEGG and STRING enrichment (it needs an internet connection), filled with the ID type and organisms chosen in the app where available;
 - ends with `sessionInfo()`, which lists the versions of R and of the packages used, for the methods section of a publication.
@@ -348,3 +379,4 @@ The **Download R script** button (in the *Comparisons* box of the RNA-Seq tab, a
 13. Zhang, Y., Parmigiani, G. & Johnson, W. E. ComBat-seq: batch effect adjustment for RNA-seq count data. *NAR Genomics and Bioinformatics* **2**, lqaa078 (2020).
 14. Nygaard, V., Rødland, E. A. & Hovig, E. Methods that remove batch effects while retaining group differences may lead to exaggerated confidence in downstream analyses. *Biostatistics* **17**, 29–39 (2016).
 15. Szklarczyk, D. *et al.* The STRING database in 2023: protein–protein association networks and functional enrichment analyses for any sequenced genome of interest. *Nucleic Acids Research* **51**, D638–D646 (2023).
+16. Davis, S. & Meltzer, P. S. GEOquery: a bridge between the Gene Expression Omnibus (GEO) and BioConductor. *Bioinformatics* **23**, 1846–1847 (2007).
