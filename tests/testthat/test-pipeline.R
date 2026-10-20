@@ -74,3 +74,30 @@ test_that("tma_bpparam uses at most one worker per study", {
   }
   expect_s4_class(tma_bpparam(1), "SerialParam")
 })
+
+test_that("filter_low_counts keeps genes that pass in at least one study", {
+  set.seed(1)
+  make <- function(m) {
+    rownames(m) <- c("everywhere", "only_A", "nowhere")
+    m
+  }
+  high <- matrix(stats::rpois(4, 200), nrow = 1)
+  zero <- matrix(0, nrow = 1, ncol = 4)
+  studies <- list(
+    A = list(counts = make(rbind(high, high, zero)),
+             design = data.frame(condition = c("c", "c", "t", "t"))),
+    B = list(counts = make(rbind(high, zero, zero)),
+             design = data.frame(condition = c("c", "c", "t", "t")))
+  )
+  filtered <- filter_low_counts(studies)
+  expect_equal(rownames(filtered$A$counts), c("everywhere", "only_A"))
+  expect_equal(rownames(filtered$B$counts), c("everywhere", "only_A"))
+})
+
+test_that("pre-filtering keeps every demo gene, so the demo result is unchanged", {
+  demo <- tma_demo_data()
+  res <- demo_result()
+  expect_equal(res$genes, demo$counts$Geneid)
+  unfiltered <- run_tma_pipeline(demo$counts, demo$design, filter = FALSE)
+  expect_equal(res$meta_degs, unfiltered$meta_degs)
+})

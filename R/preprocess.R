@@ -25,3 +25,29 @@ split_studies <- function(counts, design) {
   })
   stats::setNames(studies, study_ids)
 }
+
+#' Remove genes with low counts in every study
+#'
+#' Applies [edgeR::filterByExpr()] to each study (grouped by condition) and
+#' keeps a gene in all studies if it passes the filter in at least one of
+#' them. Genes that are too low in every study are removed before the
+#' differential expression analysis; within each study, DESeq2's independent
+#' filtering still handles genes that are low there.
+#'
+#' @param studies Output of [split_studies()].
+#' @return `studies` with the low-count genes removed from every count matrix.
+#' @export
+#' @examples
+#' demo <- tma_demo_data()
+#' studies <- filter_low_counts(split_studies(demo$counts, demo$design))
+#' nrow(studies$A$counts)
+filter_low_counts <- function(studies) {
+  passes <- lapply(studies, function(s) {
+    edgeR::filterByExpr(s$counts, group = s$design$condition)
+  })
+  keep <- Reduce(`|`, passes)
+  lapply(studies, function(s) {
+    s$counts <- s$counts[keep, , drop = FALSE]
+    s
+  })
+}

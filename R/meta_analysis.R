@@ -104,21 +104,24 @@ consistent_direction <- function(fold_changes) {
 
 #' Run the TMA RNA-seq meta-analysis
 #'
-#' Runs DESeq2 in every study, combines the p-values with Fisher's method,
-#' removes genes whose direction conflicts between studies, and collects
-#' everything the results tabs need in one `tma_result` object.
+#' Removes genes with low counts in every study ([filter_low_counts()]), runs
+#' DESeq2 in every study, combines the p-values with Fisher's method, removes
+#' genes whose direction conflicts between studies, and collects everything
+#' the results tabs need in one `tma_result` object.
 #'
 #' @param counts Counts data frame with a `Geneid` column and one column per
 #'   sample.
 #' @param design Experimental design data frame with `sample`, `study` and
 #'   `condition` columns.
 #' @param alpha Significance level for the per-study and meta-analysis tests.
+#' @param filter If `TRUE`, remove genes with low counts in every study
+#'   before the analysis (see [filter_low_counts()]).
 #' @param BPPARAM BiocParallel back-end for the per-study analyses, see
 #'   [tma_bpparam()].
 #' @return An object of class `tma_result`, a list with
 #'   \describe{
 #'     \item{design}{the experimental design.}
-#'     \item{studies, genes}{study and gene names.}
+#'     \item{studies, genes}{study names and the names of the analysed genes.}
 #'     \item{de}{per-study DE tables (see [run_deseq2()]).}
 #'     \item{norm_counts}{normalised counts of all samples (genes x samples).}
 #'     \item{fold_changes}{log2 fold changes (genes x studies).}
@@ -139,11 +142,12 @@ consistent_direction <- function(fold_changes) {
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' length(res$meta_degs)
 #' }
-run_tma_pipeline <- function(counts, design, alpha = 0.05,
+run_tma_pipeline <- function(counts, design, alpha = 0.05, filter = TRUE,
                              BPPARAM = tma_bpparam(length(unique(design$study)))) {
   studies <- split_studies(counts, design)
+  if (filter) studies <- filter_low_counts(studies)
   de <- run_de_studies(studies, alpha = alpha, BPPARAM = BPPARAM)
-  genes <- counts$Geneid
+  genes <- rownames(studies[[1]]$counts)
   study_ids <- names(studies)
   tables <- lapply(de, `[[`, "table")
   de_column <- function(col) {

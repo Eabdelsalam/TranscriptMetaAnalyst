@@ -8,6 +8,7 @@ run_tma_pipeline(
   counts,
   design,
   alpha = 0.05,
+  filter = TRUE,
   BPPARAM = tma_bpparam(length(unique(design$study)))
 )
 }
@@ -20,6 +21,9 @@ sample.}
 
 \item{alpha}{Significance level for the per-study and meta-analysis tests.}
 
+\item{filter}{If \code{TRUE}, remove genes with low counts in every study
+before the analysis (see \code{\link[=filter_low_counts]{filter_low_counts()}}).}
+
 \item{BPPARAM}{BiocParallel back-end for the per-study analyses, see
 \code{\link[=tma_bpparam]{tma_bpparam()}}.}
 }
@@ -27,7 +31,7 @@ sample.}
 An object of class \code{tma_result}, a list with
 \describe{
 \item{design}{the experimental design.}
-\item{studies, genes}{study and gene names.}
+\item{studies, genes}{study names and the names of the analysed genes.}
 \item{de}{per-study DE tables (see \code{\link[=run_deseq2]{run_deseq2()}}).}
 \item{norm_counts}{normalised counts of all samples (genes x samples).}
 \item{fold_changes}{log2 fold changes (genes x studies).}
@@ -43,9 +47,10 @@ fold changes and the direction \code{signFC} of each gene.}
 }
 }
 \description{
-Runs DESeq2 in every study, combines the p-values with Fisher's method,
-removes genes whose direction conflicts between studies, and collects
-everything the results tabs need in one \code{tma_result} object.
+Removes genes with low counts in every study (\code{\link[=filter_low_counts]{filter_low_counts()}}), runs
+DESeq2 in every study, combines the p-values with Fisher's method, removes
+genes whose direction conflicts between studies, and collects everything
+the results tabs need in one \code{tma_result} object.
 }
 \examples{
 \donttest{
