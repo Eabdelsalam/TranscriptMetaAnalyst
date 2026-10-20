@@ -4,6 +4,9 @@
 
 # a snap-packaged Chromium can take longer than chromote's default 10 s to start
 withr::local_options(chromote.timeout = 60)
+# Chrome writes a profile folder to TMPDIR; keep it inside R's session temp
+# folder, which is removed when R exits
+withr::local_envvar(TMPDIR = tempdir())
 
 skip_if_no_browser <- function() {
   skip_on_cran()
