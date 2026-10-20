@@ -17,6 +17,7 @@ Suggests:
   rmarkdown
 VignetteBuilder: knitr
 Config/testthat/edition: 3
-biocViews: Software
+biocViews: Software, GUI, ShinyApps, Transcriptomics, RNASeq, Microarray,
+  DifferentialExpression, GeneExpression, BatchEffect, GeneSetEnrichment, Visualization
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.1.1

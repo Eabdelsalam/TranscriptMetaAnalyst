@@ -17,7 +17,7 @@ Shiny app with `runTMA()`; every step of the app is also an R function, which
 this vignette shows. The app can write the same code for an analysis with its
 **Download R script** button.
 
-```{r}
+```{r load}
 library(TranscriptMetaAnalyst)
 ```
 
@@ -46,7 +46,7 @@ and a design table with the columns `sample`, `study` and `condition` (and
 optionally `batch`). The package includes a small demo dataset with three
 studies:
 
-```{r}
+```{r demo-data}
 demo <- tma_demo_data()
 head(demo$counts[, 1:5])
 table(demo$design$study, demo$design$condition)
@@ -57,7 +57,7 @@ study with the chosen DE method (`"DESeq2"`, `"edgeR"` or `"limma-voom"`),
 compares every condition with the reference, and combines the studies'
 p-values with Fisher's method or the inverse-normal method:
 
-```{r}
+```{r analysis}
 analysis <- run_tma_analysis(demo$counts, demo$design, reference = "Cont",
                              de_method = "DESeq2", meta_method = "fisher")
 analysis
@@ -68,7 +68,7 @@ statistics of every tested gene, and `meta_degs` the genes that are
 significant in the meta-analysis and change in the same direction in every
 study:
 
-```{r}
+```{r results}
 res <- analysis$results[["Treated vs Cont"]]
 head(res$meta[order(res$meta$adjpval), ])
 length(res$meta_degs)
@@ -101,7 +101,7 @@ read with `read_array_matrix()`, or imported from GEO with `fetch_geo()` and
 `geo_study()`. The demo has three GEO series of *Synechocystis* sp. PCC 6803
 shifted from high to low CO2:
 
-```{r}
+```{r array-data}
 arrays <- tma_microarray_demo_data()
 table(arrays$design$study, arrays$design$condition)
 ```
@@ -111,7 +111,7 @@ probes to genes (the probe with the highest mean expression is kept), keeps
 the genes measured in every study and analyses each study with limma. The
 preparation report gives the numbers for every study:
 
-```{r}
+```{r array-analysis}
 array_analysis <- run_array_analysis(arrays$matrices, arrays$design, reference = "HC")
 array_analysis$preparation$report
 array_analysis
@@ -126,7 +126,7 @@ The meta-analysis DEGs can be tested for enriched GO terms (PANTHER), KEGG
 pathways and STRING annotations against all tested genes. These functions
 query online services, so they are not run here:
 
-```{r, eval = FALSE}
+```{r enrichment, eval = FALSE}
 go <- run_go_enrichment(res$meta_degs, organism = 1111708, background = res$genes,
                         id_type = "kegg")
 string <- run_string_enrichment(res$meta_degs, species = 1148, background = res$genes,
@@ -137,6 +137,6 @@ enrichment_label(string)
 
 ## Session information
 
-```{r}
+```{r session-info}
 sessionInfo()
 ```
