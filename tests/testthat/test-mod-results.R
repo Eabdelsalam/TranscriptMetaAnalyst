@@ -118,27 +118,6 @@ test_that("the KEGG organism code is checked while typing", {
   })
 })
 
-test_that("the app computes the demo once, when the Demo tab is first opened", {
-  res <- demo_result()
-  runs <- 0
-  local_mocked_bindings(run_tma_pipeline = function(counts, design, ...) {
-    runs <<- runs + 1
-    res
-  })
-  mock_organism_lists()
-  app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
-  shiny::testServer(app, {
-    session$setInputs(main_tabs = "home")
-    expect_equal(runs, 0)
-    session$setInputs(main_tabs = "demo")
-    expect_s3_class(demo_result(), "tma_result")
-    session$setInputs(main_tabs = "rnaseq")
-    session$setInputs(main_tabs = "demo")
-    demo_result()
-    expect_equal(runs, 1)
-  })
-})
-
 test_that("the RNA-seq tab validates the uploads and runs the pipeline on click", {
   res <- demo_result()
   # the mock runs inside the background task, so it reports its input through
@@ -174,7 +153,7 @@ test_that("the RNA-seq tab validates the uploads and runs the pipeline on click"
   })
 })
 
-test_that("Load demo data runs the demo on the RNA-seq tab and preselects the demo organism", {
+test_that("Load demo data runs the demo on the RNA-seq tab", {
   res <- demo_result()
   local_mocked_bindings(run_tma_analysis = function(counts, design, ...) {
     out <- res
@@ -223,25 +202,6 @@ test_that("the meta-analysis table shows 4 significant digits but keeps the data
   expect_equal(widget$x$data$adjpval, res$meta$adjpval)
 })
 
-test_that("the Batch effects tab is hidden for a result without a batch column", {
-  # (the browser-only part, running the update outside the reactive domain,
-  # cannot be reproduced in testServer)
-  calls <- list()
-  local_mocked_bindings(
-    hideTab = function(inputId, target, session = shiny::getDefaultReactiveDomain()) {
-      calls[[length(calls) + 1]] <<- list(target = target)
-    },
-    .package = "shiny"
-  )
-  res <- demo_result() # no batch column
-  shiny::testServer(mod_results_server, args = list(result = shiny::reactive(res),
-                                                    organism = list(go = 1, kegg = "syn")), {
-    session$flushReact()
-  })
-  hidden <- vapply(calls, `[[`, "", "target")
-  expect_true("batch" %in% hidden)
-})
-
 test_that("the organism lists are filled again for every new result", {
   # the results UI is drawn again for every analysis, so its organism inputs
   # start empty each time
@@ -266,4 +226,13 @@ test_that("the organism lists are filled again for every new result", {
   })
   go_updates <- Filter(function(x) x$id == "organism_go" && length(x$choices) > 0, calls)
   expect_length(go_updates, 2)
+})
+
+test_that("the results UI leaves out the Venn and Batch effects tabs when asked", {
+  full <- as.character(mod_results_ui("x"))
+  expect_match(full, "Venn diagram")
+  expect_match(full, "Batch effects")
+  reduced <- as.character(mod_results_ui("x", venn = FALSE, batch = FALSE))
+  expect_false(grepl("Venn diagram", reduced))
+  expect_false(grepl("Batch effects", reduced))
 })

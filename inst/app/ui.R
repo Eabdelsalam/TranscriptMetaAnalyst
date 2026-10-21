@@ -27,10 +27,6 @@ ui <- dashboardPage(
              tabName = "microarray",
              icon = icon("table-cells")),
     
-    #create a tab for demo analysis
-    menuItem("Run Demo Analysis",
-             tabName = "demo",
-             icon = icon("person-running")),
     
     menuItem("Methods Guide",
              tabName = "methods",
@@ -58,14 +54,13 @@ ui <- dashboardPage(
             h3(strong("TranscriptMetaAnalyst"), ": A graphical user interface to meta-analyze RNA-Seq and microarray transcriptomics data"),
             p("This app is designed to help biologists with less programming skills to perform a meta-analysis of several transcriptomic datasets (RNA-Seq or microarray), generated in their own studies or available online, to get robust results and new insights into the data."),
             p("TMA does a gene-level meta-analysis of bulk RNA-Seq (raw counts per gene) and single-colour microarray data. Transcript-level, isoform and splicing analyses are out of scope. Each study needs at least 2 samples per condition, and each comparison at least 2 studies; see the Methods Guide tab."),
-            h4("If you would like to check the app, please click on", strong("Run Demo Analysis"), "tab..."),
+            h4("To try the app, click", strong("Load demo data"), "on the RNA-Seq Meta-Analysis or Microarray Meta-Analysis tab."),
             hr(),
             p("As shown on the side panel, the app consists of several tabs as follows:"),
             tags$ul(
               tags$li(strong("Home:"), "contains the preliminary information about the app and information about how to use it."),
               tags$li(strong("RNA-Seq Meta-Analysis:"), "performs the meta-analysis for a group of RNA-Seq datasets (raw read counts), uploaded as files, and has its own demo data."),
               tags$li(strong("Microarray Meta-Analysis:"), "performs the meta-analysis for normalised single-colour microarray datasets, uploaded as files or imported from GEO, and has its own demo data."),
-              tags$li(strong("Run Demo Analysis:"), "could be used to perform a sample RNA-Seq meta analysis on a dataset provided with the app. When the user clicks this tab, the analysis will start automatically and the results will appear on the screen after a few seconds. The provided figures and tables are examples of what the application will provide under RNA-Seq Meta Analysis tab using the user's uploaded files"),
               tags$li(strong("Methods Guide:"), "explains when to use which differential expression, meta-analysis, batch and enrichment method, lists the study requirements, and gives the references."),
               tags$li(strong("User Manual:"), "contains a detailed user manual to guide the user during the app usage and explain all the files required to perform the analysis. It also contains information on how and/or where to get help, and how to cite the application.")
             ),
@@ -133,18 +128,6 @@ ui <- dashboardPage(
         uiOutput("array_preparation"),
         uiOutput("array_results")
       ), #close microarray tab item
-      ##### DEMO ANALYSIS TAB #####
-      #############################
-      tabItem(tabName = "demo",
-              fluidRow(mod_settings_ui("demo_settings")),
-              fluidRow(mod_batch_check_ui("demo_batch_check")),
-              fluidRow(box(title = "Reproducible R script", status = "primary", solidHeader = TRUE,
-                           width = 12, collapsible = TRUE,
-                           downloadButton("demo_script", "Download R script"),
-                           helpText("An R script that repeats the demo analysis with the current settings, using the demo data bundled with the package. For your own data, use the button in the Comparisons box of the RNA-Seq tab; its input file paths are placeholders that you replace with the paths of your files."))),
-              mod_results_ui("demo")
-      ), #close demo tab item
-      
       ##### METHODS GUIDE TAB #####
       tabItem(tabName = "methods", methods_guide_ui()),
 

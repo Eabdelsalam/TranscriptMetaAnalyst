@@ -1,6 +1,6 @@
 #' Results module
 #'
-#' The results area shared by the RNA-seq and Demo tabs: information boxes,
+#' The results area shared by the RNA-seq and microarray tabs: information boxes,
 #' main plots, the meta-analysis table, functional annotation and gene count
 #' plots. The server part renders a `tma_result`; every output is declared once
 #' and updates when the result changes.
@@ -24,10 +24,6 @@
 #'   `id_type`, `go`, `kegg` and `string` (as for `organism`): the choices
 #'   preselected in the organism and ID-type inputs for each new result (e.g.
 #'   for the demo data). The user can still change them.
-#' @param toggle_tabs If `TRUE`, the server hides the Venn diagram and Batch
-#'   effects tabs when they do not apply to the result. Use `FALSE` when the UI
-#'   was drawn for the result with `venn` and `batch` already set: the tabs
-#'   then do not exist, and hiding them would fail in the browser.
 #' @return `mod_results_ui()` returns UI; `mod_results_server()` is called for
 #'   its side effects.
 #' @name mod_results
@@ -161,8 +157,7 @@ mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE, venn = T
 
 #' @rdname mod_results
 #' @export
-mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, toggle_tabs = TRUE,
-                               selected = NULL) {
+mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, selected = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     # download file names start with the tab, e.g. "demo_pca.pdf"
     fname <- function(name) {
@@ -181,20 +176,6 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, 
       session$onFlushed(function() shiny::withReactiveDomain(session, {
         shinyjs::show("results")
         shiny::updateSelectInput(session, "individual_study", choices = res$studies)
-        if (toggle_tabs) {
-          # Venn diagrams only for up to 4 sets (studies + meta-analysis)
-          if (overlap_plot_type(deg_sets(res)) == "upset") {
-            shiny::hideTab("main_plots", target = "Venn diagram")
-          } else {
-            shiny::showTab("main_plots", target = "Venn diagram")
-          }
-          # the batch diagnostics only exist when the design has a batch column
-          if (is.null(res$batch)) {
-            shiny::hideTab("main_plots", target = "batch")
-          } else {
-            shiny::showTab("main_plots", target = "batch")
-          }
-        }
       }), once = TRUE)
     })
 

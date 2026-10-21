@@ -35,8 +35,7 @@ start_app <- function(name) {
                             load_timeout = 60 * 1000, timeout = 120 * 1000)
 }
 
-# open a tab by clicking its sidebar link, as a user does (setting the input
-# does not open the RNA-Seq item, which also holds the upload inputs)
+# open a tab by clicking its sidebar link, as a user does
 open_tab <- function(app, tab) {
   app$run_js(sprintf("document.querySelector('.sidebar-menu a[data-value=\\'%s\\']').click();", tab))
   app$wait_for_idle()
@@ -70,13 +69,15 @@ test_that("Home, Methods Guide and User Manual tabs open", {
   expect_no_app_errors(app)
 })
 
-test_that("the Demo tab runs the demo analysis", {
+test_that("the RNA-Seq tab runs the demo data", {
   skip_if_no_browser()
-  app <- start_app("demo-tab")
+  app <- start_app("rnaseq-demo")
   withr::defer(app$stop())
-  open_tab(app, "demo")
+  open_tab(app, "rnaseq")
+  app$click("rnaseq_demo")
   wait_for_text(app, "genes were identified as DEGs")
   expect_match(page_text(app), "Meta-analysis DEGs")
+  expect_match(page_text(app), "Treated vs Cont")
   expect_no_app_errors(app)
 })
 

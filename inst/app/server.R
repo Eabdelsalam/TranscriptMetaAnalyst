@@ -152,10 +152,9 @@ function(input, output, session) {
             req(length(results) >= i)
             results[[i]]
           })
-          #the tabs that do not apply are left out of the UI drawn for the result
           mod_results_server(paste0(prefix, "_c", i), result_i,
                              file_prefix = reactive(paste0(prefix, "_", gsub("[^A-Za-z0-9]+", "_", result_i()$contrast))),
-                             toggle_tabs = FALSE, selected = selected)
+                             selected = selected)
         })
       }
       #tell the user which studies or comparisons were left out (replicate rule)
@@ -401,35 +400,6 @@ function(input, output, session) {
                        array_files = run$files, design_name = run$design_name, geo = run$geo,
                        enrichment = list(id_type = choice("id_type"), go = choice("organism_go"),
                                          kegg = choice("organism_kegg"), string = choice("organism_string")))
-    },
-    contentType = "text/plain"
-  )
-
-  ####### Demo #######
-  #computed the first time the Demo tab is opened with given settings, then
-  #cached for all sessions
-  demo_settings <- mod_settings_server("demo_settings")
-  mod_batch_check_server("demo_batch_check", data = tma_demo_data)
-  demo_result <- reactive({
-    shinyalert("Demo Running!", "Demo RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
-               type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
-    demo <- tma_demo_data()
-    run_tma_pipeline(demo$counts, demo$design,
-                     de_method = demo_settings()$de_method,
-                     meta_method = demo_settings()$meta_method)
-  }) |>
-    bindCache("tma-demo", utils::packageVersion("TranscriptMetaAnalyst"), demo_settings(),
-              cache = "app") |>
-    bindEvent(req(input$main_tabs == "demo"), demo_settings())
-  mod_results_server("demo", demo_result,
-                     organism = list(go = 1111708, kegg = "syn", string = 1148, id_type = "kegg"))
-  output$demo_script <- downloadHandler(
-    filename = "tma_demo_analysis.R",
-    content = function(file) {
-      settings <- c(demo_settings()[c("de_method", "meta_method")],
-                    list(batch_method = "none", batch_plots = FALSE, reference = "Cont"))
-      write_tma_script(file, settings = settings, data = "demo",
-                       enrichment = list(id_type = "kegg", go = 1111708, kegg = "syn", string = 1148))
     },
     contentType = "text/plain"
   )
