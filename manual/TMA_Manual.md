@@ -25,6 +25,7 @@
   - [6.2 Main Plots](#62-main-plots)
   - [6.3 DEGs Table & Count Plots](#63-degs-table--count-plots)
   - [6.4 Functional Annotation](#64-functional-annotation)
+  - [6.5 Reproducible R Script](#65-reproducible-r-script)
 - [References](#references)
 
 ## What is new in this version
@@ -45,6 +46,7 @@ Several of these changes fix errors in the results of earlier versions, so resul
 | Several conditions | The design can now have more than two conditions. Every condition is compared with a reference condition (all vs. reference), and each comparison gets its own results tab. See [Analysis settings](#422-analysis-settings) and [Study requirements](#424-study-requirements). |
 | Replicate rule | A condition with fewer than 2 samples in a study is left out of that study, and a comparison is meta-analysed only if at least 2 studies remain. The app names the studies and comparisons it left out. See [Study requirements](#424-study-requirements). |
 | Plot options | The heatmap and volcano plot have display options (which DEGs to show, top-N genes, gene labels and names, colours, clustering, cutoffs), and every plot can be downloaded as PDF, PNG or TIFF at a chosen size. These options change only the plots, never the DEGs. See [Main Plots](#62-main-plots). |
+| Reproducible R script | A **Download R script** button gives an R script that repeats the analysis with the same settings, for the methods section or for re-running it outside the app. See [Reproducible R Script](#65-reproducible-r-script). |
 | Speed | The studies are analysed in parallel, and an uploaded analysis runs in the background, so the app stays responsive while it runs. The **Start Analysis!** button is disabled until the running analysis has finished. |
 | Demo | The demo analysis is computed the first time the **Run Demo Analysis** tab is opened and then reused, so opening the tab again shows the results immediately. |
 | Low-count genes | Genes with too few reads in every study are removed before the analysis (see [Analysis Pipeline](#5-analysis-pipeline)). They no longer appear in the results table. |
@@ -219,7 +221,7 @@ If the meta-analysis found no DEGs, the app shows a message instead of running t
 
 *Figure 7: Gene Ontology (GO) and KEGG pathway enrichment analysis in TMA (screenshots of an earlier version, without the ID-type selector and the STRING tab). The user should (a) select the organism from the drop-down menu before running the GO analysis or (b) type the code of the studied organism before running the KEGG pathway analysis.*
 
-The same analysis can also be run from R without the app, for example to reproduce or extend the results:
+The same analysis can also be run from R without the app, for example to reproduce or extend the results (the app can write such a script for you, see [Reproducible R Script](#65-reproducible-r-script)):
 
 ```r
 library(TranscriptMetaAnalyst)
@@ -318,6 +320,16 @@ Because the background is the set of tested genes, the results can differ from e
 ![Figure 15](figures/fig15_string_lollipop.png)
 
 *Figure 15: STRING enrichment of the demo meta-analysis DEGs against all tested genes, shown as a lollipop figure grouped by annotation source. Publications (PMID) are listed in the table but not drawn.*
+
+### 6.5 Reproducible R Script
+
+The **Download R script** button (in the *Comparisons* box of the RNA-Seq tab, and in the *Reproducible R script* box of the Demo tab) gives an R script that repeats the analysis outside the app with the TranscriptMetaAnalyst package. The script:
+
+- reads the counts and design files. **For your own data, the two file paths in the script are placeholders** (`PATH/TO/<file name you uploaded>`): the app does not know where the files are on your computer. A banner at the top of the script and a note under the button say so; replace the two paths before running the script. The demo script uses the demo data bundled with the package and runs as it is;
+- runs `run_tma_analysis()` with the settings used in the app (reference condition, DE method(s), meta-analysis method, batch handling);
+- saves, for every comparison, the meta-analysis table and the PCA, volcano, heatmap, Venn (up to 4 sets) and UpSet plots in a `tma_results` folder, with the default plot options;
+- contains a commented-out section for the GO, KEGG and STRING enrichment (it needs an internet connection), filled with the ID type and organisms chosen in the app where available;
+- ends with `sessionInfo()`, which lists the versions of R and of the packages used, for the methods section of a publication.
 
 ## References
 

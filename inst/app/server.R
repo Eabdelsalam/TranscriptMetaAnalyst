@@ -107,7 +107,9 @@ function(input, output, session) {
         p(sprintf("Every condition is compared with the reference condition '%s'. Each comparison that could be meta-analysed has its own results tab below.",
                   analysis$reference)),
         tableOutput("rnaseq_summary"),
-        if (length(messages) > 0) tags$ul(lapply(messages, tags$li))
+        if (length(messages) > 0) tags$ul(lapply(messages, tags$li)),
+        downloadButton("rnaseq_script", "Download R script"),
+        helpText("An R script that repeats this analysis with the TranscriptMetaAnalyst package. The paths of the input files in the script are placeholders: replace them with the paths of your files before running it.")
       )),
       do.call(tabsetPanel, c(list(id = "rnaseq_contrasts"), unname(tabs)))
     )
@@ -117,6 +119,23 @@ function(input, output, session) {
     data.frame(Comparison = summary$contrast, `Studies used` = summary$studies,
                `Meta-analysed` = ifelse(summary$analysed, "yes", "no"), check.names = FALSE)
   })
+  #reproducible R script of the last analysis (placeholder file paths)
+  output$rnaseq_script <- downloadHandler(
+    filename = "tma_rnaseq_analysis.R",
+    content = function(file) {
+      inputs <- rnaseq_inputs()
+      settings <- inputs[c("de_method", "meta_method", "batch_method", "batch_plots")]
+      settings$reference <- rnaseq_analysis()$reference
+      #enrichment choices of the first results tab, if made
+      choice <- function(name) input[[paste0("rnaseq_c1-", name)]]
+      write_tma_script(file, settings = settings, data = "upload",
+                       counts_name = input$rnaseq_counts$name, design_name = input$rnaseq_design$name,
+                       enrichment = list(id_type = choice("id_type"), go = choice("organism_go"),
+                                         kegg = choice("organism_kegg"), string = choice("organism_string")))
+    },
+    contentType = "text/plain"
+  )
+
   #a results module per contrast tab, created once per tab position
   n_result_modules <- 0
   observeEvent(rnaseq_analysis(), {
@@ -159,6 +178,16 @@ function(input, output, session) {
     bindEvent(req(input$main_tabs == "demo"), demo_settings())
   mod_results_server("demo", demo_result,
                      organism = list(go = 1111708, kegg = "syn", string = 1148, id_type = "kegg"))
+  output$demo_script <- downloadHandler(
+    filename = "tma_demo_analysis.R",
+    content = function(file) {
+      settings <- c(demo_settings()[c("de_method", "meta_method")],
+                    list(batch_method = "none", batch_plots = FALSE, reference = "Cont"))
+      write_tma_script(file, settings = settings, data = "demo",
+                       enrichment = list(id_type = "kegg", go = 1111708, kegg = "syn", string = 1148))
+    },
+    contentType = "text/plain"
+  )
 
   #stop the app after the browser closes, but only for local runs started with
   #runTMA(); on a shared server this would shut the app down for every user
