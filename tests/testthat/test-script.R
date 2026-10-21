@@ -90,9 +90,16 @@ test_that("the app offers the scripts with the settings of the run", {
     expect_match(script, 'organism = "syn"', all = FALSE)
     expect_no_error(parse(text = script))
 
-    session$setInputs(`demo_settings-de_method` = "edgeR")
-    demo_script <- readLines(output$demo_script)
+    # the demo on the same tab gives a script with the bundled demo data
+    session$setInputs(`rnaseq_settings-de_method` = "edgeR", rnaseq_demo = 1)
+    for (i in 1:200) {
+      later::run_now(0.05)
+      session$flushReact()
+      if (rnaseq_task$status() != "running") break
+    }
+    demo_script <- readLines(output$rnaseq_script)
     expect_match(demo_script, "demo <- tma_demo_data()", all = FALSE, fixed = TRUE)
     expect_match(demo_script, 'de_method = "edgeR"', all = FALSE)
+    expect_false(any(grepl("PATH/TO", demo_script)))
   })
 })

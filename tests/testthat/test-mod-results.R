@@ -118,27 +118,6 @@ test_that("the KEGG organism code is checked while typing", {
   })
 })
 
-test_that("the app computes the demo once, when the Demo tab is first opened", {
-  res <- demo_result()
-  runs <- 0
-  local_mocked_bindings(run_tma_pipeline = function(counts, design, ...) {
-    runs <<- runs + 1
-    res
-  })
-  mock_organism_lists()
-  app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
-  shiny::testServer(app, {
-    session$setInputs(main_tabs = "home")
-    expect_equal(runs, 0)
-    session$setInputs(main_tabs = "demo")
-    expect_s3_class(demo_result(), "tma_result")
-    session$setInputs(main_tabs = "rnaseq")
-    session$setInputs(main_tabs = "demo")
-    demo_result()
-    expect_equal(runs, 1)
-  })
-})
-
 test_that("the RNA-seq tab validates the uploads and runs the pipeline on click", {
   res <- demo_result()
   # the mock runs inside the background task, so it reports its input through
@@ -174,6 +153,39 @@ test_that("the RNA-seq tab validates the uploads and runs the pipeline on click"
   })
 })
 
+test_that("Load demo data runs the demo on the RNA-seq tab", {
+  res <- demo_result()
+  local_mocked_bindings(run_tma_analysis = function(counts, design, ...) {
+    out <- res
+    out$design <- design
+    fake_analysis(out)
+  })
+  mock_organism_lists()
+  app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
+  shiny::testServer(app, {
+    session$setInputs(`rnaseq_settings-batch_method` = "model", rnaseq_demo = 1)
+    for (i in 1:200) {
+      later::run_now(0.05)
+      session$flushReact()
+      if (rnaseq_task$status() != "running") break
+    }
+    expect_equal(rnaseq_task$status(), "success")
+    expect_equal(rnaseq_analysis()$results[[1]]$design, tma_demo_data()$design)
+    # the demo has no batch column, so batch is ignored for it
+    expect_equal(rnaseq_run()$settings$batch_method, "none")
+    expect_equal(rnaseq_run()$data, "demo")
+    # the settings now list the demo's conditions
+    expect_match(as.character(output$`rnaseq_settings-reference_ui`$html), "Cont")
+    # the R script uses the bundled demo data, without placeholder paths
+    script <- readLines(output$rnaseq_script)
+    expect_true(any(grepl("tma_demo_data()", script, fixed = TRUE)))
+    expect_false(any(grepl("PLACEHOLDERS", script)))
+    # uploading a file switches back to the uploaded data
+    session$setInputs(rnaseq_counts = list(datapath = tma_example_file("counts"), name = "counts.txt"))
+    expect_equal(rnaseq_source(), "upload")
+  })
+})
+
 test_that("the meta-analysis table shows 4 significant digits but keeps the data", {
   res <- demo_result()
   widget <- meta_table_widget(res$meta)
@@ -190,21 +202,37 @@ test_that("the meta-analysis table shows 4 significant digits but keeps the data
   expect_equal(widget$x$data$adjpval, res$meta$adjpval)
 })
 
-test_that("the Batch effects tab is hidden for a result without a batch column", {
-  # (the browser-only part, running the update outside the reactive domain,
-  # cannot be reproduced in testServer)
+test_that("the organism lists are filled again for every new result", {
+  # the results UI is drawn again for every analysis, so its organism inputs
+  # start empty each time
   calls <- list()
   local_mocked_bindings(
-    hideTab = function(inputId, target, session = shiny::getDefaultReactiveDomain()) {
-      calls[[length(calls) + 1]] <<- list(target = target)
+    updateSelectizeInput = function(session, inputId, label = NULL, choices = NULL, selected = NULL, ...) {
+      calls[[length(calls) + 1]] <<- list(id = inputId, choices = choices, selected = selected)
     },
     .package = "shiny"
   )
-  res <- demo_result() # no batch column
-  shiny::testServer(mod_results_server, args = list(result = shiny::reactive(res),
-                                                    organism = list(go = 1, kegg = "syn")), {
+  mock_organism_lists()
+  res <- demo_result()
+  current <- shiny::reactiveVal(res)
+  shiny::testServer(mod_results_server, args = list(result = current), {
+    session$flushReact()
+    second <- res
+    second$contrast <- "High vs Cont"
+    current(second)
+    session$flushReact()
+    # the updates are sent after the flush in which the result arrived
     session$flushReact()
   })
-  hidden <- vapply(calls, `[[`, "", "target")
-  expect_true("batch" %in% hidden)
+  go_updates <- Filter(function(x) x$id == "organism_go" && length(x$choices) > 0, calls)
+  expect_length(go_updates, 2)
+})
+
+test_that("the results UI leaves out the Venn and Batch effects tabs when asked", {
+  full <- as.character(mod_results_ui("x"))
+  expect_match(full, "Venn diagram")
+  expect_match(full, "Batch effects")
+  reduced <- as.character(mod_results_ui("x", venn = FALSE, batch = FALSE))
+  expect_false(grepl("Venn diagram", reduced))
+  expect_false(grepl("Batch effects", reduced))
 })

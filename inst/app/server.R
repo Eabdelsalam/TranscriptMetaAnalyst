@@ -15,14 +15,21 @@ function(input, output, session) {
   )
 
   ####### RNA-Seq Analysis #######
-  #the uploaded design lists the studies for the per-study DE method setting
-  uploaded_design <- reactive({
+  #the data that "Start Analysis!" analyses: the uploaded files, or the demo
+  #data after "Load demo data" (until a file is uploaded again)
+  rnaseq_source <- reactiveVal("upload")
+  observeEvent(list(input$rnaseq_counts, input$rnaseq_design), rnaseq_source("upload"),
+               ignoreInit = TRUE)
+
+  #the current design lists the studies and conditions for the settings
+  rnaseq_design <- reactive({
+    if (rnaseq_source() == "demo") return(tma_demo_data()$design)
     req(input$rnaseq_design)
     design <- read_tma_table(input$rnaseq_design$datapath)
     req(length(validate_design(design)) == 0)
     design
   })
-  rnaseq_settings <- mod_settings_server("rnaseq_settings", design = uploaded_design)
+  rnaseq_settings <- mod_settings_server("rnaseq_settings", design = rnaseq_design)
 
   #read and check the uploaded files; shows an alert and stops on a problem
   read_uploads <- function() {
@@ -42,21 +49,10 @@ function(input, output, session) {
     }
     list(counts = counts, design = design)
   }
+  rnaseq_data <- function() if (rnaseq_source() == "demo") tma_demo_data() else read_uploads()
 
-  #check the uploaded data for batch effects before the analysis
-  mod_batch_check_server("rnaseq_batch_check", data = read_uploads)
-
-  #read and check the uploaded files when "Start Analysis!" is hit
-  rnaseq_inputs <- eventReactive(input$rnaseq_analyze, {
-    uploads <- read_uploads()
-    settings <- rnaseq_settings()
-    problems <- validate_batch_choice(uploads$design, settings$batch_method, settings$batch_plots)
-    if (length(problems) > 0) {
-      shinyalert(text = problems[1])
-      req(FALSE)
-    }
-    c(uploads, settings)
-  })
+  #check the current data for batch effects before the analysis
+  mod_batch_check_server("rnaseq_batch_check", data = rnaseq_data)
 
   #run the meta-analysis once per click, in a background process so the app
   #stays responsive while it runs
@@ -69,17 +65,39 @@ function(input, output, session) {
       seed = TRUE
     )
   })
-  #disable "Start Analysis!" while an analysis is running
+  #disable the buttons while an analysis is running
   observe({
     shinyjs::toggleState("rnaseq_analyze", condition = rnaseq_task$status() != "running")
+    shinyjs::toggleState("rnaseq_demo", condition = rnaseq_task$status() != "running")
   })
-  observeEvent(rnaseq_inputs(), {
-    inputs <- rnaseq_inputs()
+  #what the last run used, for the R script and the enrichment choices
+  rnaseq_run <- reactiveVal(NULL)
+  start_rnaseq_analysis <- function(data, settings) {
+    problems <- validate_batch_choice(data$design, settings$batch_method, settings$batch_plots)
+    if (length(problems) > 0) {
+      shinyalert(text = problems[1])
+      req(FALSE)
+    }
     shinyalert("Running...", "RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
-    shinyjs::hide("rnaseq_steps")
-    rnaseq_task$invoke(inputs$counts, inputs$design, inputs$de_method, inputs$meta_method,
-                       inputs$batch_method, inputs$batch_plots, inputs$reference)
+    rnaseq_run(list(data = rnaseq_source(), settings = settings,
+                    counts_name = input$rnaseq_counts$name, design_name = input$rnaseq_design$name))
+    rnaseq_task$invoke(data$counts, data$design, settings$de_method, settings$meta_method,
+                       settings$batch_method, settings$batch_plots, settings$reference)
+  }
+  #the demo data have no batch column, and the reference is guessed unless one
+  #of their conditions is chosen
+  observeEvent(input$rnaseq_demo, {
+    rnaseq_source("demo")
+    demo <- tma_demo_data()
+    settings <- rnaseq_settings()
+    settings$batch_method <- "none"
+    settings$batch_plots <- FALSE
+    if (!isTRUE(settings$reference %in% demo$design$condition)) settings$reference <- NULL
+    start_rnaseq_analysis(demo, settings)
+  })
+  observeEvent(input$rnaseq_analyze, {
+    start_rnaseq_analysis(rnaseq_data(), rnaseq_settings())
   })
   rnaseq_analysis <- reactive({
     #an error in the analysis is shown to the user instead of stopping the app
@@ -92,7 +110,7 @@ function(input, output, session) {
 
   #results of an analysis: a summary of the comparisons and one results tab per
   #contrast (condition vs reference); used by the RNA-seq and microarray tabs
-  analysis_results <- function(prefix, analysis, script_id) {
+  analysis_results <- function(prefix, analysis, script_id, selected = NULL) {
     output[[paste0(prefix, "_results")]] <- renderUI({
       res <- analysis()
       results <- res$results
@@ -111,7 +129,7 @@ function(input, output, session) {
           tableOutput(paste0(prefix, "_summary")),
           if (length(messages) > 0) tags$ul(lapply(messages, tags$li)),
           downloadButton(script_id, "Download R script"),
-          helpText("An R script that repeats this analysis with the TranscriptMetaAnalyst package. The paths of the input files in the script are placeholders: replace them with the paths of your files before running it.")
+          helpText("An R script that repeats this analysis with the TranscriptMetaAnalyst package. For uploaded files, the input file paths in the script are placeholders: replace them with the paths of your files before running it.")
         )),
         do.call(tabsetPanel, c(list(id = paste0(prefix, "_contrasts")), unname(tabs)))
       )
@@ -134,10 +152,9 @@ function(input, output, session) {
             req(length(results) >= i)
             results[[i]]
           })
-          #the tabs that do not apply are left out of the UI drawn for the result
           mod_results_server(paste0(prefix, "_c", i), result_i,
                              file_prefix = reactive(paste0(prefix, "_", gsub("[^A-Za-z0-9]+", "_", result_i()$contrast))),
-                             toggle_tabs = FALSE)
+                             selected = selected)
         })
       }
       #tell the user which studies or comparisons were left out (replicate rule)
@@ -147,19 +164,23 @@ function(input, output, session) {
       }
     })
   }
-  analysis_results("rnaseq", rnaseq_analysis, "rnaseq_script")
+  #the demo data use Synechocystis locus tags: preselect them for the enrichment
+  demo_enrichment <- list(id_type = "kegg", go = 1111708, kegg = "syn", string = 1148)
+  analysis_results("rnaseq", rnaseq_analysis, "rnaseq_script",
+                   selected = reactive(if (identical(rnaseq_run()$data, "demo")) demo_enrichment))
 
-  #reproducible R script of the last analysis (placeholder file paths)
+  #reproducible R script of the last analysis (placeholder file paths for
+  #uploaded files)
   output$rnaseq_script <- downloadHandler(
     filename = "tma_rnaseq_analysis.R",
     content = function(file) {
-      inputs <- rnaseq_inputs()
-      settings <- inputs[c("de_method", "meta_method", "batch_method", "batch_plots")]
+      run <- rnaseq_run()
+      settings <- run$settings[c("de_method", "meta_method", "batch_method", "batch_plots")]
       settings$reference <- rnaseq_analysis()$reference
       #enrichment choices of the first results tab, if made
       choice <- function(name) input[[paste0("rnaseq_c1-", name)]]
-      write_tma_script(file, settings = settings, data = "upload",
-                       counts_name = input$rnaseq_counts$name, design_name = input$rnaseq_design$name,
+      write_tma_script(file, settings = settings, data = run$data,
+                       counts_name = run$counts_name, design_name = run$design_name,
                        enrichment = list(id_type = choice("id_type"), go = choice("organism_go"),
                                          kegg = choice("organism_kegg"), string = choice("organism_string")))
     },
@@ -379,35 +400,6 @@ function(input, output, session) {
                        array_files = run$files, design_name = run$design_name, geo = run$geo,
                        enrichment = list(id_type = choice("id_type"), go = choice("organism_go"),
                                          kegg = choice("organism_kegg"), string = choice("organism_string")))
-    },
-    contentType = "text/plain"
-  )
-
-  ####### Demo #######
-  #computed the first time the Demo tab is opened with given settings, then
-  #cached for all sessions
-  demo_settings <- mod_settings_server("demo_settings")
-  mod_batch_check_server("demo_batch_check", data = tma_demo_data)
-  demo_result <- reactive({
-    shinyalert("Demo Running!", "Demo RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
-               type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
-    demo <- tma_demo_data()
-    run_tma_pipeline(demo$counts, demo$design,
-                     de_method = demo_settings()$de_method,
-                     meta_method = demo_settings()$meta_method)
-  }) |>
-    bindCache("tma-demo", utils::packageVersion("TranscriptMetaAnalyst"), demo_settings(),
-              cache = "app") |>
-    bindEvent(req(input$main_tabs == "demo"), demo_settings())
-  mod_results_server("demo", demo_result,
-                     organism = list(go = 1111708, kegg = "syn", string = 1148, id_type = "kegg"))
-  output$demo_script <- downloadHandler(
-    filename = "tma_demo_analysis.R",
-    content = function(file) {
-      settings <- c(demo_settings()[c("de_method", "meta_method")],
-                    list(batch_method = "none", batch_plots = FALSE, reference = "Cont"))
-      write_tma_script(file, settings = settings, data = "demo",
-                       enrichment = list(id_type = "kegg", go = 1111708, kegg = "syn", string = 1148))
     },
     contentType = "text/plain"
   )

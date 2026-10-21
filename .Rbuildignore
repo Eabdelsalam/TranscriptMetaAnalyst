@@ -6,3 +6,5 @@
 ^doc$
 ^Meta$
 ^.*\.BiocCheck$
+^manual$
+^LICENSE\.md$

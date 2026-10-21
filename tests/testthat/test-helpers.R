@@ -41,10 +41,3 @@ test_that("tma_use_background_workers sets a parallel plan only when the plan is
   expect_true(inherits(future::plan(), "multisession"))
   expect_identical(future::nbrOfWorkers(), 2L)
 })
-
-test_that("convertMenuItem makes a menu item with sub-items open its tab", {
-  mi <- shinydashboard::menuItem("RNA-Seq", tabName = "rnaseq", shinydashboard::menuSubItem("A", tabName = "a"))
-  out <- convertMenuItem(mi, "rnaseq")
-  expect_identical(out$children[[1]]$attribs[["data-toggle"]], "tab")
-  expect_identical(out$children[[1]]$attribs[["data-value"]], "rnaseq")
-})

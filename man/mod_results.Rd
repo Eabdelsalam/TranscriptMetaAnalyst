@@ -19,7 +19,7 @@ mod_results_server(
   result,
   organism = NULL,
   file_prefix = NULL,
-  toggle_tabs = TRUE
+  selected = NULL
 )
 }
 \arguments{
@@ -45,17 +45,17 @@ taxon ID), \code{kegg} (KEGG organism code), \code{string} (STRING taxon ID) and
 \item{file_prefix}{A reactive giving the start of the download file names;
 \code{NULL} uses the module id (e.g. "demo_pca.pdf").}
 
-\item{toggle_tabs}{If \code{TRUE}, the server hides the Venn diagram and Batch
-effects tabs when they do not apply to the result. Use \code{FALSE} when the UI
-was drawn for the result with \code{venn} and \code{batch} already set: the tabs
-then do not exist, and hiding them would fail in the browser.}
+\item{selected}{\code{NULL}, or a reactive returning a list with any of
+\code{id_type}, \code{go}, \code{kegg} and \code{string} (as for \code{organism}): the choices
+preselected in the organism and ID-type inputs for each new result (e.g.
+for the demo data). The user can still change them.}
 }
 \value{
 \code{mod_results_ui()} returns UI; \code{mod_results_server()} is called for
 its side effects.
 }
 \description{
-The results area shared by the RNA-seq and Demo tabs: information boxes,
+The results area shared by the RNA-seq and microarray tabs: information boxes,
 main plots, the meta-analysis table, functional annotation and gene count
 plots. The server part renders a \code{tma_result}; every output is declared once
 and updates when the result changes.

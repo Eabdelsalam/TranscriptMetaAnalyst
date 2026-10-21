@@ -1,6 +1,6 @@
 #' Results module
 #'
-#' The results area shared by the RNA-seq and Demo tabs: information boxes,
+#' The results area shared by the RNA-seq and microarray tabs: information boxes,
 #' main plots, the meta-analysis table, functional annotation and gene count
 #' plots. The server part renders a `tma_result`; every output is declared once
 #' and updates when the result changes.
@@ -20,10 +20,10 @@
 #'   `id_type` (see [id_types()]).
 #' @param file_prefix A reactive giving the start of the download file names;
 #'   `NULL` uses the module id (e.g. "demo_pca.pdf").
-#' @param toggle_tabs If `TRUE`, the server hides the Venn diagram and Batch
-#'   effects tabs when they do not apply to the result. Use `FALSE` when the UI
-#'   was drawn for the result with `venn` and `batch` already set: the tabs
-#'   then do not exist, and hiding them would fail in the browser.
+#' @param selected `NULL`, or a reactive returning a list with any of
+#'   `id_type`, `go`, `kegg` and `string` (as for `organism`): the choices
+#'   preselected in the organism and ID-type inputs for each new result (e.g.
+#'   for the demo data). The user can still change them.
 #' @return `mod_results_ui()` returns UI; `mod_results_server()` is called for
 #'   its side effects.
 #' @name mod_results
@@ -157,7 +157,7 @@ mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE, venn = T
 
 #' @rdname mod_results
 #' @export
-mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, toggle_tabs = TRUE) {
+mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, selected = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     # download file names start with the tab, e.g. "demo_pca.pdf"
     fname <- function(name) {
@@ -176,20 +176,6 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, 
       session$onFlushed(function() shiny::withReactiveDomain(session, {
         shinyjs::show("results")
         shiny::updateSelectInput(session, "individual_study", choices = res$studies)
-        if (toggle_tabs) {
-          # Venn diagrams only for up to 4 sets (studies + meta-analysis)
-          if (overlap_plot_type(deg_sets(res)) == "upset") {
-            shiny::hideTab("main_plots", target = "Venn diagram")
-          } else {
-            shiny::showTab("main_plots", target = "Venn diagram")
-          }
-          # the batch diagnostics only exist when the design has a batch column
-          if (is.null(res$batch)) {
-            shiny::hideTab("main_plots", target = "batch")
-          } else {
-            shiny::showTab("main_plots", target = "batch")
-          }
-        }
       }), once = TRUE)
     })
 
@@ -378,7 +364,11 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, 
     string_organisms <- shiny::reactive(organisms_string()) |>
       shiny::bindCache("string-organisms", cache = "app")
     if (is.null(organism)) {
+      # the results UI may be drawn again for a new result, with empty inputs,
+      # so the lists (and any preselection) are sent for every result
       shiny::observeEvent(result(), {
+        pre <- if (is.null(selected)) list() else selected()
+        pick <- function(value) if (is.null(value)) character(0) else value
         lists <- list(
           organism_go = function() {
             o <- go_organisms()
@@ -389,18 +379,16 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, 
             stats::setNames(o$taxon_id, paste0(o$name, " (", o$taxon_id, ")"))
           }
         )
-        for (input_id in names(lists)) {
-          choices <- tryCatch(lists[[input_id]](), error = function(e) NULL)
-          local({
-            id <- input_id
-            ch <- choices
-            session$onFlushed(function() shiny::withReactiveDomain(session, {
-              shiny::updateSelectizeInput(session, id, choices = ch, selected = character(0),
-                                          server = TRUE)
-            }), once = TRUE)
-          })
-        }
-      }, once = TRUE)
+        choices <- lapply(lists, function(f) tryCatch(f(), error = function(e) NULL))
+        session$onFlushed(function() shiny::withReactiveDomain(session, {
+          shiny::updateSelectizeInput(session, "organism_go", choices = choices$organism_go,
+                                      selected = pick(pre$go), server = TRUE)
+          shiny::updateSelectizeInput(session, "organism_string", choices = choices$organism_string,
+                                      selected = pick(pre$string), server = TRUE)
+          if (!is.null(pre$id_type)) shiny::updateSelectizeInput(session, "id_type", selected = pre$id_type)
+          if (!is.null(pre$kegg)) shiny::updateTextInput(session, "organism_kegg", value = pre$kegg)
+        }), once = TRUE)
+      })
     }
     chosen <- function(fixed, value, what) {
       if (!is.null(organism)) return(organism[[fixed]])

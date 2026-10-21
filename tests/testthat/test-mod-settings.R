@@ -21,29 +21,6 @@ test_that("mod_settings_server applies per-study overrides", {
   })
 })
 
-test_that("the demo is recomputed for new settings and cached per combination", {
-  res <- demo_result()
-  calls <- character(0)
-  local_mocked_bindings(run_tma_pipeline = function(counts, design, de_method, meta_method, ...) {
-    calls <<- c(calls, paste(de_method, meta_method))
-    out <- res
-    out$meta_method <- meta_method
-    out
-  })
-  mock_organism_lists()
-  app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
-  shiny::testServer(app, {
-    session$setInputs(`demo_settings-de_method` = "DESeq2", `demo_settings-meta_method` = "fisher",
-                      main_tabs = "demo")
-    expect_equal(demo_result()$meta_method, "fisher")
-    session$setInputs(`demo_settings-meta_method` = "invnorm")
-    expect_equal(demo_result()$meta_method, "invnorm")
-    session$setInputs(`demo_settings-meta_method` = "fisher")
-    expect_equal(demo_result()$meta_method, "fisher")
-  })
-  expect_equal(calls, c("DESeq2 fisher", "DESeq2 invnorm"))
-})
-
 test_that("the RNA-seq run uses the chosen settings", {
   res <- demo_result()
   local_mocked_bindings(run_tma_analysis = function(counts, design, reference, de_method,
@@ -84,7 +61,7 @@ test_that("the batch options are always shown on the RNA-seq tab, defaulting to 
   expect_match(rnaseq_ui, "ComBat-seq on the raw counts")
   expect_match(rnaseq_ui, 'value="none" checked')
   expect_match(rnaseq_ui, "Use batch-corrected values")
-  # the demo data have no batch column, so the Demo tab has no batch options
+  # without the per-study options, the box has no batch options either
   expect_false(grepl("ComBat-seq on the raw counts", as.character(mod_settings_ui("y"))))
 
   shiny::testServer(mod_settings_server, {
@@ -117,8 +94,8 @@ test_that("the RNA-seq run is blocked when a batch option is chosen without a ba
                       rnaseq_design = list(datapath = tma_example_file("design")),
                       `rnaseq_settings-batch_method` = "model",
                       rnaseq_analyze = 1)
-    expect_error(rnaseq_inputs(), class = "shiny.silent.error")
     expect_equal(rnaseq_task$status(), "initial")
+    expect_null(rnaseq_run())
   })
   expect_false(called)
 })
