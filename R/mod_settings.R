@@ -21,6 +21,14 @@
 #'   `batch_plots` and `reference` (the reference condition, `NULL` until a
 #'   design is available).
 #' @name mod_settings
+#' @examples
+#' # the UI part; the server part runs inside a Shiny app
+#' ui <- mod_settings_ui("settings", per_study = TRUE)
+#' if (interactive()) {
+#'   shiny::shinyApp(shinydashboard::dashboardPage(
+#'     shinydashboard::dashboardHeader(), shinydashboard::dashboardSidebar(),
+#'     shinydashboard::dashboardBody(ui)), function(input, output, session) NULL)
+#' }
 #' @export
 mod_settings_ui <- function(id, per_study = FALSE, platform = c("rnaseq", "array")) {
   ns <- shiny::NS(id)
@@ -153,6 +161,7 @@ method_guidance <- function(platform = "rnaseq") {
       shiny::tags$li("Batch can only be used in a study with at least two batches that are not confounded with the condition; otherwise that study is analysed without batch, and the Batch effects tab says why.")
     ),
     shiny::tags$p(if (array) "Click Start Analysis! again after changing a setting." else
-      "On the RNA-Seq tab, click Start Analysis! again after changing a setting; the Demo tab updates by itself.")
+      "On the RNA-Seq tab, click Start Analysis! again after changing a setting; the Demo tab updates by itself."),
+    shiny::tags$p("More details and references are in the Methods Guide tab.")
   )
 }

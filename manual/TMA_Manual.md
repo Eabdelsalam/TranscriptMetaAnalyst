@@ -19,7 +19,8 @@
   - [4.2 RNA-Seq Meta Analysis](#42-rna-seq-meta-analysis)
   - [4.3 Microarray Meta-Analysis](#43-microarray-meta-analysis)
   - [4.4 Run Demo Analysis](#44-run-demo-analysis)
-  - [4.5 User Manual](#45-user-manual)
+  - [4.5 Methods Guide](#45-methods-guide)
+  - [4.6 User Manual](#46-user-manual)
 - [5 Analysis Pipeline](#5-analysis-pipeline)
 - [6 Outputs](#6-outputs)
   - [6.1 Overview & Information Boxes](#61-overview--information-boxes)
@@ -50,6 +51,7 @@ Several of these changes fix errors in the results of earlier versions, so resul
 | Reproducible R script | A **Download R script** button gives an R script that repeats the analysis with the same settings, for the methods section or for re-running it outside the app. See [Reproducible R Script](#65-reproducible-r-script). |
 | Speed | The studies are analysed in parallel, and an uploaded analysis runs in the background, so the app stays responsive while it runs. The **Start Analysis!** button is disabled until the running analysis has finished. |
 | Microarrays | A new **Microarray Meta-Analysis** tab meta-analyses normalised single-colour microarray data, uploaded as one expression file per study or imported directly from GEO. Values are log2-transformed when needed, probes are collapsed to genes, the genes measured in every study are kept, and each study is analysed with limma. A microarray demo (low-CO2 response of *Synechocystis*) is included. See [Microarray Meta-Analysis](#43-microarray-meta-analysis). |
+| Methods Guide | A new **Methods Guide** tab explains when to use which differential expression, meta-analysis, batch and enrichment method, lists the study requirements, and gives the references. See [Methods Guide](#45-methods-guide). |
 | Demo | The demo analysis is computed the first time the **Run Demo Analysis** tab is opened and then reused, so opening the tab again shows the results immediately. |
 | Low-count genes | Genes with too few reads in every study are removed before the analysis (see [Analysis Pipeline](#5-analysis-pipeline)). They no longer appear in the results table. |
 | Downloads | The downloaded DEG list of each study now has the columns `gene`, `base_mean`, `log2_fc`, `lfc_se`, `stat`, `pvalue` and `padj`. The GO results table can be downloaded again (this download failed in earlier versions). |
@@ -67,6 +69,8 @@ TMA is particularly useful for researchers who want to:
 - Visualize the results of the meta-analysis using different methods, e.g., heatmaps and volcano plots
 
 By providing a user-friendly interface to perform meta-analysis, TMA aims to facilitate the discovery of new insights and robust results in transcriptomics research.
+
+**Scope.** TMA does a **gene-level** meta-analysis of **bulk RNA-seq** data (raw read counts per gene) and of **single-colour microarray** data (normalised expression per probe or gene). In each study, every condition is compared with a reference condition, and the per-gene *p*-values of the studies are combined. Transcript-level, isoform and alternative-splicing analyses are out of scope: the input must hold one value per gene (RNA-seq) or per probe that is collapsed to its gene (microarrays). RNA-seq and microarray studies are analysed in separate tabs and are not combined in one meta-analysis.
 
 ## 2 Installation
 
@@ -177,6 +181,16 @@ TMA applies these rules to every analysis:
 - **At least 2 samples (replicates) per condition in a study.** A condition with fewer than 2 samples in a study is removed from that study: its samples are not used, and the study is left out of the comparisons that involve that condition. A study with fewer than 2 samples of the reference condition is not used at all.
 - **At least 2 studies per comparison.** A comparison (e.g. *Heat vs Control*) is meta-analysed only if at least 2 studies still have both conditions with at least 2 samples each. Otherwise the comparison is not meta-analysed, and the app says why.
 - **At least one comparison.** If no comparison can be meta-analysed, the analysis stops with a message that explains why.
+- **Gene-level IDs.** All studies must use the same type of gene ID, so that genes can be matched across studies. For RNA-Seq, all studies are in one counts file and share its `Geneid` column; for microarrays, only the genes measured in every study are kept (see [Data preparation](#432-data-preparation)).
+- **Supported ID types for the enrichment.** The ID type of the genes is chosen in the *Functional Annotation* tab. The services accept these types:
+
+| ID type | PANTHER (GO) | KEGG | STRING |
+|---|---|---|---|
+| Gene symbol | yes | no | yes |
+| Locus tag / KEGG gene ID | yes | yes | yes |
+| NCBI Entrez Gene ID | yes | yes | yes |
+| UniProt accession | yes | yes | yes |
+| Ensembl gene ID | yes | no | yes |
 
 After each run, a message lists the studies and comparisons that were left out (for example, "Study S2 has only 1 sample of 'Heat' (at least 2 are needed), so it is not used for 'Heat vs Control'"), and the **Comparisons** box at the top of the results shows how many studies each comparison used.
 
@@ -193,6 +207,10 @@ There are two ways to give the data:
 
 Only single-colour arrays can be used. For two-colour arrays (two channels per sample, or single channels labelled with both Cy3 and Cy5), the app shows a warning, because their channels are not comparable as independent samples.
 
+![Figure 5](figures/fig05_microarray_input.png)
+
+*Figure 5: The Microarray data box of the Microarray Meta-Analysis tab, with the demo button and the two ways to give the data (upload or GEO import).*
+
 #### 4.3.2 Data preparation
 
 Before the analysis, every study goes through these steps, and the **Data preparation** box reports the numbers of samples, probes, dropped probes and genes per study:
@@ -200,6 +218,10 @@ Before the analysis, every study goes through these steps, and the **Data prepar
 1. **log2 transformation if needed.** The app uses the rule of GEO2R: the values are considered not log-transformed when the 99th percentile is above 100, or when the range is wider than 50 and the 25th percentile is positive. Such data are log2-transformed; values of 0 or less become missing. The *log2 applied* column says whether this was done.
 2. **Probes to genes.** When the file has a gene column, probes without a gene and probes that map to several genes (e.g. `geneA /// geneB`) are dropped, and for every gene the probe with the highest mean expression is kept.
 3. **Common genes.** Only the genes measured in every study are used in the meta-analysis. The box gives their number.
+
+![Figure 6](figures/fig06_microarray_preparation.png)
+
+*Figure 6: The Data preparation box after the microarray demo, followed by the Comparisons box of the results.*
 
 #### 4.3.3 Differential expression with limma
 
@@ -211,21 +233,29 @@ The **Load demo data** button runs a demo analysis on wild-type *Synechocystis* 
 
 ### 4.4 Run Demo Analysis
 
-The Demo Analysis tab (Figure 5) gives users hands-on experience of how TMA works. By clicking the ***"Run Demo Analysis"*** tab, users run a demo analysis using simulated data of *Synechocystis* sp. based on our previously published meta-analysis [1]. After clicking, a message shows that the demo analysis is running. After a while, the message disappears and the results become visible. The demo analysis generates the entire set of results, including all the meta-analysis outputs and figures discussed in the [Outputs](#6-outputs) section. This lets users test the app's functionality, understand the analysis workflow, and learn how to navigate the app's tabs and sections before working with their own data.
+The Demo Analysis tab (Figure 7) gives users hands-on experience of how TMA works. By clicking the ***"Run Demo Analysis"*** tab, users run a demo analysis using simulated data of *Synechocystis* sp. based on our previously published meta-analysis [1]. After clicking, a message shows that the demo analysis is running. After a while, the message disappears and the results become visible. The demo analysis generates the entire set of results, including all the meta-analysis outputs and figures discussed in the [Outputs](#6-outputs) section. This lets users test the app's functionality, understand the analysis workflow, and learn how to navigate the app's tabs and sections before working with their own data.
 
 The Demo tab has its own **Analysis settings** box with the differential expression and meta-analysis methods (without the per-study option), so all method combinations can be tried on the demo data. The results update when a setting is changed; each combination is computed once and then reused.
 
-![Figure 5](figures/fig05_demo_tab.png)
+![Figure 7](figures/fig07_demo_tab.png)
 
-*Figure 5: The Run Demo Analysis tab lets users test the app. Clicking on this tab triggers the analysis, and the results appear shortly.*
+*Figure 7: The Run Demo Analysis tab lets users test the app. Clicking on this tab triggers the analysis, and the results appear shortly.*
 
-### 4.5 User Manual
+### 4.5 Methods Guide
 
-The last tab on the left panel is the *User Manual* tab. It provides a link to the current detailed guide of TMA, information on contacting the creators of the app, and how to cite the app in scientific publications (Figure 6).
+The *Methods Guide* tab summarises, on one page, what TMA analyses (its scope), the study requirements and the supported ID types, and when to use which differential expression method (DESeq2, edgeR, limma-voom, and limma for microarrays), meta-analysis method (Fisher or inverse normal), batch handling and enrichment service, with references [3–6, 9–15, 17, 18]. The *Which method should I use?* link in each **Analysis settings** box gives a short version of the same advice.
 
-![Figure 6](figures/fig06_manual_tab.png)
+![Figure 8](figures/fig08_methods_guide.png)
 
-*Figure 6: The User Manual tab of TMA, with links to download the detailed guide and to contact the app's creators, along with citation information.*
+*Figure 8: The Methods Guide tab.*
+
+### 4.6 User Manual
+
+The last tab on the left panel is the *User Manual* tab. It provides a link to the current detailed guide of TMA, information on contacting the creators of the app, and how to cite the app in scientific publications (Figure 9).
+
+![Figure 9](figures/fig09_manual_tab.png)
+
+*Figure 9: The User Manual tab of TMA, with links to download the detailed guide and to contact the app's creators, along with citation information.*
 
 ## 5 Analysis Pipeline
 
@@ -240,17 +270,17 @@ If the files pass the checks, the analysis starts automatically and a loading sc
 
 If the user would like to perform further functional annotation of the identified DEGs, Gene Ontology (GO), KEGG pathway and STRING enrichment analyses can be run on the **meta-analysis DEGs**, compared with all genes tested in the analysis (the background). No organism database is installed: the online services map the gene IDs themselves. First, the user states the **gene ID type** of the counts file (gene symbol, locus tag / KEGG gene ID, NCBI Entrez Gene ID, UniProt accession or Ensembl gene ID) in the *Enrichment input* box. Then:
 
-- **Gene Ontology** (PANTHER [6], via the `rbioapi` package): choose the organism from the searchable list of the ~140 PANTHER organisms (Figure 7a). PANTHER recognises most ID types.
-- **KEGG pathway** (clusterProfiler [7], via the KEGG REST service): type the KEGG code of the organism, found in the [KEGG Organisms Database](https://www.genome.jp/kegg-bin/get_htext?br08601) (Figure 7b). The app checks the code as you type and names the organism. KEGG accepts locus tags / KEGG gene IDs, NCBI Entrez Gene IDs and UniProt accessions; for gene symbols or Ensembl IDs the app explains this and suggests the STRING or Gene Ontology tab.
+- **Gene Ontology** (PANTHER [6], via the `rbioapi` package): choose the organism from the searchable list of the ~140 PANTHER organisms (Figure 10a). PANTHER recognises most ID types.
+- **KEGG pathway** (clusterProfiler [7], via the KEGG REST service): type the KEGG code of the organism, found in the [KEGG Organisms Database](https://www.genome.jp/kegg-bin/get_htext?br08601) (Figure 10b). The app checks the code as you type and names the organism. KEGG accepts locus tags / KEGG gene IDs, NCBI Entrez Gene IDs and UniProt accessions; for gene symbols or Ensembl IDs the app explains this and suggests the STRING or Gene Ontology tab.
 - **STRING** [15] (via `rbioapi`): choose the organism from the searchable list of the more than 12,000 STRING organisms. STRING recognises gene symbols, locus tags, UniProt and most other IDs, and tests GO, KEGG, Reactome, Pfam, InterPro and other annotation sources at once. It is the fallback for organisms or ID types that PANTHER or KEGG do not cover.
 
 If the meta-analysis found no DEGs, the app shows a message instead of running the enrichment. If a service cannot be reached or returns an error, the app shows a message (for example, to check the internet connection) instead of stopping.
 
 | (a) GO Enrichment | (b) KEGG Pathway Enrichment |
 |---|---|
-| ![Figure 7a](figures/fig07a_go_input.png) | ![Figure 7b](figures/fig07b_kegg_input.png) |
+| ![Figure 10a](figures/fig10a_go_input.png) | ![Figure 10b](figures/fig10b_kegg_input.png) |
 
-*Figure 7: Gene Ontology (GO) and KEGG pathway enrichment analysis in TMA (screenshots of an earlier version, without the ID-type selector and the STRING tab). The user should (a) select the organism from the drop-down menu before running the GO analysis or (b) type the code of the studied organism before running the KEGG pathway analysis.*
+*Figure 10: The Functional Annotation box with its Gene Ontology (GO), KEGG pathway and STRING tabs, and the gene ID type selector. The user should (a) select the organism from the drop-down menu before running the GO analysis or (b) type the code of the studied organism before running the KEGG pathway analysis.*
 
 The same analysis can also be run from R without the app, for example to reproduce or extend the results (the app can write such a script for you, see [Reproducible R Script](#65-reproducible-r-script)):
 
@@ -271,13 +301,13 @@ Finally, the different outputs (discussed in the next section) are produced with
 
 On the RNA-Seq tab, the results start with a **Comparisons** box that lists every comparison (condition vs. reference), how many studies it used, whether it was meta-analysed, and which studies were left out and why. Below it, each comparison that was meta-analysed has its own tab with the boxes described here; everything in a tab (plots, tables, enrichment, downloads) refers to that comparison. The download file names start with the comparison, e.g. `rnaseq_Heat_vs_Cont_pca.pdf`.
 
-TMA provides the user with 7 main output boxes (Figure 8). At the top of the results screen, two information boxes on the left and right show the number of studies included in the analysis and the number of DEGs identified via the meta-analysis, respectively; the *Number of studies* box also names the comparison and the methods used. In the middle, a box lets the user download the list of DEGs identified in each individual study.
+TMA provides the user with 7 main output boxes (Figure 11). At the top of the results screen, two information boxes on the left and right show the number of studies included in the analysis and the number of DEGs identified via the meta-analysis, respectively; the *Number of studies* box also names the comparison and the methods used. In the middle, a box lets the user download the list of DEGs identified in each individual study.
 
 Below the information boxes, the results screen is divided into 4 main sections. The top left box contains the main plots (discussed below). The top right box contains a table of all genes in the meta-analysis with their statistical parameters. This table can be searched and sorted, and downloaded as a CSV file for further analysis. Clicking on any row of the table updates the Count plots box (bottom right) with plots of the normalized counts of the selected gene across all the studies included in the meta-analysis. These plots can also be downloaded as a PDF file. The bottom left box contains the GO and KEGG pathway enrichment analysis and results (discussed below).
 
-![Figure 8](figures/fig08_outputs_overview.png)
+![Figure 11](figures/fig11_outputs_overview.png)
 
-*Figure 8: An overview of the outputs generated by TMA.*
+*Figure 11: An overview of the outputs generated by TMA.*
 
 ### 6.2 Main Plots
 
@@ -285,19 +315,19 @@ Below the information boxes, the results screen is divided into 4 main sections.
 
 TMA generates several main plots to give the user an overview of the analyzed dataset and the identified DEGs. The figures below were produced from the demo data.
 
-1. The ***p*-values distribution** plot (Figure 9) shows the distribution of all raw meta-analysis *p*-values (its title names the meta-analysis method), so the user can check their distribution. The *p*-value combination method assumes a uniform distribution under the null hypothesis, so no peak other than the one near zero should appear in the distribution.
+1. The ***p*-values distribution** plot (Figure 12) shows the distribution of all raw meta-analysis *p*-values (its title names the meta-analysis method), so the user can check their distribution. The *p*-value combination method assumes a uniform distribution under the null hypothesis, so no peak other than the one near zero should appear in the distribution.
 
-   ![Figure 9](figures/fig09_pvalue_dist.png)
+   ![Figure 12](figures/fig12_pvalue_dist.png)
 
-   *Figure 9: The p-values distribution histogram generated by TMA.*
+   *Figure 12: The p-values distribution histogram generated by TMA.*
 
-2. The **Principal Component Analysis (PCA)** is performed with the DESeq2 package [4] on the log2-transformed normalized counts of all samples. The figure (Figure 10) can be used to identify the relationship between samples and/or biological replicates, and to identify potential outliers to exclude from the analysis. In the demo data, the first principal component separates the studies, which is expected when studies come from different experiments.
+2. The **Principal Component Analysis (PCA)** is performed with the DESeq2 package [4] on the log2-transformed normalized counts of all samples. The figure (Figure 13) can be used to identify the relationship between samples and/or biological replicates, and to identify potential outliers to exclude from the analysis. In the demo data, the first principal component separates the studies, which is expected when studies come from different experiments.
 
-   ![Figure 10](figures/fig10_pca.png)
+   ![Figure 13](figures/fig13_pca.png)
 
-   *Figure 10: An example of the PCA plot generated by TMA.*
+   *Figure 13: An example of the PCA plot generated by TMA.*
 
-3. A **heatmap** (Figure 11) of the normalized counts of the meta-analysis DEGs is generated. The counts of each gene are scaled (z-scores) within each study, so the colours show how a gene changes between the samples of one study. In the TMA GUI, the heatmap is interactive and built with the `heatmaply` package [8]. The genes are grouped by hierarchical clustering. The **Number of gene clusters** box above the heatmap sets how many clusters the genes are split into (default 2, e.g., up- and down-regulated genes). It cannot be larger than the number of genes shown, and an empty or invalid value falls back to 2. **Top N genes** shows only the N DEGs with the smallest adjusted *p*-values (empty shows all). The **More heatmap options** link opens further display options:
+3. A **heatmap** (Figure 14) of the normalized counts of the meta-analysis DEGs is generated. The counts of each gene are scaled (z-scores) within each study, so the colours show how a gene changes between the samples of one study. In the TMA GUI, the heatmap is interactive and built with the `heatmaply` package [8]. The genes are grouped by hierarchical clustering. The **Number of gene clusters** box above the heatmap sets how many clusters the genes are split into (default 2, e.g., up- and down-regulated genes). It cannot be larger than the number of genes shown, and an empty or invalid value falls back to 2. **Top N genes** shows only the N DEGs with the smallest adjusted *p*-values (empty shows all). The **More heatmap options** link opens further display options:
    - **Show DEGs with adj. p <=** and **|mean log2FC| >=**: show only the DEGs that pass these cutoffs (by default all meta-analysis DEGs are shown);
    - **Colours**: yellow–black–purple (default), blue–white–red, or viridis;
    - **Clustering method** (complete, average, Ward, single), and **Cluster genes** / **Cluster samples** to switch the clustering of rows or columns off;
@@ -305,23 +335,23 @@ TMA generates several main plots to give the user an overview of the analyzed da
 
    These options only change what the heatmap shows; the DEGs, the table and the other plots are not affected. The user can download the figure (not interactive) with the chosen options, or the data used to draw the heatmap for further analysis. A heatmap needs at least two genes; otherwise, a message is shown instead.
 
-   ![Figure 11](figures/fig11_heatmap.png)
+   ![Figure 14](figures/fig14_heatmap.png)
 
-   *Figure 11: The downloadable (non-interactive) heatmap of the meta-analysis DEGs, split into the default 2 gene clusters.*
+   *Figure 14: The downloadable (non-interactive) heatmap of the meta-analysis DEGs, split into the default 2 gene clusters.*
 
-4. A **Venn diagram** (Figure 12a) and an **UpSet plot** (Figure 12b) show the intersection of identified DEGs across the analyzed studies and the meta-analysis. A Venn diagram stays readable for at most 4 sets (here up to 3 studies plus the meta-analysis). With more sets, the Venn diagram tab is not shown, and the UpSet plot shows the overlaps.
+4. A **Venn diagram** (Figure 15a) and an **UpSet plot** (Figure 15b) show the intersection of identified DEGs across the analyzed studies and the meta-analysis. A Venn diagram stays readable for at most 4 sets (here up to 3 studies plus the meta-analysis). With more sets, the Venn diagram tab is not shown, and the UpSet plot shows the overlaps.
 
    | (a) Venn Diagram | (b) UpSet Plot |
    |---|---|
-   | ![Figure 12a](figures/fig12a_venn.png) | ![Figure 12b](figures/fig12b_upset.png) |
+   | ![Figure 15a](figures/fig15a_venn.png) | ![Figure 15b](figures/fig15b_upset.png) |
 
-   *Figure 12: The intersection of identified DEGs is shown via (a) a Venn diagram, if the number of analyzed studies is 3 or fewer, and (b) an UpSet plot.*
+   *Figure 15: The intersection of identified DEGs is shown via (a) a Venn diagram, if the number of analyzed studies is 3 or fewer, and (b) an UpSet plot.*
 
-5. A **volcano plot** (Figure 13) shows the adjusted meta-analysis *p*-values (−log10) on the y-axis and the mean log2 fold change of each gene across all studies on the x-axis. It is generated with the `EnhancedVolcano` package. TMA computes the meta-analysis *p*-values so that values far below 10⁻¹⁶ stay exact; in the rare case that a *p*-value is still exactly 0, it is drawn at the height of the smallest non-zero *p*-value. The **Volcano plot options** link sets the adjusted *p*-value and |log2FC| cutoffs drawn on the plot (defaults 0.05 and 1), and which genes are labelled: all genes past both cutoffs (default), the N most significant of them, or none. The cutoff line is labelled with its adjusted *p*-value. Because very small *p*-values make the y-axis long (up to about 220 for the demo), the line can sit close to the bottom; **Y-axis maximum** caps the axis (genes above it are drawn at the top edge, and a note under the plot counts them), which spreads out the region around the cutoff. The figure and the data used to create it are available for download.
+5. A **volcano plot** (Figure 16) shows the adjusted meta-analysis *p*-values (−log10) on the y-axis and the mean log2 fold change of each gene across all studies on the x-axis. It is generated with the `EnhancedVolcano` package. TMA computes the meta-analysis *p*-values so that values far below 10⁻¹⁶ stay exact; in the rare case that a *p*-value is still exactly 0, it is drawn at the height of the smallest non-zero *p*-value. The **Volcano plot options** link sets the adjusted *p*-value and |log2FC| cutoffs drawn on the plot (defaults 0.05 and 1), and which genes are labelled: all genes past both cutoffs (default), the N most significant of them, or none. The cutoff line is labelled with its adjusted *p*-value. Because very small *p*-values make the y-axis long (up to about 220 for the demo), the line can sit close to the bottom; **Y-axis maximum** caps the axis (genes above it are drawn at the top edge, and a note under the plot counts them), which spreads out the region around the cutoff. The figure and the data used to create it are available for download.
 
-   ![Figure 13](figures/fig13_volcano.png)
+   ![Figure 16](figures/fig16_volcano.png)
 
-   *Figure 13: An example of the volcano plot generated by TMA.*
+   *Figure 16: An example of the volcano plot generated by TMA.*
 
 6. When the design has a `batch` column, a **Batch effects** tab shows how batch was handled in each study and two diagnostic plots, each before and after the correction:
    - a PCA of each study (computed separately per study on its 500 most variable genes), coloured by batch: after a successful correction, the samples should no longer separate by batch;
@@ -329,13 +359,13 @@ TMA generates several main plots to give the user an overview of the analyzed da
 
 ### 6.3 DEGs Table & Count Plots
 
-An interactive table (Figure 14a) of all the genes analyzed in the meta-analysis is created with the `DT` package. This table shows gene names, test statistic, raw *p*-values and adjusted *p*-values, along with a column that marks the meta-analysis DEGs with 'yes' and all other genes with 'no'. The table can be sorted and searched to facilitate data exploration and extraction, and it can be downloaded as a CSV file for further analysis. To see the counts of a gene, highlight its row: the app draws a plot (Figure 14b) of the counts of that gene under the two compared conditions in each study included in the analysis. These plots can help examine dosage effects on changes in the expression level of the gene.
+An interactive table (Figure 17a) of all the genes analyzed in the meta-analysis is created with the `DT` package. This table shows gene names, test statistic, raw *p*-values and adjusted *p*-values, along with a column that marks the meta-analysis DEGs with 'yes' and all other genes with 'no'. The table can be sorted and searched to facilitate data exploration and extraction, and it can be downloaded as a CSV file for further analysis. To see the counts of a gene, highlight its row: the app draws a plot (Figure 17b) of the counts of that gene under the two compared conditions in each study included in the analysis. These plots can help examine dosage effects on changes in the expression level of the gene.
 
 | (a) Table of DE analysis results | (b) Plots of counts |
 |---|---|
-| ![Figure 14a](figures/fig14a_degs_table.png) | ![Figure 14b](figures/fig14b_counts_plot.png) |
+| ![Figure 17a](figures/fig17a_degs_table.png) | ![Figure 17b](figures/fig17b_counts_plot.png) |
 
-*Figure 14: The genes analyzed in the meta-analysis are shown in an interactive table (a), which lets users, for example, search for specific genes or significant ones. Highlighting a row of the table creates a plot (b) of the normalized counts of the highlighted gene across all the studies included in the meta-analysis.*
+*Figure 17: The genes analyzed in the meta-analysis are shown in an interactive table (a), which lets users, for example, search for specific genes or significant ones. Highlighting a row of the table creates a plot (b) of the normalized counts of the highlighted gene across all the studies included in the meta-analysis.*
 
 ### 6.4 Functional Annotation
 
@@ -346,11 +376,11 @@ For each enrichment service (Gene Ontology, KEGG pathway, STRING), the app shows
 3. A **lollipop figure** of the enriched terms (the 30 with the lowest FDR values if there are more), which can be downloaded in the format chosen under *Plot download options*.
 4. The **table** of all enriched terms, downloadable as a tab-delimited file that starts with the label and the mapping summary.
 
-Because the background is the set of tested genes, the results can differ from earlier versions, which used the whole genome. For the demo data, PANTHER finds no GO term enriched among the meta-analysis DEGs when they are compared with all tested genes, while STRING finds photosynthesis-related terms (Figure 15).
+Because the background is the set of tested genes, the results can differ from earlier versions, which used the whole genome. For the demo data, PANTHER finds no GO term enriched among the meta-analysis DEGs when they are compared with all tested genes, while STRING finds photosynthesis-related terms (Figure 18).
 
-![Figure 15](figures/fig15_string_lollipop.png)
+![Figure 18](figures/fig18_string_lollipop.png)
 
-*Figure 15: STRING enrichment of the demo meta-analysis DEGs against all tested genes, shown as a lollipop figure grouped by annotation source. Publications (PMID) are listed in the table but not drawn.*
+*Figure 18: STRING enrichment of the demo meta-analysis DEGs against all tested genes, shown as a lollipop figure grouped by annotation source. Publications (PMID) are listed in the table but not drawn.*
 
 ### 6.5 Reproducible R Script
 
@@ -380,3 +410,5 @@ The **Download R script** button (in the *Comparisons* box of the RNA-Seq and Mi
 14. Nygaard, V., Rødland, E. A. & Hovig, E. Methods that remove batch effects while retaining group differences may lead to exaggerated confidence in downstream analyses. *Biostatistics* **17**, 29–39 (2016).
 15. Szklarczyk, D. *et al.* The STRING database in 2023: protein–protein association networks and functional enrichment analyses for any sequenced genome of interest. *Nucleic Acids Research* **51**, D638–D646 (2023).
 16. Davis, S. & Meltzer, P. S. GEOquery: a bridge between the Gene Expression Omnibus (GEO) and BioConductor. *Bioinformatics* **23**, 1846–1847 (2007).
+17. Conesa, A. *et al.* A survey of best practices for RNA-seq data analysis. *Genome Biology* **17**, 13 (2016).
+18. Kanehisa, M. & Goto, S. KEGG: Kyoto Encyclopedia of Genes and Genomes. *Nucleic Acids Research* **28**, 27–30 (2000).

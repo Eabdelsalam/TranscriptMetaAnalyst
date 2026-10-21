@@ -19,11 +19,9 @@ studies were left out of which contrast and why, and which contrasts could
 not be meta-analysed.
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 design <- demo$design
 design$condition[design$sample == "Sample2"] <- "High"
 # study A keeps only one "Treated" sample, so it is left out
 analysis_messages(run_tma_analysis(demo$counts, design[design$condition != "High", ]))
-}
 }

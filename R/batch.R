@@ -61,13 +61,11 @@ batch_status <- function(design, method) {
 #' @return The batch-corrected count matrix.
 #' @export
 #' @examples
-#' \donttest{
 #' set.seed(1)
 #' counts <- matrix(rpois(600, 50), 100,
 #'                  dimnames = list(paste0("g", 1:100), paste0("s", 1:6)))
 #' design <- data.frame(batch = c(1, 1, 1, 2, 2, 2), condition = c("c", "t", "c", "t", "c", "t"))
 #' corrected <- combat_seq_counts(counts, design)
-#' }
 combat_seq_counts <- function(counts, design) {
   corrected <- NULL
   utils::capture.output(
@@ -115,14 +113,12 @@ batch_corrected_log <- function(counts, design, status, method) {
 #' @return A ggplot.
 #' @name batch_diagnostics
 #' @examples
-#' \donttest{
 #' set.seed(1)
 #' demo <- tma_demo_data()
 #' demo$design$batch <- rep(c("b1", "b2"), 6)
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' plot_batch_pca(res)
 #' plot_rle(res)
-#' }
 NULL
 
 batch_data <- function(result) {
@@ -227,12 +223,10 @@ diagnostic_title <- function(what, result) {
 #'   all samples), `design` and `studies`.
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' check <- batch_check(demo$counts, demo$design)
 #' check$table
 #' plot_batch_pca(check)
-#' }
 batch_check <- function(counts, design, n_pcs = 5) {
   studies <- filter_low_counts(split_studies(counts, design))
   has_batch <- "batch" %in% colnames(design)

@@ -39,10 +39,8 @@ the normalised counts. The full \code{DESeqDataSet} is not kept, so the result i
 small enough to hold for many studies.
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 study <- split_studies(demo$counts, demo$design)$A
 de <- run_deseq2(study$counts, study$design)
 head(de$table)
-}
 }

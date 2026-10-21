@@ -25,3 +25,12 @@ A box that runs \code{\link[=batch_check]{batch_check()}} on the input data befo
 shows, for each study, the variance explained by condition and batch with
 advice, and the PCA and RLE plots.
 }
+\examples{
+# the UI part; the server part runs inside a Shiny app
+ui <- mod_batch_check_ui("rnaseq_batch_check")
+if (interactive()) {
+  shiny::shinyApp(shinydashboard::dashboardPage(
+    shinydashboard::dashboardHeader(), shinydashboard::dashboardSidebar(),
+    shinydashboard::dashboardBody(ui)), function(input, output, session) NULL)
+}
+}

@@ -34,12 +34,10 @@ gene's log expression minus the gene's median in the study; boxes centred
 on 0 with similar widths indicate comparable samples.
 }
 \examples{
-\donttest{
 set.seed(1)
 demo <- tma_demo_data()
 demo$design$batch <- rep(c("b1", "b2"), 6)
 res <- run_tma_pipeline(demo$counts, demo$design)
 plot_batch_pca(res)
 plot_rle(res)
-}
 }

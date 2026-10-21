@@ -121,7 +121,6 @@ Before the analysis, genes with low counts in every study are removed
 (\code{\link[=filter_low_counts]{filter_low_counts()}}).
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 res <- run_tma_pipeline(demo$counts, demo$design)
 length(res$meta_degs)
@@ -136,5 +135,4 @@ design3$condition[design3$study == "C" & design3$condition == "Treated"] <- "Hig
 analysis <- run_tma_analysis(demo$counts, design3, reference = "Cont")
 analysis
 analysis_messages(analysis)
-}
 }

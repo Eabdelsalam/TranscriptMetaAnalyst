@@ -3,3 +3,6 @@
 ^dev$
 ^CLAUDE\.md$
 ^TMA_implementation_plan\.md$
+^doc$
+^Meta$
+^.*\.BiocCheck$

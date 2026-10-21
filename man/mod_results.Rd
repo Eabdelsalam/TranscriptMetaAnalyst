@@ -14,7 +14,13 @@ mod_results_ui(
   batch = TRUE
 )
 
-mod_results_server(id, result, organism = NULL, file_prefix = NULL)
+mod_results_server(
+  id,
+  result,
+  organism = NULL,
+  file_prefix = NULL,
+  toggle_tabs = TRUE
+)
 }
 \arguments{
 \item{id}{Module id.}
@@ -38,6 +44,11 @@ taxon ID), \code{kegg} (KEGG organism code), \code{string} (STRING taxon ID) and
 
 \item{file_prefix}{A reactive giving the start of the download file names;
 \code{NULL} uses the module id (e.g. "demo_pca.pdf").}
+
+\item{toggle_tabs}{If \code{TRUE}, the server hides the Venn diagram and Batch
+effects tabs when they do not apply to the result. Use \code{FALSE} when the UI
+was drawn for the result with \code{venn} and \code{batch} already set: the tabs
+then do not exist, and hiding them would fail in the browser.}
 }
 \value{
 \code{mod_results_ui()} returns UI; \code{mod_results_server()} is called for
@@ -48,4 +59,13 @@ The results area shared by the RNA-seq and Demo tabs: information boxes,
 main plots, the meta-analysis table, functional annotation and gene count
 plots. The server part renders a \code{tma_result}; every output is declared once
 and updates when the result changes.
+}
+\examples{
+# the UI part; the server part runs inside a Shiny app
+ui <- mod_results_ui("demo")
+if (interactive()) {
+  shiny::shinyApp(shinydashboard::dashboardPage(
+    shinydashboard::dashboardHeader(), shinydashboard::dashboardSidebar(),
+    shinydashboard::dashboardBody(ui)), function(input, output, session) NULL)
+}
 }

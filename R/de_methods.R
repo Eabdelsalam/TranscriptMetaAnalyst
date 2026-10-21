@@ -25,12 +25,10 @@
 #'   }
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' study <- split_studies(demo$counts, demo$design)$A
 #' de <- run_deseq2(study$counts, study$design)
 #' head(de$table)
-#' }
 run_deseq2 <- function(counts, design, alpha = 0.05, use_batch = FALSE, reference = NULL) {
   design$condition <- condition_factor(design$condition, reference)
   formula <- ~condition
@@ -71,11 +69,9 @@ run_deseq2 <- function(counts, design, alpha = 0.05, use_batch = FALSE, referenc
 #'   report it).
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' study <- split_studies(demo$counts, demo$design)$A
 #' head(run_edger(study$counts, study$design)$table)
-#' }
 run_edger <- function(counts, design, alpha = 0.05, use_batch = FALSE, reference = NULL) {
   condition <- condition_factor(design$condition, reference)
   model <- de_model_matrix(design, use_batch, reference)
@@ -112,11 +108,9 @@ run_edger <- function(counts, design, alpha = 0.05, use_batch = FALSE, reference
 #'   [run_deseq2()]. `stat` is the moderated t statistic.
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' study <- split_studies(demo$counts, demo$design)$A
 #' head(run_limma_voom(study$counts, study$design)$table)
-#' }
 run_limma_voom <- function(counts, design, alpha = 0.05, use_batch = FALSE, reference = NULL) {
   condition <- condition_factor(design$condition, reference)
   model <- de_model_matrix(design, use_batch, reference)
@@ -223,11 +217,9 @@ run_de <- function(counts, design, method = "DESeq2", alpha = 0.05, use_batch = 
 #' @return A named list with one DE result (see [run_deseq2()]) per study.
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' de <- run_de_studies(split_studies(demo$counts, demo$design))
 #' names(de)
-#' }
 run_de_studies <- function(studies, methods = "DESeq2", alpha = 0.05, batch_method = "none",
                            reference = NULL, BPPARAM = tma_bpparam(length(studies))) {
   methods <- study_methods(methods, names(studies))

@@ -7,8 +7,12 @@
 #' @param tabName The tab name the item should open.
 #' @return The modified `menuItem`.
 #' @export
-convertMenuItem <- function(mi,tabName) {
-  mi$children[[1]]$attribs['data-toggle']="tab"
-  mi$children[[1]]$attribs['data-value'] = tabName
+#' @examples
+#' item <- shinydashboard::menuItem("RNA-Seq", tabName = "rnaseq",
+#'                                  shiny::fileInput("counts", "Counts file"))
+#' convertMenuItem(item, "rnaseq")
+convertMenuItem <- function(mi, tabName) {
+  mi$children[[1]]$attribs["data-toggle"] <- "tab"
+  mi$children[[1]]$attribs["data-value"] <- tabName
   mi
 }

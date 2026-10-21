@@ -192,7 +192,7 @@ test_that("STRING errors and failed connections give readable messages", {
     .package = "rbioapi"
   )
   err <- tryCatch(run_string_enrichment("g1", species = 1148), error = function(e) e)
-  expect_match(conditionMessage(err), "STRING returned an error: Something went wrong!")
+  expect_match(conditionMessage(err), "STRING could not run the request: Something went wrong!")
   msg <- enrichment_message(err, "STRING")
   expect_match(msg, "The STRING enrichment could not be completed")
   expect_match(msg, "check your internet connection")

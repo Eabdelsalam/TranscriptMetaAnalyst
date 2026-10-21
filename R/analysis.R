@@ -76,7 +76,6 @@
 #'   }
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' length(res$meta_degs)
@@ -91,7 +90,6 @@
 #' analysis <- run_tma_analysis(demo$counts, design3, reference = "Cont")
 #' analysis
 #' analysis_messages(analysis)
-#' }
 run_tma_analysis <- function(counts, design, reference = NULL, alpha = 0.05,
                              de_method = "DESeq2", meta_method = "fisher",
                              batch_method = "model", batch_plots = FALSE, filter = TRUE,
@@ -339,13 +337,11 @@ build_tma_result <- function(studies, tables, design, conditions, contrast, refe
 #'   contrast).
 #' @export
 #' @examples
-#' \donttest{
 #' demo <- tma_demo_data()
 #' design <- demo$design
 #' design$condition[design$sample == "Sample2"] <- "High"
 #' # study A keeps only one "Treated" sample, so it is left out
 #' analysis_messages(run_tma_analysis(demo$counts, design[design$condition != "High", ]))
-#' }
 analysis_messages <- function(analysis) {
   skipped <- analysis$report[!analysis$report$used, , drop = FALSE]
   c(sprintf("Study %s %s, so it is not used for '%s'.", skipped$study, skipped$reason, skipped$contrast),

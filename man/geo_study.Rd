@@ -31,6 +31,20 @@ inputs as an uploaded expression file and design: an expression matrix
 (probe IDs, genes, samples) and the design rows of the study.
 }
 \examples{
+# a small series standing in for a downloaded one
+samples <- paste0("GSM", 1:4)
+es <- Biobase::ExpressionSet(
+  matrix(c(5, 6, 8, 9, 7, 7, 8, 8), 2, byrow = TRUE,
+         dimnames = list(c("p1", "p2"), samples)),
+  phenoData = Biobase::AnnotatedDataFrame(data.frame(
+    title = paste0("sample", 1:4), channel_count = "1", label_ch1 = "biotin",
+    characteristics_ch1 = rep(c("co2: high", "co2: low"), each = 2), row.names = samples)),
+  featureData = Biobase::AnnotatedDataFrame(data.frame(
+    ID = c("p1", "p2"), ORF = c("sll0001", "sll0002"), row.names = c("p1", "p2"))))
+study <- geo_study(es, "GSE0", "characteristics_ch1",
+                   labels = c("co2: high" = "HC", "co2: low" = "LC"), gene_column = "ORF")
+study$design
+
 \dontrun{
 es <- fetch_geo("GSE63352")[[1]]
 study <- geo_study(es, "GSE63352", "title",

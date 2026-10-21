@@ -10,6 +10,14 @@
 #' @return `mod_batch_check_ui()` returns UI; `mod_batch_check_server()`
 #'   returns a reactive with the `tma_batch_check`.
 #' @name mod_batch_check
+#' @examples
+#' # the UI part; the server part runs inside a Shiny app
+#' ui <- mod_batch_check_ui("rnaseq_batch_check")
+#' if (interactive()) {
+#'   shiny::shinyApp(shinydashboard::dashboardPage(
+#'     shinydashboard::dashboardHeader(), shinydashboard::dashboardSidebar(),
+#'     shinydashboard::dashboardBody(ui)), function(input, output, session) NULL)
+#' }
 #' @export
 mod_batch_check_ui <- function(id) {
   ns <- shiny::NS(id)

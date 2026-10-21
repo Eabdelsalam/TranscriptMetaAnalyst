@@ -19,11 +19,9 @@ The batch-corrected count matrix.
 Correct raw counts with ComBat-seq
 }
 \examples{
-\donttest{
 set.seed(1)
 counts <- matrix(rpois(600, 50), 100,
                  dimnames = list(paste0("g", 1:100), paste0("s", 1:6)))
 design <- data.frame(batch = c(1, 1, 1, 2, 2, 2), condition = c("c", "t", "c", "t", "c", "t"))
 corrected <- combat_seq_counts(counts, design)
-}
 }

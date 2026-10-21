@@ -108,6 +108,11 @@ print.tma_enrichment <- function(x, ...) {
 #' @return A character string.
 #' @export
 #' @examples
+#' # a result as returned by run_string_enrichment()
+#' string <- list(service = "STRING", version = "12.0",
+#'                organism = "Synechocystis sp. PCC 6803 (1148)",
+#'                background = "all 3405 tested genes (3301 recognised by STRING)")
+#' enrichment_label(string)
 #' \dontrun{
 #' enrichment_label(run_string_enrichment(genes, species = 1148))
 #' }
@@ -399,7 +404,7 @@ run_string_enrichment <- function(genes, species, background = NULL, id_type = "
 # STRING reports problems as a data frame with an "error" column
 check_string_response <- function(x) {
   if (is.data.frame(x) && "error" %in% names(x)) {
-    stop(sprintf("STRING returned an error: %s", paste(x$message, collapse = " ")))
+    stop(sprintf("STRING could not run the request: %s", paste(x$message, collapse = " ")))
   }
   invisible(x)
 }

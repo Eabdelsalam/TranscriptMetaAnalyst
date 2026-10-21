@@ -26,15 +26,20 @@ The app could be installed locally via [GitHub](https://github.com/Eabdelsalam/T
 
 `runTMA()`
 
+## Scope
+
+TMA does a gene-level meta-analysis of bulk RNA-Seq data (raw counts per gene) and of single-colour microarray data. Transcript-level, isoform and splicing analyses are out of scope, and RNA-Seq and microarray studies are not combined in one meta-analysis.
+
 ## Study requirements
 
 - **Input files**: a tab-delimited raw counts file with a `Geneid` column and one column per sample, and an experimental design file with the columns `sample`, `study` and `condition` (and optionally `batch`).
 - **Conditions**: at least two. With more than two, every condition is compared with a reference condition chosen in the app (all vs. reference), and each comparison gets its own results tab.
 - **Replicates**: at least 2 samples per condition in a study. A condition with fewer samples is left out of that study, and the study is not used for the comparisons that involve that condition.
 - **Studies**: at least 2 studies per comparison. A comparison with fewer studies is not meta-analysed; if no comparison can be meta-analysed, the analysis stops with an explanation.
+- **Gene IDs**: the same type of gene-level ID in every study. For the enrichment, PANTHER and STRING accept gene symbols, locus tags / KEGG gene IDs, NCBI Entrez Gene IDs, UniProt accessions and Ensembl gene IDs; KEGG accepts locus tags / KEGG gene IDs, NCBI Entrez Gene IDs and UniProt accessions.
 - **Microarrays**: the *Microarray Meta-Analysis* tab takes normalised single-colour microarray data, either one tab-delimited expression file per study (first column: probe IDs; optional `Symbol` column: the gene of each probe; other columns: samples) with the same design file, or GEO series imported by accession. Values are log2-transformed when needed, probes are collapsed to genes (highest mean expression), only genes measured in every study are kept, and each study is analysed with limma. Two-colour arrays are not supported.
 
-The app tells you which studies and comparisons it left out and why. See the [user manual](manual/TMA_Manual.md) for details.
+The app tells you which studies and comparisons it left out and why. The **Methods Guide** tab of the app explains when to use which method. See the [user manual](manual/TMA_Manual.md) for details.
 
 ## Reproducibility
 
@@ -51,3 +56,5 @@ analysis
 matrices <- list(read_array_matrix("study1.txt"), read_array_matrix("study2.txt"))
 array_analysis <- run_array_analysis(matrices, design, meta_method = "fisher")
 ```
+
+A worked example with the demo data is in the vignette: `vignette("TranscriptMetaAnalyst")` (install with `build_vignettes = TRUE`).

@@ -37,9 +37,7 @@ normalisation, \code{voom()}, \code{lmFit()}, \code{eBayes()}) and returns the s
 standardised table as \code{\link[=run_deseq2]{run_deseq2()}}.
 }
 \examples{
-\donttest{
 demo <- tma_demo_data()
 study <- split_studies(demo$counts, demo$design)$A
 head(run_limma_voom(study$counts, study$design)$table)
-}
 }

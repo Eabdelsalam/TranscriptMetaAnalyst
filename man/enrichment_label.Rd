@@ -17,6 +17,11 @@ The service, its database version and the background used, for reporting
 the result.
 }
 \examples{
+# a result as returned by run_string_enrichment()
+string <- list(service = "STRING", version = "12.0",
+               organism = "Synechocystis sp. PCC 6803 (1148)",
+               background = "all 3405 tested genes (3301 recognised by STRING)")
+enrichment_label(string)
 \dontrun{
 enrichment_label(run_string_enrichment(genes, species = 1148))
 }
