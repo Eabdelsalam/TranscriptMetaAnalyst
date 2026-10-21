@@ -59,6 +59,8 @@ heatmap_row_clusters <- function(n_genes, k = 2L) {
 #' @param corrected If `TRUE`, use the batch-corrected log2 values (see
 #'   [batch_diagnostics]) instead of the normalised counts. By default they
 #'   are used when the result was created with `batch_plots = TRUE`.
+#' @param genes Genes to show (default all meta-analysis DEGs); see
+#'   [heatmap_genes()] to select them by cutoffs.
 #' @return A numeric matrix (meta DEGs x samples).
 #' @export
 #' @examples
@@ -67,11 +69,46 @@ heatmap_row_clusters <- function(n_genes, k = 2L) {
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' dim(heatmap_matrix(res))
 #' }
-heatmap_matrix <- function(result, corrected = use_corrected(result)) {
+heatmap_matrix <- function(result, corrected = use_corrected(result), genes = result$meta_degs) {
   values <- if (corrected) result$batch$corrected_log else result$norm_counts
   samples_by_study <- split(result$design$sample, result$design$study)[result$studies]
   norm_list <- lapply(samples_by_study, function(s) values[, s, drop = FALSE])
-  scale_deg_counts(norm_list, result$meta_degs, result$design$sample)
+  scale_deg_counts(norm_list, genes, result$design$sample)
+}
+
+#' Genes shown in the heatmap
+#'
+#' Selects meta-analysis DEGs for display: those with an adjusted
+#' meta-analysis p-value at or below `padj_cutoff` and an absolute mean log2
+#' fold change at or above `lfc_cutoff`, optionally only the `top_n` with the
+#' smallest adjusted p-values. This only changes what the heatmap shows; the
+#' DEGs themselves are defined by the analysis.
+#'
+#' @param result A `tma_result` from [run_tma_pipeline()].
+#' @param padj_cutoff Largest adjusted meta-analysis p-value to show.
+#' @param lfc_cutoff Smallest absolute mean log2 fold change to show.
+#' @param top_n Show at most this many genes; `NULL` or `NA` shows all.
+#' @return A character vector of genes, in the order of `result$meta_degs`.
+#' @export
+#' @examples
+#' \donttest{
+#' demo <- tma_demo_data()
+#' res <- run_tma_pipeline(demo$counts, demo$design)
+#' length(heatmap_genes(res))
+#' length(heatmap_genes(res, lfc_cutoff = 2, top_n = 50))
+#' }
+heatmap_genes <- function(result, padj_cutoff = result$alpha, lfc_cutoff = 0, top_n = NULL) {
+  degs <- result$meta_degs
+  padj <- result$meta[degs, "adjpval"]
+  mean_fc <- abs(mean_fold_change(result$fold_changes[degs, , drop = FALSE]))
+  keep <- padj <= padj_cutoff & mean_fc >= lfc_cutoff
+  keep[is.na(keep)] <- FALSE
+  shown <- degs[keep]
+  if (length(top_n) == 1 && !is.na(top_n) && top_n < length(shown)) {
+    best <- order(padj[keep])[seq_len(max(0, top_n))]
+    shown <- shown[sort(best)]
+  }
+  shown
 }
 
 #' Plots of a TMA result
@@ -84,6 +121,21 @@ heatmap_matrix <- function(result, corrected = use_corrected(result)) {
 #' @param mat A scaled DEG matrix from [heatmap_matrix()].
 #' @param k_row Number of gene (row) clusters, see [heatmap_row_clusters()].
 #' @param k_col Number of sample (column) clusters.
+#' @param palette Heatmap colours, one of [heatmap_palettes()].
+#' @param cluster_rows,cluster_cols Cluster (and reorder) the genes and the
+#'   samples. Without clustering, `k_row` and `k_col` are ignored.
+#' @param method Agglomeration method for the clustering, passed to
+#'   [stats::hclust()].
+#' @param show_rownames Show the gene names.
+#' @param p_cutoff,fc_cutoff Adjusted p-value and absolute log2 fold-change
+#'   thresholds drawn on the volcano plot.
+#' @param labels Which genes to label on the volcano plot: `"significant"`
+#'   (genes past both thresholds), `"top"` (the `top_n` genes with the
+#'   smallest adjusted p-values among those) or `"none"`.
+#' @param top_n Number of genes to label with `labels = "top"`.
+#' @param y_max Largest -log10 adjusted p-value shown on the volcano plot;
+#'   genes above it are drawn at the top edge (and counted in the caption).
+#'   `NULL` shows the whole range.
 #' @param design Experimental design, used to annotate the static heatmap.
 #' @param sets Named list of gene sets for the Venn and UpSet plots.
 #' @param volcano A data frame from [volcano_data()].
@@ -139,22 +191,65 @@ use_corrected <- function(result) {
 
 #' @rdname tma_plots
 #' @export
-plot_heatmap <- function(mat, k_row, k_col) {
-  suppressWarnings(heatmaply::heatmaply(mat, k_row = k_row, k_col = k_col))
+plot_heatmap <- function(mat, k_row, k_col, palette = "yellow_black_purple",
+                         cluster_rows = TRUE, cluster_cols = TRUE, method = "complete",
+                         show_rownames = FALSE) {
+  dendrogram <- if (cluster_rows && cluster_cols) "both" else if (cluster_rows) "row" else
+    if (cluster_cols) "column" else "none"
+  suppressWarnings(heatmaply::heatmaply(
+    mat,
+    k_row = if (cluster_rows) k_row else NA,
+    k_col = if (cluster_cols) k_col else NA,
+    Rowv = cluster_rows, Colv = cluster_cols, dendrogram = dendrogram,
+    hclust_method = method,
+    colors = heatmap_palette(palette),
+    showticklabels = c(TRUE, show_rownames)
+  ))
 }
 
 #' @rdname tma_plots
 #' @export
-plot_heatmap_static <- function(mat, design, k_row, k_col) {
+plot_heatmap_static <- function(mat, design, k_row, k_col, palette = "yellow_black_purple",
+                                cluster_rows = TRUE, cluster_cols = TRUE, method = "complete",
+                                show_rownames = FALSE) {
   annot <- design[, c("condition", "study")]
   rownames(annot) <- design$sample
   pheatmap::pheatmap(mat,
-                     cutree_rows = k_row,
-                     cutree_cols = k_col,
-                     show_rownames = FALSE,
-                     color = grDevices::colorRampPalette(c("yellow", "black", "purple"))(150),
+                     cluster_rows = cluster_rows,
+                     cluster_cols = cluster_cols,
+                     clustering_method = method,
+                     cutree_rows = if (cluster_rows) k_row else NA,
+                     cutree_cols = if (cluster_cols) k_col else NA,
+                     show_rownames = show_rownames,
+                     color = heatmap_palette(palette),
                      annotation_col = annot)
   invisible(NULL)
+}
+
+#' Heatmap colour palettes
+#'
+#' @return A named character vector of palette codes, named by their labels.
+#'   `heatmap_palette()` returns the colours of one palette.
+#' @param name A palette code from `heatmap_palettes()`.
+#' @param n Number of colours.
+#' @export
+#' @examples
+#' heatmap_palettes()
+#' heatmap_palette("blue_white_red", 5)
+heatmap_palettes <- function() {
+  c("Yellow - black - purple" = "yellow_black_purple",
+    "Blue - white - red" = "blue_white_red",
+    "Viridis" = "viridis")
+}
+
+#' @rdname heatmap_palettes
+#' @export
+heatmap_palette <- function(name = "yellow_black_purple", n = 150) {
+  name <- match.arg(name, heatmap_palettes())
+  switch(name,
+         yellow_black_purple = grDevices::colorRampPalette(c("yellow", "black", "purple"))(n),
+         blue_white_red = grDevices::colorRampPalette(c("#2166AC", "white", "#B2182B"))(n),
+         viridis = grDevices::hcl.colors(n, "viridis"))
 }
 
 #' Gene sets for the Venn and UpSet plots
@@ -217,18 +312,54 @@ volcano_data <- function(result) {
 
 #' @rdname tma_plots
 #' @export
-plot_volcano <- function(volcano) {
-  suppressWarnings(EnhancedVolcano::EnhancedVolcano(
+plot_volcano <- function(volcano, p_cutoff = 0.05, fc_cutoff = 1,
+                         labels = c("significant", "top", "none"), top_n = 10, y_max = NULL) {
+  labels <- match.arg(labels)
+  passing <- volcano$pval <= p_cutoff & abs(volcano$fc) >= fc_cutoff
+  passing[is.na(passing)] <- FALSE
+  select <- switch(labels,
+                   significant = NULL,
+                   top = volcano$genes[passing][utils::head(order(volcano$pval[passing]), top_n)],
+                   none = character(0))
+  # genes above the y-axis maximum are drawn at the top edge
+  capped <- 0
+  if (length(y_max) == 1 && !is.na(y_max) && y_max > 0) {
+    above <- !is.na(volcano$pval) & -log10(volcano$pval) > y_max
+    capped <- sum(above)
+    volcano$pval[above] <- 10^-y_max
+  }
+  plot <- suppressWarnings(EnhancedVolcano::EnhancedVolcano(
     volcano,
     lab = volcano$genes,
+    selectLab = select,
     x = "fc",
     y = "pval",
     title = NULL,
     subtitle = NULL,
-    pCutoff = 0.05,
+    pCutoff = p_cutoff,
+    FCcutoff = fc_cutoff,
     border = "full",
-    caption = NULL
+    caption = if (capped > 0) sprintf("%d gene(s) above the y-axis maximum are drawn at the top", capped) else NULL
   ))
+  # label the threshold line so its position is clear on any y scale
+  x_right <- max(abs(volcano$fc), na.rm = TRUE)
+  plot + ggplot2::annotate("text", x = x_right, y = -log10(p_cutoff), hjust = 1, vjust = -0.4,
+                           size = 3.5, label = paste("adj. p =", format(p_cutoff, digits = 3)))
+}
+
+#' Which plot shows the overlap of DEG lists
+#'
+#' Venn diagrams are readable for at most 4 sets (here: the studies plus the
+#' meta-analysis); with more sets, only the UpSet plot is shown.
+#'
+#' @param sets Named list of gene sets, see [deg_sets()].
+#' @return `"venn"` (both plots are offered, the Venn diagram first) or
+#'   `"upset"` (only the UpSet plot).
+#' @export
+#' @examples
+#' overlap_plot_type(list(A = "g1", B = "g2", Meta = "g1"))
+overlap_plot_type <- function(sets) {
+  if (length(sets) <= 4) "venn" else "upset"
 }
 
 #' @rdname tma_plots
