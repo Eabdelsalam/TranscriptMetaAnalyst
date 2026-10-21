@@ -139,8 +139,8 @@ heatmap_genes <- function(result, padj_cutoff = result$alpha, lfc_cutoff = 0, to
 #' @param design Experimental design, used to annotate the static heatmap.
 #' @param sets Named list of gene sets for the Venn and UpSet plots.
 #' @param volcano A data frame from [volcano_data()].
-#' @param go_table A table from [run_go_enrichment()].
-#' @param kegg_table A table from [run_kegg_enrichment()].
+#' @param go_table The `table` of [run_go_enrichment()].
+#' @param kegg_table The `table` of [run_kegg_enrichment()].
 #' @param gene Gene name.
 #' @param nrows Number of facet rows of the counts plot.
 #' @return A ggplot, plotly, or ComplexHeatmap object, or `NULL` invisibly for
@@ -413,6 +413,29 @@ plot_kegg_lollipop <- function(kegg_table) {
     ggplot2::coord_flip() +
     ggplot2::theme(axis.text.x = ggplot2::element_text(color = "grey20", size = 12),
                    axis.text.y = ggplot2::element_text(color = "grey20", size = 12))
+}
+
+#' @rdname tma_plots
+#' @param string_table The `table` of [run_string_enrichment()].
+#' @param n_terms Number of terms with the smallest FDR to draw.
+#' @export
+plot_string_lollipop <- function(string_table, n_terms = 30) {
+  # publications (PMID) are kept in the table but are not functional terms
+  for_plot <- string_table[string_table$category != "PMID", , drop = FALSE]
+  for_plot <- utils::head(for_plot[order(for_plot$fdr), , drop = FALSE], n_terms)
+  for_plot$log_fdr <- -log10(for_plot$fdr)
+  for_plot$label <- ifelse(is.na(for_plot$description) | for_plot$description == "",
+                           for_plot$term, for_plot$description)
+  ggplot2::ggplot(for_plot, ggplot2::aes(x = stats::reorder(label, log_fdr), y = log_fdr)) +
+    ggplot2::geom_segment(ggplot2::aes(xend = stats::reorder(label, log_fdr), y = 0, yend = log_fdr),
+                          linewidth = 1.2, colour = "grey60") +
+    ggplot2::geom_point(ggplot2::aes(size = number_of_genes, colour = category)) +
+    ggplot2::labs(x = "STRING terms", y = bquote(-log[10](FDR)), size = "No. of genes",
+                  colour = "Source") +
+    ggplot2::facet_grid(rows = ggplot2::vars(category), scales = "free", space = "free") +
+    ggplot2::coord_flip() +
+    ggplot2::theme(axis.text.y = ggplot2::element_text(color = "grey20", size = 11),
+                   strip.text.y = ggplot2::element_text(angle = 0))
 }
 
 #' @rdname tma_plots

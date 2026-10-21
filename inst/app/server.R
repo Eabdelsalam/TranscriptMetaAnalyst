@@ -157,7 +157,8 @@ function(input, output, session) {
     bindCache("tma-demo", utils::packageVersion("TranscriptMetaAnalyst"), demo_settings(),
               cache = "app") |>
     bindEvent(req(input$main_tabs == "demo"), demo_settings())
-  mod_results_server("demo", demo_result, organism = list(go = 1111708, kegg = "syn"))
+  mod_results_server("demo", demo_result,
+                     organism = list(go = 1111708, kegg = "syn", string = 1148, id_type = "kegg"))
 
   #stop the app after the browser closes, but only for local runs started with
   #runTMA(); on a shared server this would shut the app down for every user

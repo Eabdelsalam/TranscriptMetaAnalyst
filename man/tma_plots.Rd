@@ -11,6 +11,7 @@
 \alias{plot_volcano}
 \alias{plot_go_lollipop}
 \alias{plot_kegg_lollipop}
+\alias{plot_string_lollipop}
 \alias{plot_gene_counts}
 \title{Plots of a TMA result}
 \usage{
@@ -58,6 +59,8 @@ plot_go_lollipop(go_table)
 
 plot_kegg_lollipop(kegg_table)
 
+plot_string_lollipop(string_table, n_terms = 30)
+
 plot_gene_counts(result, gene, nrows = length(result$studies)\%/\%2)
 }
 \arguments{
@@ -98,9 +101,13 @@ smallest adjusted p-values among those) or \code{"none"}.}
 genes above it are drawn at the top edge (and counted in the caption).
 \code{NULL} shows the whole range.}
 
-\item{go_table}{A table from \code{\link[=run_go_enrichment]{run_go_enrichment()}}.}
+\item{go_table}{The \code{table} of \code{\link[=run_go_enrichment]{run_go_enrichment()}}.}
 
-\item{kegg_table}{A table from \code{\link[=run_kegg_enrichment]{run_kegg_enrichment()}}.}
+\item{kegg_table}{The \code{table} of \code{\link[=run_kegg_enrichment]{run_kegg_enrichment()}}.}
+
+\item{string_table}{The \code{table} of \code{\link[=run_string_enrichment]{run_string_enrichment()}}.}
+
+\item{n_terms}{Number of terms with the smallest FDR to draw.}
 
 \item{gene}{Gene name.}
 

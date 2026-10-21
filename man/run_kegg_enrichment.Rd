@@ -4,27 +4,42 @@
 \alias{run_kegg_enrichment}
 \title{KEGG pathway enrichment}
 \usage{
-run_kegg_enrichment(genes, organism, cutoff = 0.05)
+run_kegg_enrichment(
+  genes,
+  organism,
+  background = NULL,
+  id_type = "kegg",
+  cutoff = 0.05
+)
 }
 \arguments{
-\item{genes}{Character vector of gene IDs in a KEGG-supported ID type
-(e.g. locus tags such as \code{"sll1214"}).}
+\item{genes}{Character vector of gene IDs (e.g. the meta-analysis DEGs).}
 
-\item{organism}{KEGG organism code, e.g. \code{"syn"}.}
+\item{organism}{KEGG organism code, e.g. \code{"syn"}; checked with
+\code{\link[=kegg_organism_name]{kegg_organism_name()}} before the query.}
+
+\item{background}{The universe: all genes tested in the analysis. \code{NULL}
+uses all genes of the organism in KEGG.}
+
+\item{id_type}{ID type of \code{genes}, one of \code{\link[=id_types]{id_types()}} (for the record;
+PANTHER recognises the type itself).}
 
 \item{cutoff}{q-value cutoff.}
 }
 \value{
-A data frame of enriched pathways.
+A \code{tma_enrichment} object (see \code{\link[=run_go_enrichment]{run_go_enrichment()}}) with the
+enriched pathways in \code{table}.
 }
 \description{
 Runs \code{\link[clusterProfiler:enrichKEGG]{clusterProfiler::enrichKEGG()}}, which queries the KEGG REST service.
-Needs an internet connection.
+KEGG accepts locus tags / KEGG gene IDs, NCBI Entrez Gene IDs and UniProt
+accessions; for gene symbols or Ensembl IDs use \code{\link[=run_string_enrichment]{run_string_enrichment()}}
+or \code{\link[=run_go_enrichment]{run_go_enrichment()}} instead. Needs an internet connection.
 }
 \examples{
 \dontrun{
 demo <- tma_demo_data()
 res <- run_tma_pipeline(demo$counts, demo$design)
-head(run_kegg_enrichment(res$meta_degs, organism = "syn"))
+kegg <- run_kegg_enrichment(res$meta_degs, organism = "syn", background = res$genes)
 }
 }

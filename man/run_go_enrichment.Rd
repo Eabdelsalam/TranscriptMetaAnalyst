@@ -4,7 +4,13 @@
 \alias{run_go_enrichment}
 \title{GO enrichment with PANTHER}
 \usage{
-run_go_enrichment(genes, organism, cutoff = 0.05)
+run_go_enrichment(
+  genes,
+  organism,
+  background = NULL,
+  id_type = "kegg",
+  cutoff = 0.05
+)
 }
 \arguments{
 \item{genes}{Character vector of gene IDs (e.g. the meta-analysis DEGs).}
@@ -12,21 +18,32 @@ run_go_enrichment(genes, organism, cutoff = 0.05)
 \item{organism}{NCBI taxon ID of the organism, e.g. \code{1111708} for
 \emph{Synechocystis} sp. PCC 6803.}
 
+\item{background}{The reference list: all genes tested in the analysis.
+\code{NULL} uses PANTHER's whole-genome default.}
+
+\item{id_type}{ID type of \code{genes}, one of \code{\link[=id_types]{id_types()}} (for the record;
+PANTHER recognises the type itself).}
+
 \item{cutoff}{FDR cutoff passed to PANTHER.}
 }
 \value{
-A data frame of enriched GO terms with a \code{category} column
-(\code{"BP"}, \code{"CC"} or \code{"MF"}), sorted by FDR.
+A \code{tma_enrichment} object: a list with \code{service}, \code{table} (enriched
+GO terms with a \code{category} column, \code{"BP"}, \code{"CC"} or \code{"MF"}, sorted by
+FDR), \code{mapping} (see \code{\link[=mapping_report]{mapping_report()}}), \code{version}, \code{background},
+\code{organism} and \code{id_type}.
 }
 \description{
-Runs PANTHER overrepresentation tests for the three GO aspects (biological
-process, cellular component, molecular function) through \code{rbioapi}, and
-returns the significant terms sorted by FDR. Needs an internet connection.
+Runs PANTHER overrepresentation tests (Fisher's exact test, FDR) for the
+three GO aspects (biological process, cellular component, molecular
+function) through \code{rbioapi}. PANTHER maps the submitted IDs (gene symbols,
+UniProt, Ensembl, NCBI and organism-specific IDs such as locus tags) on its
+server. Needs an internet connection.
 }
 \examples{
 \dontrun{
 demo <- tma_demo_data()
 res <- run_tma_pipeline(demo$counts, demo$design)
-head(run_go_enrichment(res$meta_degs, organism = 1111708))
+go <- run_go_enrichment(res$meta_degs, organism = 1111708, background = res$genes)
+go$mapping$rate
 }
 }

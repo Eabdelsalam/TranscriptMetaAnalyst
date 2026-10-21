@@ -3,7 +3,7 @@
 #
 #   Rscript -e 'devtools::load_all(); source("dev/make_manual_figures.R")'
 #
-# The GO figure queries the PANTHER web service and needs an internet connection.
+# The enrichment figure queries the STRING web service and needs an internet connection.
 
 demo <- tma_demo_data()
 res <- run_tma_pipeline(demo$counts, demo$design)
@@ -23,9 +23,9 @@ grDevices::dev.off()
 ggplot2::ggsave(file.path(fig_dir, "fig13_volcano.png"), plot_volcano(volcano_data(res)),
                 width = 22, height = 15, units = "cm", dpi = 150)
 
-# GO enrichment lollipop on the meta-analysis DEGs (Figure 15)
-go <- run_go_enrichment(res$meta_degs, organism = 1111708)
-ggplot2::ggsave(file.path(fig_dir, "fig15_go_lollipop.png"), plot_go_lollipop(go),
-                width = 30, height = 20, units = "cm", dpi = 120)
+# STRING enrichment of the meta-analysis DEGs against all tested genes (Figure 15)
+string <- run_string_enrichment(res$meta_degs, species = 1148, background = res$genes)
+ggplot2::ggsave(file.path(fig_dir, "fig15_string_lollipop.png"), plot_string_lollipop(string$table),
+                width = 30, height = 22, units = "cm", dpi = 120)
 
-message("Figures written to ", fig_dir, " (", nrow(go), " enriched GO terms)")
+message("Figures written to ", fig_dir, " (", nrow(string$table), " enriched STRING terms)")

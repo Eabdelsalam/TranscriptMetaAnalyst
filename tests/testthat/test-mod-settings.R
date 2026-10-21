@@ -30,6 +30,7 @@ test_that("the demo is recomputed for new settings and cached per combination", 
     out$meta_method <- meta_method
     out
   })
+  mock_organism_lists()
   app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
   shiny::testServer(app, {
     session$setInputs(`demo_settings-de_method` = "DESeq2", `demo_settings-meta_method` = "fisher",
@@ -54,6 +55,7 @@ test_that("the RNA-seq run uses the chosen settings", {
     out$reference <- reference
     fake_analysis(out)
   })
+  mock_organism_lists()
   app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
   shiny::testServer(app, {
     session$setInputs(rnaseq_counts = list(datapath = tma_example_file("counts")),
@@ -108,6 +110,7 @@ test_that("the RNA-seq run is blocked when a batch option is chosen without a ba
     called <<- TRUE
     demo_result()
   })
+  mock_organism_lists()
   app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
   shiny::testServer(app, {
     session$setInputs(rnaseq_counts = list(datapath = tma_example_file("counts")),

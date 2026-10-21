@@ -23,44 +23,99 @@ test_that("mod_results_server renders a tma_result", {
   })
 })
 
-test_that("GO and KEGG enrichment get the meta-analysis DEGs and the organism", {
+fake_enrichment <- function(service, genes, ...) {
+  structure(list(service = service,
+                 table = data.frame(term.id = "GO:1", term.label = "t", fold_enrichment = 2, fdr = 0.01,
+                                    number_in_list = 3, plus_minus = "+", category = "BP"),
+                 mapping = mapping_report(genes, genes[-1], service),
+                 version = "test version", background = "all tested genes",
+                 organism = "test organism", id_type = "kegg"),
+            class = "tma_enrichment")
+}
+
+test_that("GO, KEGG and STRING get the DEGs, organism, ID type and tested-genes background", {
   res <- demo_result()
   seen <- list()
-  local_mocked_bindings(
-    run_go_enrichment = function(genes, organism) {
-      seen$go <<- list(genes = genes, organism = organism)
-      data.frame()
-    },
-    run_kegg_enrichment = function(genes, organism) {
-      seen$kegg <<- list(genes = genes, organism = organism)
-      data.frame()
-    }
-  )
-  shiny::testServer(mod_results_server,
-                    args = list(result = shiny::reactive(res), organism = list(go = 1111708, kegg = "syn")), {
-    session$setInputs(run_go = 1)
-    go_table()
-    session$setInputs(run_kegg = 1)
-    kegg_table()
+  record <- function(service) function(genes, organism = NULL, species = NULL, background, id_type, ...) {
+    seen[[service]] <<- list(genes = genes, organism = c(organism, species),
+                             background = background, id_type = id_type)
+    fake_enrichment(service, genes)
+  }
+  local_mocked_bindings(run_go_enrichment = record("PANTHER"), run_kegg_enrichment = record("KEGG"),
+                        run_string_enrichment = record("STRING"))
+  fixed <- list(go = 1111708, kegg = "syn", string = 1148, id_type = "kegg")
+  shiny::testServer(mod_results_server, args = list(result = shiny::reactive(res), organism = fixed), {
+    session$setInputs(run_go = 1, run_kegg = 1, run_string = 1)
+    expect_s3_class(go_result(), "tma_enrichment")
+    kegg_result()
+    string_result()
+    report <- as.character(output$go_report$html)
+    expect_match(report, "Mapping rate")
+    expect_match(report, "Download the IDs that were not mapped")
+    expect_match(report, "test version")
+    table_file <- output$download_go_table
+    expect_match(readLines(table_file, n = 1), "^# PANTHER \\(test version\\)")
+    expect_equal(readLines(output$download_go_unmapped), res$meta_degs[1])
   })
-  expect_equal(seen$go, list(genes = res$meta_degs, organism = 1111708))
-  expect_equal(seen$kegg, list(genes = res$meta_degs, organism = "syn"))
+  for (service in c("PANTHER", "KEGG", "STRING")) {
+    expect_equal(seen[[service]]$genes, res$meta_degs)
+    expect_equal(seen[[service]]$background, res$genes)
+    expect_equal(seen[[service]]$id_type, "kegg")
+  }
+  expect_equal(seen$PANTHER$organism, 1111708)
+  expect_equal(seen$KEGG$organism, "syn")
+  expect_equal(seen$STRING$organism, 1148)
 })
 
-test_that("enrichment is not run when there are no meta-analysis DEGs", {
+test_that("a failed enrichment is shown as a message, not an error", {
   res <- demo_result()
-  res$meta_degs <- character(0)
+  alerts <- character(0)
+  local_mocked_bindings(run_string_enrichment = function(...) stop("Timeout was reached"))
+  local_mocked_bindings(shinyalert = function(title, text = "", ...) alerts <<- c(alerts, text),
+                        .package = "shinyalert")
+  shiny::testServer(mod_results_server,
+                    args = list(result = shiny::reactive(res),
+                                organism = list(go = 1, kegg = "syn", string = 1148, id_type = "kegg")), {
+    session$setInputs(run_string = 1)
+    expect_error(string_result(), class = "shiny.silent.error")
+  })
+  expect_match(alerts, "The STRING enrichment could not be completed \\(Timeout was reached\\)", all = FALSE)
+})
+
+test_that("enrichment is not run without DEGs, ID type or organism", {
+  res <- demo_result()
   called <- FALSE
   local_mocked_bindings(run_go_enrichment = function(...) {
     called <<- TRUE
-    data.frame()
+    fake_enrichment("PANTHER", "g")
   })
+  mock_organism_lists()
+  no_degs <- res
+  no_degs$meta_degs <- character(0)
   shiny::testServer(mod_results_server,
-                    args = list(result = shiny::reactive(res), organism = list(go = 1, kegg = "syn")), {
+                    args = list(result = shiny::reactive(no_degs),
+                                organism = list(go = 1, kegg = "syn", string = 1148, id_type = "kegg")), {
     session$setInputs(run_go = 1)
-    expect_error(go_table(), class = "shiny.silent.error")
+    expect_error(go_result(), class = "shiny.silent.error")
+  })
+  # RNA-seq tab: the user must choose the ID type and the organism
+  shiny::testServer(mod_results_server, args = list(result = shiny::reactive(res)), {
+    session$setInputs(organism_go = "1111708", run_go = 1)
+    expect_error(go_result(), class = "shiny.silent.error")
+    session$setInputs(id_type = "kegg", organism_go = "", run_go = 2)
+    expect_error(go_result(), class = "shiny.silent.error")
   })
   expect_false(called)
+})
+
+test_that("the KEGG organism code is checked while typing", {
+  mock_organism_lists()
+  shiny::testServer(mod_results_server, args = list(result = shiny::reactive(demo_result())), {
+    session$setInputs(organism_kegg = "syn")
+    expect_equal(output$kegg_organism_check, "Organism: Synechocystis sp. PCC 6803")
+    session$setInputs(organism_kegg = "xyz9")
+    expect_equal(output$kegg_organism_check, "Unknown KEGG organism code.")
+  })
 })
 
 test_that("the app computes the demo once, when the Demo tab is first opened", {
@@ -70,6 +125,7 @@ test_that("the app computes the demo once, when the Demo tab is first opened", {
     runs <<- runs + 1
     res
   })
+  mock_organism_lists()
   app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
   shiny::testServer(app, {
     session$setInputs(main_tabs = "home")
@@ -95,6 +151,7 @@ test_that("the RNA-seq tab validates the uploads and runs the pipeline on click"
   bad_design <- withr::local_tempfile(fileext = ".txt")
   utils::write.table(tma_demo_data()$design[, c("sample", "condition")], bad_design,
                      sep = "\t", quote = FALSE, row.names = FALSE)
+  mock_organism_lists()
   app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
   shiny::testServer(app, {
     session$setInputs(rnaseq_counts = list(datapath = tma_example_file("counts")),

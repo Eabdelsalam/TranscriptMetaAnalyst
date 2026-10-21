@@ -37,3 +37,12 @@ fake_analysis <- function(result) {
                                       analysed = TRUE, reason = "")),
             class = "tma_analysis")
 }
+
+# the organism lists are downloaded on the RNA-seq tab; keep the tests offline
+mock_organism_lists <- function(env = parent.frame()) {
+  local_mocked_bindings(
+    organisms_go = function() data.frame(long_name = "Synechocystis", taxon_id = 1111708),
+    organisms_string = function() data.frame(taxon_id = 1148, name = "Synechocystis sp. PCC 6803", domain = "Bacteria"),
+    .env = env
+  )
+}
