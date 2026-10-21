@@ -6,7 +6,10 @@ test_that("validate_design accepts the demo design and reports problems", {
 
   three <- design
   three$condition[1] <- "Other"
-  expect_match(validate_design(three), "two unique conditions")
+  expect_identical(validate_design(three), character(0))
+  one <- design
+  one$condition <- "Cont"
+  expect_match(validate_design(one), "at least two conditions")
 
   dup <- design
   dup$sample[2] <- dup$sample[1]

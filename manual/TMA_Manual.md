@@ -41,6 +41,8 @@ Several of these changes fix errors in the results of earlier versions, so resul
 | Closing the app | When the app is started with `runTMA()`, it stops when its browser window is closed, as before. When it is deployed on a Shiny Server, closing one browser window no longer shuts the app down for all other users. |
 | Methods | Besides DESeq2, the differential expression can now be run with edgeR or limma-voom, for all studies or chosen per study. Besides Fisher's method, the *p*-values can be combined with the inverse-normal method. See [Analysis settings](#422-analysis-settings). |
 | Batch effects | The experimental design file can have an optional `batch` column. Batch can be added to the DE model (`~ batch + condition`) or removed from the raw counts with ComBat-seq, and the PCA and heatmap can use batch-corrected values. A **Check for batch effects** box detects batch effects before the analysis, and a **Batch effects** results tab shows PCA and RLE plots before and after the correction. See [Batch effects](#423-batch-effects). |
+| Several conditions | The design can now have more than two conditions. Every condition is compared with a reference condition (all vs. reference), and each comparison gets its own results tab. See [Analysis settings](#422-analysis-settings) and [Study requirements](#424-study-requirements). |
+| Replicate rule | A condition with fewer than 2 samples in a study is left out of that study, and a comparison is meta-analysed only if at least 2 studies remain. The app names the studies and comparisons it left out. See [Study requirements](#424-study-requirements). |
 | Speed | The studies are analysed in parallel, and an uploaded analysis runs in the background, so the app stays responsive while it runs. The **Start Analysis!** button is disabled until the running analysis has finished. |
 | Demo | The demo analysis is computed the first time the **Run Demo Analysis** tab is opened and then reused, so opening the tab again shows the results immediately. |
 | Low-count genes | Genes with too few reads in every study are removed before the analysis (see [Analysis Pipeline](#5-analysis-pipeline)). They no longer appear in the results table. |
@@ -86,7 +88,7 @@ To start the RNA-Seq meta-analysis, click on the **RNA-Seq Meta Analysis** tab a
 - After cleaning the raw RNA-Seq read files (either downloaded from public databases or generated in your own experiments) of each sample, align them individually to the studied organism's reference genome.
 - Count the mapped reads for the genomic features of interest and combine all the counts in one file, keeping genomic features as rows and the samples that will be included in the analysis as columns. This produces the final raw (unnormalized) counts file. ***Note that the counts file should have a 'Geneid' column.***
 - Upload the counts file produced by any feature counting tool, e.g., featureCounts or htseq-count, to the raw counts placeholder. ***Please refer to the example counts file via the provided download link.***
-- Upload the experimental design file. ***Please refer to the example file via the provided download link.*** This file should contain at least 3 columns: 'sample' refers to the sample names used as columns in the counts file, 'study' refers to the study to which the sample belongs, and 'condition' refers to the treatment or control conditions (only two conditions are allowed for comparison).
+- Upload the experimental design file. ***Please refer to the example file via the provided download link.*** This file should contain at least 3 columns: 'sample' refers to the sample names used as columns in the counts file, 'study' refers to the study to which the sample belongs, and 'condition' refers to the treatment or control conditions. With more than two conditions, each one is compared with the reference condition chosen in the **Analysis settings** box.
 - Optionally, choose the differential expression and meta-analysis methods in the **Analysis settings** box (the defaults are DESeq2 and Fisher's method).
 - Hit the ***Start Analysis!*** button and wait for the results to appear.
 - To perform further **Functional Annotation** of the DEGs identified via the meta-analysis, use the functional annotation box in the bottom-left corner of the page. The user needs to choose the organism before performing this analysis. This analysis needs an active internet connection and might take a while.
@@ -115,7 +117,7 @@ To perform a meta-analysis of RNA-Seq data using TMA, the user needs two input f
 
 1. The ***raw counts file***: a tab-delimited file that contains the raw counts of all the experiments to be analyzed, where each row represents a single gene and each column represents all counts from a single sample. Figure 3 shows an example of the raw counts file.
 
-2. The ***experimental design file***, which should contain at least 3 columns: sample, study, and condition. An example of this file is shown in Figure 4. The study column should contain records for all the count columns in the raw counts file. The condition column should contain only two unique conditions to be compared via the meta-analysis. An optional fourth column, `batch`, gives the batch of each sample within its study (for example the sequencing run or library preparation date); see [Batch effects](#423-batch-effects).
+2. The ***experimental design file***, which should contain at least 3 columns: sample, study, and condition. An example of this file is shown in Figure 4. The study column should contain records for all the count columns in the raw counts file. The condition column should contain at least two conditions; each condition is compared with the reference condition (see [Analysis settings](#422-analysis-settings)), and each needs at least 2 samples in a study (see [Study requirements](#424-study-requirements)). An optional fourth column, `batch`, gives the batch of each sample within its study (for example the sequencing run or library preparation date); see [Batch effects](#423-batch-effects).
 
 ![Figure 3](figures/fig03_counts_file.png)
 
@@ -129,6 +131,7 @@ To perform a meta-analysis of RNA-Seq data using TMA, the user needs two input f
 
 The **Analysis settings** box at the top of the tab sets how the data are analysed:
 
+- **Reference condition**: once the experimental design file is uploaded, this drop-down lists its conditions. Every other condition is compared with the reference ("all vs. reference"); with two conditions this is the usual "treated vs. control" comparison. The app pre-selects a condition whose name looks like a control (control, ctrl, cont, wt, wild type, mock, untreated), otherwise the first condition in alphabetical order. Each study is fitted once with all its conditions, and every comparison is taken from that fit.
 - **Differential expression method**, used in each study: DESeq2 (default) [4], edgeR (quasi-likelihood F-test) [9] or limma-voom [10, 11].
 - **DE method per study (optional)**: once the experimental design file is uploaded, one drop-down per study lets you use a different method for that study. "Same as above" uses the method chosen for all studies.
 - **Meta-analysis method**: Fisher's method [5] (default) or the inverse-normal method [3], which weights each study by the square root of its number of samples.
@@ -160,6 +163,16 @@ Batch can only be used in a study that has at least two batches, whose batches a
 - shows the PCA and RLE plots of each study (described in [Main Plots](#62-main-plots)).
 
 These flags are guides for looking at the plots, not statistical tests. The Demo tab has the same box for the demo data.
+
+#### 4.2.4 Study requirements
+
+TMA applies these rules to every analysis:
+
+- **At least 2 samples (replicates) per condition in a study.** A condition with fewer than 2 samples in a study is removed from that study: its samples are not used, and the study is left out of the comparisons that involve that condition. A study with fewer than 2 samples of the reference condition is not used at all.
+- **At least 2 studies per comparison.** A comparison (e.g. *Heat vs Control*) is meta-analysed only if at least 2 studies still have both conditions with at least 2 samples each. Otherwise the comparison is not meta-analysed, and the app says why.
+- **At least one comparison.** If no comparison can be meta-analysed, the analysis stops with a message that explains why.
+
+After each run, a message lists the studies and comparisons that were left out (for example, "Study S2 has only 1 sample of 'Heat' (at least 2 are needed), so it is not used for 'Heat vs Control'"), and the **Comparisons** box at the top of the results shows how many studies each comparison used.
 
 ### 4.3 Run Demo Analysis
 
@@ -215,7 +228,9 @@ Finally, the different outputs (discussed in the next section) are produced with
 
 ### 6.1 Overview & Information Boxes
 
-TMA provides the user with 7 main output boxes (Figure 8). At the top of the results screen, two information boxes on the left and right show the number of studies included in the analysis and the number of DEGs identified via the meta-analysis, respectively. In the middle, a box lets the user download the list of DEGs identified in each individual study.
+On the RNA-Seq tab, the results start with a **Comparisons** box that lists every comparison (condition vs. reference), how many studies it used, whether it was meta-analysed, and which studies were left out and why. Below it, each comparison that was meta-analysed has its own tab with the boxes described here; everything in a tab (plots, tables, enrichment, downloads) refers to that comparison. The download file names start with the comparison, e.g. `rnaseq_Heat_vs_Cont_pca.pdf`.
+
+TMA provides the user with 7 main output boxes (Figure 8). At the top of the results screen, two information boxes on the left and right show the number of studies included in the analysis and the number of DEGs identified via the meta-analysis, respectively; the *Number of studies* box also names the comparison and the methods used. In the middle, a box lets the user download the list of DEGs identified in each individual study.
 
 Below the information boxes, the results screen is divided into 4 main sections. The top left box contains the main plots (discussed below). The top right box contains a table of all genes in the meta-analysis with their statistical parameters. This table can be searched and sorted, and downloaded as a CSV file for further analysis. Clicking on any row of the table updates the Count plots box (bottom right) with plots of the normalized counts of the selected gene across all the studies included in the meta-analysis. These plots can also be downloaded as a PDF file. The bottom left box contains the GO and KEGG pathway enrichment analysis and results (discussed below).
 

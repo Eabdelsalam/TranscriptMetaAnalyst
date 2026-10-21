@@ -11,14 +11,19 @@
 #'   organism given to `mod_results_server()` is used.
 #' @param hidden If `TRUE`, the results stay hidden until the first result is
 #'   available.
+#' @param venn,batch Include the Venn diagram and Batch effects tabs. When the
+#'   UI is drawn for a known result, leave out the tabs that do not apply (Venn
+#'   for more than 3 studies, Batch effects without a batch column).
 #' @param result A reactive returning a `tma_result` (see [run_tma_pipeline()]).
 #' @param organism `NULL` to let the user choose, or a list with `go` (PANTHER
 #'   taxon ID) and `kegg` (KEGG organism code).
+#' @param file_prefix A reactive giving the start of the download file names;
+#'   `NULL` uses the module id (e.g. "demo_pca.pdf").
 #' @return `mod_results_ui()` returns UI; `mod_results_server()` is called for
 #'   its side effects.
 #' @name mod_results
 #' @export
-mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE) {
+mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE, venn = TRUE, batch = TRUE) {
   ns <- shiny::NS(id)
   plot_tab <- function(title, output, ...) {
     shiny::tabPanel(title = title, shiny::plotOutput(ns(output), height = "480px"), ...)
@@ -57,14 +62,14 @@ mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE) {
                         plotly::plotlyOutput(ns("heatmap"), height = "480px"),
                         shiny::downloadButton(ns("download_heatmap"), label = "Download plot"),
                         shiny::downloadButton(ns("download_heatmap_data"), label = "Download data")),
-        plot_tab("Venn diagram", "venn",
-                 shiny::downloadButton(ns("download_venn"), label = "Download plot")),
+        if (venn) plot_tab("Venn diagram", "venn",
+                           shiny::downloadButton(ns("download_venn"), label = "Download plot")),
         plot_tab("UpSet Plot", "upset",
                  shiny::downloadButton(ns("download_upset"), label = "Download plot")),
         plot_tab("Volcano Plot", "volcano",
                  shiny::downloadButton(ns("download_volcano"), label = "Download plot"),
                  shiny::downloadButton(ns("download_volcano_data"), label = "Download data")),
-        shiny::tabPanel(title = "Batch effects", value = "batch",
+        if (batch) shiny::tabPanel(title = "Batch effects", value = "batch",
                         shiny::tableOutput(ns("batch_status")),
                         shiny::plotOutput(ns("batch_pca"), height = "420px"),
                         shiny::downloadButton(ns("download_batch_pca"), label = "Download PCA"),
@@ -102,46 +107,54 @@ mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE) {
 
 #' @rdname mod_results
 #' @export
-mod_results_server <- function(id, result, organism = NULL) {
+mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
-    # download file names start with the tab, e.g. "rnaseq_pca.pdf"
-    fname <- function(name) paste0(id, "_", name)
+    # download file names start with the tab, e.g. "demo_pca.pdf"
+    fname <- function(name) {
+      prefix <- if (is.null(file_prefix)) id else file_prefix()
+      paste0(prefix, "_", name)
+    }
     shinycssloaders::hideSpinner("go_plot")
     shinycssloaders::hideSpinner("kegg_plot")
 
     # update the parts of the page that depend on the studies ----------------
     shiny::observeEvent(result(), {
       res <- result()
-      shinyjs::show("results")
-      shiny::updateSelectInput(session, "individual_study", choices = res$studies)
-      # Venn diagrams are only drawn for up to 3 studies (+ the meta-analysis)
-      if (length(res$studies) > 3) {
-        shiny::hideTab("main_plots", target = "Venn diagram")
-      } else {
-        shiny::showTab("main_plots", target = "Venn diagram")
-      }
-      # the batch diagnostics only exist when the design has a batch column
-      if (is.null(res$batch)) {
-        shiny::hideTab("main_plots", target = "batch")
-      } else {
-        shiny::showTab("main_plots", target = "batch")
-      }
+      # sent after the page is updated, so it also works when the results UI is
+      # drawn at the same time (one tab per contrast)
+      session$onFlushed(function() {
+        shinyjs::show("results")
+        shiny::updateSelectInput(session, "individual_study", choices = res$studies)
+        # Venn diagrams are only drawn for up to 3 studies (+ the meta-analysis)
+        if (length(res$studies) > 3) {
+          shiny::hideTab("main_plots", target = "Venn diagram")
+        } else {
+          shiny::showTab("main_plots", target = "Venn diagram")
+        }
+        # the batch diagnostics only exist when the design has a batch column
+        if (is.null(res$batch)) {
+          shiny::hideTab("main_plots", target = "batch")
+        } else {
+          shiny::showTab("main_plots", target = "batch")
+        }
+      }, once = TRUE)
     })
 
     # information boxes ------------------------------------------------------
     output$num_studies <- shinydashboard::renderInfoBox({
       res <- result()
+      contrast <- if (is.null(res$contrast)) "" else paste0(res$contrast, "; ")
       meta <- names(meta_methods())[meta_methods() == res$meta_method]
       shinydashboard::infoBox(title = "Number of studies",
                               paste(length(res$studies), "studies"),
-                              paste0(paste(unique(res$de_methods), collapse = ", "), "; ", meta, " meta-analysis"),
+                              paste0(contrast, paste(unique(res$de_methods), collapse = ", "), "; ", meta, " meta-analysis"),
                               width = 3, icon = shiny::icon("list-ol"))
     })
     output$num_degs <- shinydashboard::renderInfoBox({
       res <- result()
       diff <- res$idd_irr
       shinydashboard::infoBox(
-        title = "Siginficant DEGs (meta-analysis)",
+        title = "Significant DEGs (meta-analysis)",
         paste(length(res$meta_degs), "out of", length(res$genes), "genes were identified as DEGs"),
         paste0("The meta-analysis identified ", diff[["IDD"]], "(", diff[["IDR"]], "%) new gene(s), while ",
                diff[["Loss"]], "(", diff[["IRR"]], "%) are sidetracked."),
@@ -158,7 +171,7 @@ mod_results_server <- function(id, result, organism = NULL) {
 
     # main plots -------------------------------------------------------------
     output$p_dist <- shiny::renderPlot(plot_pvalue_hist(result()))
-    output$download_pdist <- shiny::downloadHandler(fname("pdist.pdf"), content = function(file) {
+    output$download_pdist <- shiny::downloadHandler(function() fname("pdist.pdf"), content = function(file) {
       grDevices::pdf(file, width = 6, height = 4.5)
       on.exit(grDevices::dev.off())
       plot_pvalue_hist(result())
@@ -166,7 +179,7 @@ mod_results_server <- function(id, result, organism = NULL) {
 
     pca_plot <- shiny::reactive(plot_pca(result()))
     output$pca <- shiny::renderPlot(pca_plot())
-    output$download_pca <- shiny::downloadHandler(fname("pca.pdf"), content = function(file) {
+    output$download_pca <- shiny::downloadHandler(function() fname("pca.pdf"), content = function(file) {
       ggplot2::ggsave(file, pca_plot(), device = "pdf", width = 20, height = 16, units = "cm")
     })
 
@@ -180,26 +193,26 @@ mod_results_server <- function(id, result, organism = NULL) {
       need_heat()
       plot_heatmap(heat(), heat_k(), length(result()$studies))
     })
-    output$download_heatmap <- shiny::downloadHandler(fname("heatmap.pdf"), content = function(file) {
+    output$download_heatmap <- shiny::downloadHandler(function() fname("heatmap.pdf"), content = function(file) {
       need_heat()
       grDevices::pdf(file, height = 10)
       on.exit(grDevices::dev.off())
       plot_heatmap_static(heat(), result()$design, heat_k(), length(result()$studies))
     })
-    output$download_heatmap_data <- shiny::downloadHandler(fname("heatmap_data.csv"), content = function(file) {
+    output$download_heatmap_data <- shiny::downloadHandler(function() fname("heatmap_data.csv"), content = function(file) {
       utils::write.csv(heat(), file, quote = FALSE)
     }, contentType = "text/csv")
 
     sets <- shiny::reactive(deg_sets(result()))
     venn_plot <- shiny::reactive(plot_venn(sets()))
     output$venn <- shiny::renderPlot(venn_plot())
-    output$download_venn <- shiny::downloadHandler(fname("venndiagram.pdf"), content = function(file) {
+    output$download_venn <- shiny::downloadHandler(function() fname("venndiagram.pdf"), content = function(file) {
       ggplot2::ggsave(file, venn_plot(), device = "pdf", width = 15, height = 15, units = "cm")
     })
 
     upset_plot <- shiny::reactive(plot_upset(sets()))
     output$upset <- shiny::renderPlot(ComplexHeatmap::draw(upset_plot()))
-    output$download_upset <- shiny::downloadHandler(fname("upset.pdf"), content = function(file) {
+    output$download_upset <- shiny::downloadHandler(function() fname("upset.pdf"), content = function(file) {
       n <- length(result()$studies)
       grDevices::pdf(file, width = max(6, n * 2), height = max(4, n))
       on.exit(grDevices::dev.off())
@@ -209,10 +222,10 @@ mod_results_server <- function(id, result, organism = NULL) {
     volcano <- shiny::reactive(volcano_data(result()))
     volcano_plot <- shiny::reactive(plot_volcano(volcano()))
     output$volcano <- shiny::renderPlot(volcano_plot())
-    output$download_volcano <- shiny::downloadHandler(fname("volcano_plot.pdf"), content = function(file) {
+    output$download_volcano <- shiny::downloadHandler(function() fname("volcano_plot.pdf"), content = function(file) {
       ggplot2::ggsave(file, volcano_plot(), device = "pdf", width = 30, height = 25, units = "cm")
     })
-    output$download_volcano_data <- shiny::downloadHandler(fname("volcano_data.csv"), content = function(file) {
+    output$download_volcano_data <- shiny::downloadHandler(function() fname("volcano_data.csv"), content = function(file) {
       utils::write.csv(volcano(), file, quote = FALSE, row.names = FALSE)
     }, contentType = "text/csv")
 
@@ -236,16 +249,16 @@ mod_results_server <- function(id, result, organism = NULL) {
     })
     output$batch_pca <- shiny::renderPlot(batch_pca())
     output$batch_rle <- shiny::renderPlot(batch_rle())
-    output$download_batch_pca <- shiny::downloadHandler(fname("batch_pca.pdf"), content = function(file) {
+    output$download_batch_pca <- shiny::downloadHandler(function() fname("batch_pca.pdf"), content = function(file) {
       ggplot2::ggsave(file, batch_pca(), device = "pdf", width = 25, height = 15, units = "cm")
     })
-    output$download_batch_rle <- shiny::downloadHandler(fname("batch_rle.pdf"), content = function(file) {
+    output$download_batch_rle <- shiny::downloadHandler(function() fname("batch_rle.pdf"), content = function(file) {
       ggplot2::ggsave(file, batch_rle(), device = "pdf", width = 25, height = 15, units = "cm")
     })
 
     # meta-analysis table and count plots ------------------------------------
     output$meta_table <- DT::renderDT(meta_table_widget(result()$meta))
-    output$download_meta_table <- shiny::downloadHandler(fname("meta_analysis_results.csv"), content = function(file) {
+    output$download_meta_table <- shiny::downloadHandler(function() fname("meta_analysis_results.csv"), content = function(file) {
       utils::write.csv(result()$meta, file, quote = FALSE)
     }, contentType = "text/csv")
 
@@ -274,11 +287,15 @@ mod_results_server <- function(id, result, organism = NULL) {
     )
 
     # functional annotation --------------------------------------------------
-    go_organisms <- shiny::reactive(organisms_go())
+    # fetched once and shared by every tab and session
+    go_organisms <- shiny::reactive(organisms_go()) |>
+      shiny::bindCache("panther-organisms", cache = "app")
     if (is.null(organism)) {
       shiny::observeEvent(result(), {
-        shiny::updateSelectizeInput(session, "organism_go", choices = go_organisms()$long_name,
-                                    server = TRUE)
+        choices <- go_organisms()$long_name
+        session$onFlushed(function() {
+          shiny::updateSelectizeInput(session, "organism_go", choices = choices, server = TRUE)
+        }, once = TRUE)
       }, once = TRUE)
     }
     go_taxon <- shiny::reactive({
@@ -307,10 +324,10 @@ mod_results_server <- function(id, result, organism = NULL) {
     })
     go_plot <- shiny::reactive(plot_go_lollipop(go_table()))
     output$go_plot <- shiny::renderPlot(go_plot())
-    output$download_go_table <- shiny::downloadHandler(fname("GO_results.txt"), content = function(file) {
+    output$download_go_table <- shiny::downloadHandler(function() fname("GO_results.txt"), content = function(file) {
       utils::write.table(go_table(), file, quote = FALSE, sep = "\t", row.names = FALSE)
     }, contentType = "text/plain")
-    output$download_go_plot <- shiny::downloadHandler(fname("go_plot.pdf"), content = function(file) {
+    output$download_go_plot <- shiny::downloadHandler(function() fname("go_plot.pdf"), content = function(file) {
       ggplot2::ggsave(file, go_plot(), device = "pdf", width = 30, height = 20, units = "cm")
     })
 
@@ -322,10 +339,10 @@ mod_results_server <- function(id, result, organism = NULL) {
     })
     kegg_plot <- shiny::reactive(plot_kegg_lollipop(kegg_table()))
     output$kegg_plot <- shiny::renderPlot(kegg_plot())
-    output$download_kegg_table <- shiny::downloadHandler(fname("KEGG_results.csv"), content = function(file) {
+    output$download_kegg_table <- shiny::downloadHandler(function() fname("KEGG_results.csv"), content = function(file) {
       utils::write.csv(kegg_table(), file, quote = FALSE)
     }, contentType = "text/csv")
-    output$download_kegg_plot <- shiny::downloadHandler(fname("kegg_plot.pdf"), content = function(file) {
+    output$download_kegg_plot <- shiny::downloadHandler(function() fname("kegg_plot.pdf"), content = function(file) {
       ggplot2::ggsave(file, kegg_plot(), device = "pdf", width = 30, height = 20, units = "cm")
     })
   })

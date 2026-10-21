@@ -2,7 +2,8 @@ test_that("mod_settings_server returns the global methods by default", {
   shiny::testServer(mod_settings_server, {
     session$setInputs(de_method = "edgeR", meta_method = "invnorm")
     expect_equal(session$returned(), list(de_method = "edgeR", meta_method = "invnorm",
-                                          batch_method = "none", batch_plots = FALSE))
+                                          batch_method = "none", batch_plots = FALSE,
+                                          reference = NULL))
   })
 })
 
@@ -44,13 +45,14 @@ test_that("the demo is recomputed for new settings and cached per combination", 
 
 test_that("the RNA-seq run uses the chosen settings", {
   res <- demo_result()
-  local_mocked_bindings(run_tma_pipeline = function(counts, design, de_method, meta_method,
-                                                     batch_method, batch_plots, ...) {
+  local_mocked_bindings(run_tma_analysis = function(counts, design, reference, de_method,
+                                                     meta_method, batch_method, batch_plots, ...) {
     out <- res
     out$de_methods <- de_method
     out$meta_method <- meta_method
     out$batch <- list(method = batch_method, plots = batch_plots)
-    out
+    out$reference <- reference
+    fake_analysis(out)
   })
   app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
   shiny::testServer(app, {
@@ -59,15 +61,18 @@ test_that("the RNA-seq run uses the chosen settings", {
                       `rnaseq_settings-de_method` = "edgeR",
                       `rnaseq_settings-meta_method` = "invnorm",
                       `rnaseq_settings-study_method_C` = "limma-voom",
+                      `rnaseq_settings-reference` = "Treated",
                       rnaseq_analyze = 1)
     for (i in 1:200) {
       later::run_now(0.05)
       session$flushReact()
       if (rnaseq_task$status() != "running") break
     }
-    expect_equal(rnaseq_result()$de_methods, c(A = "edgeR", B = "edgeR", C = "limma-voom"))
-    expect_equal(rnaseq_result()$meta_method, "invnorm")
-    expect_equal(rnaseq_result()$batch, list(method = "none", plots = FALSE))
+    res_run <- rnaseq_analysis()$results[[1]]
+    expect_equal(res_run$de_methods, c(A = "edgeR", B = "edgeR", C = "limma-voom"))
+    expect_equal(res_run$meta_method, "invnorm")
+    expect_equal(res_run$batch, list(method = "none", plots = FALSE))
+    expect_equal(res_run$reference, "Treated")
   })
 })
 
@@ -113,4 +118,21 @@ test_that("the RNA-seq run is blocked when a batch option is chosen without a ba
     expect_equal(rnaseq_task$status(), "initial")
   })
   expect_false(called)
+})
+
+test_that("the reference drop-down lists the design's conditions and guesses the control", {
+  design <- multi_data_set()$design
+  shiny::testServer(mod_settings_server, args = list(design = shiny::reactive(design)), {
+    html <- as.character(output$reference_ui$html)
+    expect_match(html, '<option value="Cont" selected>Cont</option>')
+    expect_match(html, '<option value="Heat">Heat</option>')
+    session$setInputs(reference = "Heat")
+    expect_equal(session$returned()$reference, "Heat")
+  })
+})
+
+test_that("the method guidance link looks clickable", {
+  html <- as.character(mod_settings_ui("x"))
+  expect_match(html, '<summary style="[^"]*cursor: pointer;[^"]*">Which method should I use\\?</summary>')
+  expect_match(html, "text-decoration: underline")
 })

@@ -61,10 +61,11 @@ function(input, output, session) {
   #run the meta-analysis once per click, in a background process so the app
   #stays responsive while it runs
   rnaseq_task <- ExtendedTask$new(function(counts, design, de_method, meta_method,
-                                            batch_method, batch_plots) {
+                                            batch_method, batch_plots, reference) {
     promises::future_promise(
-      run_tma_pipeline(counts, design, de_method = de_method, meta_method = meta_method,
-                       batch_method = batch_method, batch_plots = batch_plots),
+      run_tma_analysis(counts, design, reference = reference, de_method = de_method,
+                       meta_method = meta_method, batch_method = batch_method,
+                       batch_plots = batch_plots),
       seed = TRUE
     )
   })
@@ -78,9 +79,9 @@ function(input, output, session) {
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
     shinyjs::hide("rnaseq_steps")
     rnaseq_task$invoke(inputs$counts, inputs$design, inputs$de_method, inputs$meta_method,
-                       inputs$batch_method, inputs$batch_plots)
+                       inputs$batch_method, inputs$batch_plots, inputs$reference)
   })
-  rnaseq_result <- reactive({
+  rnaseq_analysis <- reactive({
     #an error in the analysis is shown to the user instead of stopping the app
     tryCatch(rnaseq_task$result(), error = function(e) {
       if (inherits(e, "shiny.silent.error")) stop(e)
@@ -88,7 +89,57 @@ function(input, output, session) {
       req(FALSE)
     })
   })
-  mod_results_server("rnaseq", rnaseq_result)
+
+  #one results tab per contrast (condition vs reference), and a summary
+  output$rnaseq_results <- renderUI({
+    analysis <- rnaseq_analysis()
+    results <- analysis$results
+    messages <- analysis_messages(analysis)
+    tabs <- lapply(seq_along(results), function(i) {
+      tabPanel(names(results)[i],
+               mod_results_ui(paste0("rnaseq_c", i), select_organism = TRUE,
+                              venn = length(results[[i]]$studies) <= 3,
+                              batch = !is.null(results[[i]]$batch)))
+    })
+    tagList(
+      fluidRow(box(
+        title = "Comparisons", status = "primary", solidHeader = TRUE, width = 12,
+        p(sprintf("Every condition is compared with the reference condition '%s'. Each comparison that could be meta-analysed has its own results tab below.",
+                  analysis$reference)),
+        tableOutput("rnaseq_summary"),
+        if (length(messages) > 0) tags$ul(lapply(messages, tags$li))
+      )),
+      do.call(tabsetPanel, c(list(id = "rnaseq_contrasts"), unname(tabs)))
+    )
+  })
+  output$rnaseq_summary <- renderTable({
+    summary <- rnaseq_analysis()$summary
+    data.frame(Comparison = summary$contrast, `Studies used` = summary$studies,
+               `Meta-analysed` = ifelse(summary$analysed, "yes", "no"), check.names = FALSE)
+  })
+  #a results module per contrast tab, created once per tab position
+  n_result_modules <- 0
+  observeEvent(rnaseq_analysis(), {
+    analysis <- rnaseq_analysis()
+    while (n_result_modules < length(analysis$results)) {
+      n_result_modules <<- n_result_modules + 1
+      local({
+        i <- n_result_modules
+        result_i <- reactive({
+          results <- rnaseq_analysis()$results
+          req(length(results) >= i)
+          results[[i]]
+        })
+        mod_results_server(paste0("rnaseq_c", i), result_i,
+                           file_prefix = reactive(paste0("rnaseq_", gsub("[^A-Za-z0-9]+", "_", result_i()$contrast))))
+      })
+    }
+    #tell the user which studies or comparisons were left out (replicate rule)
+    messages <- analysis_messages(analysis)
+    if (length(messages) > 0) {
+      shinyalert("Some studies were left out", paste(messages, collapse = "\n\n"), type = "warning")
+    }
+  })
 
   ####### Demo #######
   #computed the first time the Demo tab is opened with given settings, then

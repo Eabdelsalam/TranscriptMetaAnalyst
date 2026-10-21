@@ -19,12 +19,8 @@ mod_batch_check_ui <- function(id) {
     shiny::p("Looks for batch effects in each study before the differential expression analysis: how much of the variation between samples follows the condition and how much follows the batch (if the design file has a 'batch' column), with PCA and RLE plots. Use it to decide on the batch setting above."),
     shiny::actionButton(ns("run"), "Check for batch effects", icon = shiny::icon("magnifying-glass")),
     shiny::tableOutput(ns("table")),
-    shiny::fluidRow(
-      shiny::column(6, shiny::plotOutput(ns("pca"), height = "380px"),
-                    shiny::uiOutput(ns("pca_download"))),
-      shiny::column(6, shiny::plotOutput(ns("rle"), height = "380px"),
-                    shiny::uiOutput(ns("rle_download")))
-    )
+    # the plots take space only once the check has run
+    shiny::uiOutput(ns("plots"))
   )
 }
 
@@ -51,13 +47,15 @@ mod_batch_check_server <- function(id, data) {
     rle <- shiny::reactive(plot_rle(check()))
     output$pca <- shiny::renderPlot(pca())
     output$rle <- shiny::renderPlot(rle())
-    output$pca_download <- shiny::renderUI({
+    output$plots <- shiny::renderUI({
       check()
-      shiny::downloadButton(session$ns("download_pca"), label = "Download PCA")
-    })
-    output$rle_download <- shiny::renderUI({
-      check()
-      shiny::downloadButton(session$ns("download_rle"), label = "Download RLE plot")
+      ns <- session$ns
+      shiny::fluidRow(
+        shiny::column(6, shiny::plotOutput(ns("pca"), height = "380px"),
+                      shiny::downloadButton(ns("download_pca"), label = "Download PCA")),
+        shiny::column(6, shiny::plotOutput(ns("rle"), height = "380px"),
+                      shiny::downloadButton(ns("download_rle"), label = "Download RLE plot"))
+      )
     })
     output$download_pca <- shiny::downloadHandler(paste0(id, "_pca.pdf"), content = function(file) {
       ggplot2::ggsave(file, pca(), device = "pdf", width = 25, height = 12, units = "cm")

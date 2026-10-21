@@ -15,8 +15,9 @@
 #'   the studies for the per-study override (`NULL` if `per_study = FALSE`).
 #' @return `mod_settings_ui()` returns UI. `mod_settings_server()` returns a
 #'   reactive list with `de_method` (one method, or a named vector with one
-#'   method per study), `meta_method`, `batch_method` (see [batch_methods()])
-#'   and `batch_plots`.
+#'   method per study), `meta_method`, `batch_method` (see [batch_methods()]),
+#'   `batch_plots` and `reference` (the reference condition, `NULL` until a
+#'   design is available).
 #' @name mod_settings
 #' @export
 mod_settings_ui <- function(id, per_study = FALSE) {
@@ -26,7 +27,8 @@ mod_settings_ui <- function(id, per_study = FALSE) {
     collapsible = TRUE,
     shiny::fluidRow(
       shiny::column(4, shiny::selectInput(ns("de_method"), "Differential expression method",
-                                          choices = de_methods(), selected = "DESeq2")),
+                                          choices = de_methods(), selected = "DESeq2"),
+                    if (per_study) shiny::uiOutput(ns("reference_ui"))),
       shiny::column(4, shiny::radioButtons(ns("meta_method"), "Meta-analysis method",
                                            choices = meta_methods(), selected = "fisher")),
       if (per_study) shiny::column(4, shiny::uiOutput(ns("per_study")))
@@ -45,6 +47,15 @@ mod_settings_server <- function(id, design = NULL) {
       unique(design()$study)
     })
     study_input <- function(study) paste0("study_method_", make.names(study))
+    output$reference_ui <- shiny::renderUI({
+      shiny::req(design)
+      conditions <- sort(unique(as.character(design()$condition)))
+      shiny::req(length(conditions) >= 2)
+      shiny::selectInput(session$ns("reference"),
+                         "Reference condition (every other condition is compared with it)",
+                         choices = conditions, selected = default_reference(conditions))
+    })
+
     output$per_study <- shiny::renderUI({
       shiny::req(length(studies()) > 0)
       shiny::tagList(
@@ -70,7 +81,8 @@ mod_settings_server <- function(id, design = NULL) {
       }
       list(de_method = de_method, meta_method = meta_method,
            batch_method = if (is.null(input$batch_method)) "none" else input$batch_method,
-           batch_plots = isTRUE(input$batch_plots))
+           batch_plots = isTRUE(input$batch_plots),
+           reference = input$reference)
     })
   })
 }
@@ -92,7 +104,11 @@ batch_inputs <- function(ns) {
 # Short in-app guidance on choosing the methods
 method_guidance <- function() {
   shiny::tags$details(
-    shiny::tags$summary(shiny::strong("Which method should I use?")),
+    # styled as a link so it is clear that it can be clicked to open
+    shiny::tags$summary(
+      style = "color: #337ab7; text-decoration: underline; cursor: pointer; font-weight: bold;",
+      "Which method should I use?"
+    ),
     shiny::tags$p(shiny::strong("Differential expression"), " (run in each study):"),
     shiny::tags$ul(
       shiny::tags$li(shiny::strong("DESeq2"), " (default): negative-binomial model with shrunken dispersion estimates. Works well with few replicates per group."),

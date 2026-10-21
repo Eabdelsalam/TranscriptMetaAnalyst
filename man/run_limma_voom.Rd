@@ -4,7 +4,13 @@
 \alias{run_limma_voom}
 \title{Differential expression of one study with limma-voom}
 \usage{
-run_limma_voom(counts, design, alpha = 0.05, use_batch = FALSE)
+run_limma_voom(
+  counts,
+  design,
+  alpha = 0.05,
+  use_batch = FALSE,
+  reference = NULL
+)
 }
 \arguments{
 \item{counts}{Count matrix (genes x samples) with gene names as row names.}
@@ -16,10 +22,13 @@ names, in the same order as the columns of \code{counts}.}
 
 \item{use_batch}{If \code{TRUE}, \code{design} must have a \code{batch} column, and batch
 is added to the model as \code{~ batch + condition}.}
+
+\item{reference}{The reference condition. \code{NULL} uses the first condition
+in alphabetical order.}
 }
 \value{
-A list with \code{table} and \code{norm_counts}, as for \code{\link[=run_deseq2]{run_deseq2()}}. \code{stat}
-is the moderated t statistic.
+A list with \code{table}, \code{tables} and \code{norm_counts}, as for
+\code{\link[=run_deseq2]{run_deseq2()}}. \code{stat} is the moderated t statistic.
 }
 \description{
 Fits \code{~ condition} (or \code{~ batch + condition}) with limma after the voom

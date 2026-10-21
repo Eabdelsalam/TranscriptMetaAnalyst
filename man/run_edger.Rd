@@ -4,7 +4,7 @@
 \alias{run_edger}
 \title{Differential expression of one study with edgeR}
 \usage{
-run_edger(counts, design, alpha = 0.05, use_batch = FALSE)
+run_edger(counts, design, alpha = 0.05, use_batch = FALSE, reference = NULL)
 }
 \arguments{
 \item{counts}{Count matrix (genes x samples) with gene names as row names.}
@@ -16,10 +16,13 @@ names, in the same order as the columns of \code{counts}.}
 
 \item{use_batch}{If \code{TRUE}, \code{design} must have a \code{batch} column, and batch
 is added to the model as \code{~ batch + condition}.}
+
+\item{reference}{The reference condition. \code{NULL} uses the first condition
+in alphabetical order.}
 }
 \value{
-A list with \code{table} and \code{norm_counts}, as for \code{\link[=run_deseq2]{run_deseq2()}}. \code{stat}
-is the quasi-likelihood F statistic and \code{lfc_se} is \code{NA} (edgeR does not
+A list with \code{table}, \code{tables} and \code{norm_counts}, as for
+\code{\link[=run_deseq2]{run_deseq2()}}. \code{stat} is the quasi-likelihood F statistic and \code{lfc_se} is \code{NA} (edgeR does not
 report it).
 }
 \description{

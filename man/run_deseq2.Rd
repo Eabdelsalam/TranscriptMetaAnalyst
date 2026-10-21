@@ -4,7 +4,7 @@
 \alias{run_deseq2}
 \title{Differential expression of one study with DESeq2}
 \usage{
-run_deseq2(counts, design, alpha = 0.05, use_batch = FALSE)
+run_deseq2(counts, design, alpha = 0.05, use_batch = FALSE, reference = NULL)
 }
 \arguments{
 \item{counts}{Count matrix (genes x samples) with gene names as row names.}
@@ -16,18 +16,25 @@ names, in the same order as the columns of \code{counts}.}
 
 \item{use_batch}{If \code{TRUE}, \code{design} must have a \code{batch} column, and batch
 is added to the model as \code{~ batch + condition}.}
+
+\item{reference}{The reference condition. \code{NULL} uses the first condition
+in alphabetical order.}
 }
 \value{
 A list with
 \describe{
-\item{table}{data frame with \code{gene}, \code{base_mean}, \code{log2_fc}, \code{lfc_se},
-\code{stat}, \code{pvalue} and \code{padj}, one row per gene in the order of \code{counts}.}
+\item{tables}{named list with one data frame per contrast ("B vs A"
+for every condition B compared with the reference A), with \code{gene},
+\code{base_mean}, \code{log2_fc}, \code{lfc_se}, \code{stat}, \code{pvalue} and \code{padj}, one
+row per gene in the order of \code{counts}.}
+\item{table}{the first of \code{tables} (the only one with two conditions).}
 \item{norm_counts}{matrix of size-factor normalised counts.}
 }
 }
 \description{
 Fits \code{~ condition} (or \code{~ batch + condition}) with DESeq2 and returns a
-standardised result table and
+standardised result table for every condition compared with the reference
+condition, and
 the normalised counts. The full \code{DESeqDataSet} is not kept, so the result is
 small enough to hold for many studies.
 }

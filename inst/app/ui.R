@@ -92,13 +92,13 @@ ui <- dashboardPage(
                       tags$li("After cleaning the raw RNA-Seq read files (either downloaded from public databases of generated via your own experiments) of each sample, align them individually to the studied organism's reference genome."),
                       tags$li("Count the mapped reads to the reference genomic features of interest and combine all the counts in one file. Keeping genomic features as rows and the samples that will be included in the analysis as columns. To produce the final raw (unnormalized) counts comma-separated file.", strong("Note that the counts file should have a 'geneid' column.")),
                       tags$li("Upload the ", strong("counts"),"file produced by any feature counting tool, e.g., featureCounts or htseq-count, as explained above to the raw counts placeholder.", strong(" Please refer to example counts file via the provided download link.")),
-                      tags$li("Upload the experimental design file.", strong(" Please refer to the example file via the provided download link."), "This file should contain at least 3 columns, namely 'sample' refers to the sample names used as columns in the counts file, 'study' refers to the study to which the sample belong, 'condition' refers to the treatment or control conditions (only two conditions allowed for comparison)."),
+                      tags$li("Upload the experimental design file.", strong(" Please refer to the example file via the provided download link."), "This file should contain at least 3 columns, namely 'sample' refers to the sample names used as columns in the counts file, 'study' refers to the study to which the sample belong, 'condition' refers to the treatment or control conditions. With more than two conditions, each one is compared with the reference condition chosen in the Analysis settings. Every condition needs at least 2 samples in a study, and every comparison at least 2 studies (an optional 'batch' column can give the batch of each sample)."),
                       tags$li("Hit",strong('Start Analysis!'), "button and wait for the results to appear.")
                     )),
                   solidHeader = T, width = 12, status = "info")
             )), #close steps box
         #results of the analysis, shown once it has run
-        mod_results_ui("rnaseq", select_organism = TRUE, hidden = TRUE)
+        uiOutput("rnaseq_results")
       ), #close rnaseq tab item
       ##### DEMO ANALYSIS TAB #####
       #############################

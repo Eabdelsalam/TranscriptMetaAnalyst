@@ -29,8 +29,8 @@ validate_design <- function(design) {
     return(sprintf("The column '%s' (case sensitive) should exist in the Experimental Design file!",
                    missing_cols[1]))
   }
-  if (length(unique(design$condition)) != 2) {
-    return("The Experimental Design file should have two unique conditions only!")
+  if (length(unique(design$condition)) < 2) {
+    return("The Experimental Design file should have at least two conditions!")
   }
   if ("batch" %in% colnames(design) &&
       any(is.na(design$batch) | trimws(as.character(design$batch)) == "")) {
