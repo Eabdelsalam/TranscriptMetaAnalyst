@@ -81,7 +81,9 @@ ui <- dashboardPage(
         fluidRow(mod_settings_ui("rnaseq_settings", per_study = TRUE)),
         fluidRow(box(
           title = "RNA-Seq data", status = "primary", solidHeader = TRUE, width = 12,
-          p("Meta-analysis of raw RNA-Seq read counts. Upload a counts file and an experimental design file."),
+          p("Meta-analysis of raw RNA-Seq read counts. Load the demo data, or upload a counts file and an experimental design file."),
+          actionButton("rnaseq_demo", "Load demo data", icon = icon("person-running")),
+          hr(),
           fluidRow(
             column(6, fileInput("rnaseq_counts", "Raw counts file (tab-delimited)",
                                 accept = c("text/plain", ".txt", ".tsv")),

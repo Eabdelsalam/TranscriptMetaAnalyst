@@ -117,8 +117,8 @@ test_that("the RNA-seq run is blocked when a batch option is chosen without a ba
                       rnaseq_design = list(datapath = tma_example_file("design")),
                       `rnaseq_settings-batch_method` = "model",
                       rnaseq_analyze = 1)
-    expect_error(rnaseq_inputs(), class = "shiny.silent.error")
     expect_equal(rnaseq_task$status(), "initial")
+    expect_null(rnaseq_run())
   })
   expect_false(called)
 })

@@ -174,6 +174,39 @@ test_that("the RNA-seq tab validates the uploads and runs the pipeline on click"
   })
 })
 
+test_that("Load demo data runs the demo on the RNA-seq tab and preselects the demo organism", {
+  res <- demo_result()
+  local_mocked_bindings(run_tma_analysis = function(counts, design, ...) {
+    out <- res
+    out$design <- design
+    fake_analysis(out)
+  })
+  mock_organism_lists()
+  app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
+  shiny::testServer(app, {
+    session$setInputs(`rnaseq_settings-batch_method` = "model", rnaseq_demo = 1)
+    for (i in 1:200) {
+      later::run_now(0.05)
+      session$flushReact()
+      if (rnaseq_task$status() != "running") break
+    }
+    expect_equal(rnaseq_task$status(), "success")
+    expect_equal(rnaseq_analysis()$results[[1]]$design, tma_demo_data()$design)
+    # the demo has no batch column, so batch is ignored for it
+    expect_equal(rnaseq_run()$settings$batch_method, "none")
+    expect_equal(rnaseq_run()$data, "demo")
+    # the settings now list the demo's conditions
+    expect_match(as.character(output$`rnaseq_settings-reference_ui`$html), "Cont")
+    # the R script uses the bundled demo data, without placeholder paths
+    script <- readLines(output$rnaseq_script)
+    expect_true(any(grepl("tma_demo_data()", script, fixed = TRUE)))
+    expect_false(any(grepl("PLACEHOLDERS", script)))
+    # uploading a file switches back to the uploaded data
+    session$setInputs(rnaseq_counts = list(datapath = tma_example_file("counts"), name = "counts.txt"))
+    expect_equal(rnaseq_source(), "upload")
+  })
+})
+
 test_that("the meta-analysis table shows 4 significant digits but keeps the data", {
   res <- demo_result()
   widget <- meta_table_widget(res$meta)
