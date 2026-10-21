@@ -1,0 +1,117 @@
+#' Combine per-study matrices into one gene x sample matrix
+#'
+#' Binds the per-study matrices column-wise after aligning their rows on gene
+#' names, so every value stays attached to its gene and sample.
+#'
+#' @param mat_list A list of numeric matrices (genes x samples) with gene names
+#'   as row names and sample names as column names.
+#' @param samples Optional character vector of sample names giving the column
+#'   order of the result.
+#' @return A numeric matrix with genes as rows and samples as columns.
+#' @export
+#' @examples
+#' a <- matrix(1:4, 2, dimnames = list(c("g1", "g2"), c("s1", "s2")))
+#' b <- matrix(5:6, 2, dimnames = list(c("g2", "g1"), "s3"))
+#' combine_study_matrices(list(A = a, B = b))
+combine_study_matrices <- function(mat_list, samples = NULL) {
+  genes <- rownames(mat_list[[1]])
+  if (is.null(genes)) {
+    stop("Each study matrix needs gene names as row names.", call. = FALSE)
+  }
+  aligned <- lapply(mat_list, function(m) {
+    missing_genes <- setdiff(genes, rownames(m))
+    if (length(missing_genes) > 0) {
+      stop("Study matrices do not share the same genes.", call. = FALSE)
+    }
+    m[genes, , drop = FALSE]
+  })
+  combined <- do.call(cbind, unname(aligned))
+  if (!is.null(samples)) {
+    combined <- combined[, samples, drop = FALSE]
+  }
+  combined
+}
+
+#' Build the scaled DEG matrix used by the heatmap
+#'
+#' Subsets each study's normalised counts to the selected genes, z-scores every
+#' gene within each study, and combines the studies with
+#' [combine_study_matrices()]. A gene with constant counts within a study gets
+#' a z-score of 0 in that study instead of `NaN`.
+#'
+#' @param norm_list A list of normalised count matrices (genes x samples), one
+#'   per study.
+#' @param genes Character vector of genes to keep (e.g. the meta-analysis DEGs).
+#' @param samples Optional character vector giving the column order.
+#' @return A numeric matrix with `genes` as rows and samples as columns.
+#' @export
+#' @examples
+#' a <- matrix(c(1, 2, 3, 4, 5, 6), 2, dimnames = list(c("g1", "g2"), c("s1", "s2", "s3")))
+#' scale_deg_counts(list(A = a), genes = c("g2", "g1"))
+scale_deg_counts <- function(norm_list, genes, samples = NULL) {
+  scaled <- lapply(norm_list, function(m) {
+    x <- m[genes, , drop = FALSE]
+    z <- (x - rowMeans(x)) / apply(x, 1, stats::sd)
+    z[!is.finite(z)] <- 0
+    z
+  })
+  combine_study_matrices(scaled, samples)
+}
+
+#' Number of row clusters for the DEG heatmap
+#'
+#' Returns the number of gene (row) clusters to cut the heatmap dendrogram
+#' into. The user's choice `k` is used when it is a valid whole number, and it
+#' is capped by the number of genes shown, so it depends on the number of
+#' genes and not on the number of samples.
+#'
+#' @param n_genes Number of genes (rows) in the heatmap.
+#' @param k Requested number of row clusters, e.g. from the "Number of gene
+#'   clusters" input. Missing, non-numeric or values below 1 fall back to the
+#'   default of 2 (up- and down-regulated genes).
+#' @return An integer between 1 and `n_genes` (at least 1).
+#' @export
+#' @examples
+#' heatmap_row_clusters(100)
+#' heatmap_row_clusters(100, k = 5)
+#' heatmap_row_clusters(3, k = 10)
+#' heatmap_row_clusters(100, k = NA)
+heatmap_row_clusters <- function(n_genes, k = 2L) {
+  k <- suppressWarnings(as.integer(k))
+  if (length(k) != 1 || is.na(k) || k < 1L) {
+    k <- 2L
+  }
+  as.integer(max(1L, min(k, n_genes)))
+}
+
+#' Mean log2 fold change of each gene across studies
+#'
+#' @param fc_list A list of numeric vectors of log2 fold changes, one per
+#'   study, all in the same gene order.
+#' @return A numeric vector with one mean log2 fold change per gene.
+#' @export
+#' @examples
+#' mean_fold_change(list(A = c(1, -2), B = c(3, NA)))
+mean_fold_change <- function(fc_list) {
+  rowMeans(do.call(cbind, unname(fc_list)), na.rm = TRUE)
+}
+
+#' Meta-significant, direction-consistent DEGs
+#'
+#' Selects the genes that are significant in the Fisher meta-analysis and whose
+#' fold changes have the same sign in every study. These are the genes used for
+#' the heatmap, the Venn/UpSet plots and the GO/KEGG enrichment.
+#'
+#' @param fc_select A data frame with gene names as row names, a
+#'   `DE.fishercomb` column (1 = meta-significant) and a `signFC` column
+#'   (1 or -1 = consistent direction, 0 = conflicting).
+#' @return A character vector of gene names.
+#' @export
+#' @examples
+#' fc_select <- data.frame(DE.fishercomb = c(1, 1, 0), signFC = c(1, 0, -1),
+#'                         row.names = c("g1", "g2", "g3"))
+#' select_meta_degs(fc_select)
+select_meta_degs <- function(fc_select) {
+  keep <- fc_select$DE.fishercomb == 1 & abs(fc_select$signFC) == 1
+  rownames(fc_select)[which(keep)]
+}

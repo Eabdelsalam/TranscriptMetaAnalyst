@@ -252,7 +252,7 @@ function(input, output, session) {
       })
       
       #new identified or excluded DEGs
-      fishcomb_de <- reactive({rownames(keepDE())[which(keepDE()[, "DE.fishercomb"] == 1)]})
+      fishcomb_de <- reactive({select_meta_degs(FC.selectDE())})
       indstudy_de <- reactive({
         lapply(studies(),
                function(x) {rownames(keepDE())[which(keepDE()[, x] == 1)]})
@@ -263,22 +263,16 @@ function(input, output, session) {
       full_cts_rnaseq <- reactive({
         temp_list <- lapply(studies_deseq(),
                             function(x) {DESeq2::counts(x, normalized = T)})
-        temp_matrix <- matrix(unlist(temp_list), ncol = num_samples(), byrow = T)
-        colnames(temp_matrix) <- samples()
-        rownames(temp_matrix) <- genenames()
-        return(temp_matrix)
+        #bind the studies on aligned genes, columns in design order
+        return(combine_study_matrices(temp_list, samples()))
       })
       
       #create DEGs counts matrix for heatmap
       cts_matrix <- reactive({
         temp_list <- lapply(studies_deseq(),
-                            function(x) {DESeq2::counts(x, normalized = T)[fishcomb_de(),]})
-        temp_list <- lapply(temp_list,
-                            function(x) {t(apply(x, 1, scale))})
-        cts_matrix <- matrix(unlist(temp_list), ncol = num_samples(), byrow = T)
-        colnames(cts_matrix) <- rnaseq_design_input()$sample
-        rownames(cts_matrix) <- fishcomb_de()
-        return(cts_matrix)
+                            function(x) {DESeq2::counts(x, normalized = T)})
+        #z-score each gene within each study and bind the studies on aligned genes
+        return(scale_deg_counts(temp_list, fishcomb_de(), samples()))
       })
 
       #create a list for venn and updset plots
@@ -401,8 +395,10 @@ function(input, output, session) {
       
       #heatmap of meta-analysis DEGs
       output$heatmap_rnaseq <- renderPlotly({
+        validate(need(nrow(cts_matrix()) >= 2,
+                      "At least two meta-analysis DEGs are needed to draw a heatmap."))
         suppressWarnings(heatmaply(cts_matrix(),
-                                   k_row = num_samples(),
+                                   k_row = heatmap_row_clusters(nrow(cts_matrix()), input$heatmap_k_rnaseq),
                                    k_col = num_studies()))
       })
       #download button heatmap
@@ -410,9 +406,11 @@ function(input, output, session) {
                                                         content = function(filename) {
                                                           annot <- rnaseq_design_input()[, c("condition", "study")]
                                                           rownames(annot) <- rnaseq_design_input()$sample
+                                                          validate(need(nrow(cts_matrix()) >= 2,
+                                                                        "At least two meta-analysis DEGs are needed to draw a heatmap."))
                                                           pdf(filename, height = 10)
                                                           pheatmap(cts_matrix(),
-                                                                   cutree_rows = num_samples(),
+                                                                   cutree_rows = heatmap_row_clusters(nrow(cts_matrix()), input$heatmap_k_rnaseq),
                                                                    cutree_cols = num_studies(),
                                                                    show_rownames = F,
                                                                    color = colorRampPalette(c("yellow", "black", "purple"))(150),
@@ -427,10 +425,9 @@ function(input, output, session) {
       
       #volcano plot
       for_volcano <- reactive({
-        fc_matrix <- matrix(unlist(fold_changes_rnaseq()), ncol = num_studies(), byrow = T)
         temp <- data.frame(
           genes = genenames(),
-          fc = rowMeans(fc_matrix, na.rm = T),
+          fc = mean_fold_change(fold_changes_rnaseq()),
           pval = fishcomb()$adjpval
         )
         return(temp)      
@@ -477,22 +474,27 @@ function(input, output, session) {
       
       #run the analysis upon hitting the button
       observeEvent(input$run_go_rnaseq, {
+        #enrichment runs on the meta-significant, direction-consistent DEGs only
+        if (length(fishcomb_de()) == 0) {
+          shinyalert("No DEGs", "The meta-analysis found no significant, direction-consistent DEGs to test for enrichment.")
+          return()
+        }
         showSpinner("go_plot_rnaseq")
         go_rnaseq_table <- reactive({
           #biological process
-          bp <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          bp <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = as.numeric(organisms()$taxon_id[organisms()$long_name == input$organism_go_rnaseq]),
                                                     annot_dataset = "GO:0008150", cutoff = 0.05))
           bp_result <- bp$result
           bp_result$category <- "BP"
           #cellular component
-          cc <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          cc <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = as.numeric(organisms()$taxon_id[organisms()$long_name == input$organism_go_rnaseq]),
                                                     annot_dataset = "GO:0005575", cutoff = 0.05))
           cc_result <- cc$result
           cc_result$category <- "CC"
           #molecular function
-          mf <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          mf <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = as.numeric(organisms()$taxon_id[organisms()$long_name == input$organism_go_rnaseq]),
                                                     annot_dataset = "GO:0003674", cutoff = 0.05))
           mf_result <- mf$result
@@ -569,9 +571,14 @@ function(input, output, session) {
       ## KEGG analysis
       #start the analysis upon hitting the button
       observeEvent(input$run_kegg_rnaseq, {
+        #enrichment runs on the meta-significant, direction-consistent DEGs only
+        if (length(fishcomb_de()) == 0) {
+          shinyalert("No DEGs", "The meta-analysis found no significant, direction-consistent DEGs to test for enrichment.")
+          return()
+        }
         showSpinner("kegg_plot_rnaseq")
         kegg_rnaseq_table <- reactive({
-          temp <- suppressMessages(enrichKEGG(gene = rownames(keepDE()),
+          temp <- suppressMessages(enrichKEGG(gene = fishcomb_de(),
                                               organism = input$organism_kegg_rnaseq,
                                               qvalueCutoff = 0.05,
                                               pAdjustMethod = "BH"))
@@ -813,7 +820,7 @@ function(input, output, session) {
       })
       
       #new identified or excluded DEGs
-      fishcomb_de <- reactive({rownames(keepDE())[which(keepDE()[, "DE.fishercomb"] == 1)]})
+      fishcomb_de <- reactive({select_meta_degs(FC.selectDE())})
       indstudy_de <- reactive({
         lapply(studies(),
                function(x) {rownames(keepDE())[which(keepDE()[, x] == 1)]})
@@ -824,22 +831,16 @@ function(input, output, session) {
       full_cts_demo <- reactive({
         temp_list <- lapply(studies_deseq(),
                             function(x) {DESeq2::counts(x, normalized = T)})
-        temp_matrix <- matrix(unlist(temp_list), ncol = num_samples(), byrow = T)
-        colnames(temp_matrix) <- samples()
-        rownames(temp_matrix) <- genenames()
-        return(temp_matrix)
+        #bind the studies on aligned genes, columns in design order
+        return(combine_study_matrices(temp_list, samples()))
       })
       
       #create DEGs counts matrix for heatmap
       cts_matrix <- reactive({
         temp_list <- lapply(studies_deseq(),
-                            function(x) {DESeq2::counts(x, normalized = T)[fishcomb_de(),]})
-        temp_list <- lapply(temp_list,
-                            function(x) {t(apply(x, 1, scale))})
-        cts_matrix <- matrix(unlist(temp_list), ncol = num_samples(), byrow = T)
-        colnames(cts_matrix) <- example_design()$sample
-        rownames(cts_matrix) <- fishcomb_de()
-        return(cts_matrix)
+                            function(x) {DESeq2::counts(x, normalized = T)})
+        #z-score each gene within each study and bind the studies on aligned genes
+        return(scale_deg_counts(temp_list, fishcomb_de(), samples()))
       })
       
       #create a list for venn and updset plots
@@ -955,8 +956,10 @@ function(input, output, session) {
       
       #heatmap of DEGs
       output$heatmap_demo <- renderPlotly({
+        validate(need(nrow(cts_matrix()) >= 2,
+                      "At least two meta-analysis DEGs are needed to draw a heatmap."))
         suppressWarnings(heatmaply(cts_matrix(),
-                                   k_row = num_samples(),
+                                   k_row = heatmap_row_clusters(nrow(cts_matrix()), input$heatmap_k_demo),
                                    k_col = num_studies()))
       })
       #download button heatmap
@@ -964,9 +967,11 @@ function(input, output, session) {
                                                       content = function(filename) {
                                                         annot <- example_design()[, c("condition", "study")]
                                                         rownames(annot) <- example_design()$sample
+                                                        validate(need(nrow(cts_matrix()) >= 2,
+                                                                      "At least two meta-analysis DEGs are needed to draw a heatmap."))
                                                         pdf(filename, height = 10)
                                                         pheatmap(cts_matrix(),
-                                                                 cutree_rows = num_samples(),
+                                                                 cutree_rows = heatmap_row_clusters(nrow(cts_matrix()), input$heatmap_k_demo),
                                                                  cutree_cols = num_studies(),
                                                                  show_rownames = F,
                                                                  color = colorRampPalette(c("yellow", "black", "purple"))(150),
@@ -981,10 +986,9 @@ function(input, output, session) {
       
       #volcano plot
       for_volcano <- reactive({
-        fc_matrix <- matrix(unlist(fold_changes_demo()), ncol = num_studies(), byrow = T)
         temp <- data.frame(
           genes = genenames(),
-          fc = rowMeans(fc_matrix, na.rm = T),
+          fc = mean_fold_change(fold_changes_demo()),
           pval = fishcomb()$adjpval
         )
         return(temp)      
@@ -1025,22 +1029,27 @@ function(input, output, session) {
       ## GO analysis
       #run the analysis upon hitting the button
       observeEvent(input$run_go_demo, {
+        #enrichment runs on the meta-significant, direction-consistent DEGs only
+        if (length(fishcomb_de()) == 0) {
+          shinyalert("No DEGs", "The meta-analysis found no significant, direction-consistent DEGs to test for enrichment.")
+          return()
+        }
         showSpinner("go_plot_demo")
         go_table_demo <- reactive({
           #biological process
-          bp <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          bp <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = 1111708,
                                                     annot_dataset = "GO:0008150", cutoff = 0.05))
           bp_result <- bp$result
           bp_result$category <- "BP"
           #cellular component
-          cc <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          cc <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = 1111708,
                                                     annot_dataset = "GO:0005575", cutoff = 0.05))
           cc_result <- cc$result
           cc_result$category <- "CC"
           #molecular function
-          mf <- suppressMessages(rba_panther_enrich(genes = rownames(keepDE()),
+          mf <- suppressMessages(rba_panther_enrich(genes = fishcomb_de(),
                                                     organism = 1111708,
                                                     annot_dataset = "GO:0003674", cutoff = 0.05))
           mf_result <- mf$result
@@ -1115,9 +1124,14 @@ function(input, output, session) {
       ## KEGG analysis
       #start the analysis upon hitting the button
       observeEvent(input$run_kegg_demo, {
+        #enrichment runs on the meta-significant, direction-consistent DEGs only
+        if (length(fishcomb_de()) == 0) {
+          shinyalert("No DEGs", "The meta-analysis found no significant, direction-consistent DEGs to test for enrichment.")
+          return()
+        }
         showSpinner("kegg_plot_demo")
         kegg_table_demo <- reactive({
-          temp <- suppressMessages(enrichKEGG(gene = rownames(keepDE()),
+          temp <- suppressMessages(enrichKEGG(gene = fishcomb_de(),
                                               organism = "syn",
                                               qvalueCutoff = 0.05,
                                               pAdjustMethod = "BH"))
@@ -1204,8 +1218,11 @@ function(input, output, session) {
     }
   ) #close Demo observe statement
   
-  #stop app after browser close
-  session$onSessionEnded(function() {
-    stopApp()
-  })
+  #stop the app after the browser closes, but only for local runs started with
+  #runTMA(); on a shared server this would shut the app down for every user
+  if (isTRUE(getOption("tma.stop_on_session_end", FALSE))) {
+    session$onSessionEnded(function() {
+      stopApp()
+    })
+  }
 }
