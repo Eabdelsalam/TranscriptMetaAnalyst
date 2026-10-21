@@ -1,7 +1,7 @@
 #' Path to a bundled example file
 #'
 #' Returns the path of the example RNA-seq counts or experimental design file
-#' shipped with the package (used by the Demo tab and as download templates).
+#' shipped with the package (the demo data of the RNA-Seq tab, also offered as download templates).
 #'
 #' @param which Either `"counts"` or `"design"`.
 #' @return The full path to the file.

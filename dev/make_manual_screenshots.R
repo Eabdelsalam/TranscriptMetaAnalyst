@@ -116,13 +116,13 @@ wait_for_text("genes were identified as DEGs")
 Sys.sleep(3)
 app$get_screenshot(fig("fig07_demo_tab"), selector = "viewport")
 mark_box("Meta-analysis DEGs", "fig-degs")
-shot_from(fig("fig11_outputs_overview"), "#shiny-tab-demo .info-box")
+shot_from(fig("fig10_outputs_overview"), "#shiny-tab-demo .info-box")
 
-# DEGs table (Figure 17a)
-shot_of(fig("fig17a_degs_table"), "#fig-degs")
+# DEGs table (Figure 16a)
+shot_of(fig("fig16a_degs_table"), "#fig-degs")
 
 # Functional annotation inputs of an RNA-Seq analysis of the example files:
-# GO and KEGG tabs with the organism and ID-type inputs (Figure 10)
+# GO and KEGG tabs with the organism and ID-type inputs (Figure 9)
 open_tab("rnaseq")
 app$upload_file(rnaseq_counts = tma_example_file("counts"))
 app$upload_file(rnaseq_design = tma_example_file("design"))
@@ -133,16 +133,16 @@ Sys.sleep(5)
 mark_box("Functional Annotation", "fig-enrichment")
 # the tab box and the Enrichment input box below it
 app$run_js("document.querySelector('#fig-enrichment').closest('.col-sm-6').id = 'fig-enrichment-column';")
-shot_of(fig("fig10a_go_input"), "#fig-enrichment-column")
+shot_of(fig("fig09a_go_input"), "#fig-enrichment-column")
 app$run_js("for (const a of document.querySelectorAll('#fig-enrichment .nav-tabs a')) if (a.innerText.trim() === 'KEGG pathway') a.click();")
 Sys.sleep(1)
-shot_of(fig("fig10b_kegg_input"), "#fig-enrichment-column")
+shot_of(fig("fig09b_kegg_input"), "#fig-enrichment-column")
 
-# Methods Guide (Figure 8) and User Manual (Figure 9) tabs
+# Methods Guide (Figure 7) and User Manual (Figure 8) tabs
 open_tab("methods")
-app$get_screenshot(fig("fig08_methods_guide"), selector = "viewport")
+app$get_screenshot(fig("fig07_methods_guide"), selector = "viewport")
 open_tab("manual")
-app$get_screenshot(fig("fig09_manual_tab"), selector = "viewport")
+app$get_screenshot(fig("fig08_manual_tab"), selector = "viewport")
 
 app$stop()
 message("Screenshots written to ", fig_dir)

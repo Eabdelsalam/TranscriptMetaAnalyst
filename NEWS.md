@@ -32,6 +32,8 @@ Revision in response to the reviewers' comments.
 * A Microarray Meta-Analysis tab for normalised single-colour arrays, uploaded
   as files or imported from GEO, analysed with limma, with its own demo data.
 * A Methods Guide tab and a vignette.
+* The RNA-Seq Meta-Analysis tab is laid out like the Microarray tab and has a
+  Load demo data button; the separate Run Demo Analysis tab was removed.
 
 ## Internal changes
 

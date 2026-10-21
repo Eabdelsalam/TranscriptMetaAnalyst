@@ -161,7 +161,7 @@ method_guidance <- function(platform = "rnaseq") {
       shiny::tags$li("Batch can only be used in a study with at least two batches that are not confounded with the condition; otherwise that study is analysed without batch, and the Batch effects tab says why.")
     ),
     shiny::tags$p(if (array) "Click Start Analysis! again after changing a setting." else
-      "On the RNA-Seq tab, click Start Analysis! again after changing a setting; the Demo tab updates by itself."),
+      "Click Start Analysis! again after changing a setting; this also reruns the demo data after Load demo data."),
     shiny::tags$p("More details and references are in the Methods Guide tab.")
   )
 }
