@@ -19,7 +19,8 @@ mod_results_server(
   result,
   organism = NULL,
   file_prefix = NULL,
-  toggle_tabs = TRUE
+  toggle_tabs = TRUE,
+  selected = NULL
 )
 }
 \arguments{
@@ -49,6 +50,11 @@ taxon ID), \code{kegg} (KEGG organism code), \code{string} (STRING taxon ID) and
 effects tabs when they do not apply to the result. Use \code{FALSE} when the UI
 was drawn for the result with \code{venn} and \code{batch} already set: the tabs
 then do not exist, and hiding them would fail in the browser.}
+
+\item{selected}{\code{NULL}, or a reactive returning a list with any of
+\code{id_type}, \code{go}, \code{kegg} and \code{string} (as for \code{organism}): the choices
+preselected in the organism and ID-type inputs for each new result (e.g.
+for the demo data). The user can still change them.}
 }
 \value{
 \code{mod_results_ui()} returns UI; \code{mod_results_server()} is called for

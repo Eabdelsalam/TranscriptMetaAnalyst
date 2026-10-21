@@ -208,3 +208,29 @@ test_that("the Batch effects tab is hidden for a result without a batch column",
   hidden <- vapply(calls, `[[`, "", "target")
   expect_true("batch" %in% hidden)
 })
+
+test_that("the organism lists are filled again for every new result", {
+  # the results UI is drawn again for every analysis, so its organism inputs
+  # start empty each time
+  calls <- list()
+  local_mocked_bindings(
+    updateSelectizeInput = function(session, inputId, label = NULL, choices = NULL, selected = NULL, ...) {
+      calls[[length(calls) + 1]] <<- list(id = inputId, choices = choices, selected = selected)
+    },
+    .package = "shiny"
+  )
+  mock_organism_lists()
+  res <- demo_result()
+  current <- shiny::reactiveVal(res)
+  shiny::testServer(mod_results_server, args = list(result = current), {
+    session$flushReact()
+    second <- res
+    second$contrast <- "High vs Cont"
+    current(second)
+    session$flushReact()
+    # the updates are sent after the flush in which the result arrived
+    session$flushReact()
+  })
+  go_updates <- Filter(function(x) x$id == "organism_go" && length(x$choices) > 0, calls)
+  expect_length(go_updates, 2)
+})

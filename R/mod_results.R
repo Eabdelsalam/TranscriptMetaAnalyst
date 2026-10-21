@@ -20,6 +20,10 @@
 #'   `id_type` (see [id_types()]).
 #' @param file_prefix A reactive giving the start of the download file names;
 #'   `NULL` uses the module id (e.g. "demo_pca.pdf").
+#' @param selected `NULL`, or a reactive returning a list with any of
+#'   `id_type`, `go`, `kegg` and `string` (as for `organism`): the choices
+#'   preselected in the organism and ID-type inputs for each new result (e.g.
+#'   for the demo data). The user can still change them.
 #' @param toggle_tabs If `TRUE`, the server hides the Venn diagram and Batch
 #'   effects tabs when they do not apply to the result. Use `FALSE` when the UI
 #'   was drawn for the result with `venn` and `batch` already set: the tabs
@@ -157,7 +161,8 @@ mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE, venn = T
 
 #' @rdname mod_results
 #' @export
-mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, toggle_tabs = TRUE) {
+mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, toggle_tabs = TRUE,
+                               selected = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     # download file names start with the tab, e.g. "demo_pca.pdf"
     fname <- function(name) {
@@ -378,7 +383,11 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, 
     string_organisms <- shiny::reactive(organisms_string()) |>
       shiny::bindCache("string-organisms", cache = "app")
     if (is.null(organism)) {
+      # the results UI may be drawn again for a new result, with empty inputs,
+      # so the lists (and any preselection) are sent for every result
       shiny::observeEvent(result(), {
+        pre <- if (is.null(selected)) list() else selected()
+        pick <- function(value) if (is.null(value)) character(0) else value
         lists <- list(
           organism_go = function() {
             o <- go_organisms()
@@ -389,18 +398,16 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, 
             stats::setNames(o$taxon_id, paste0(o$name, " (", o$taxon_id, ")"))
           }
         )
-        for (input_id in names(lists)) {
-          choices <- tryCatch(lists[[input_id]](), error = function(e) NULL)
-          local({
-            id <- input_id
-            ch <- choices
-            session$onFlushed(function() shiny::withReactiveDomain(session, {
-              shiny::updateSelectizeInput(session, id, choices = ch, selected = character(0),
-                                          server = TRUE)
-            }), once = TRUE)
-          })
-        }
-      }, once = TRUE)
+        choices <- lapply(lists, function(f) tryCatch(f(), error = function(e) NULL))
+        session$onFlushed(function() shiny::withReactiveDomain(session, {
+          shiny::updateSelectizeInput(session, "organism_go", choices = choices$organism_go,
+                                      selected = pick(pre$go), server = TRUE)
+          shiny::updateSelectizeInput(session, "organism_string", choices = choices$organism_string,
+                                      selected = pick(pre$string), server = TRUE)
+          if (!is.null(pre$id_type)) shiny::updateSelectizeInput(session, "id_type", selected = pre$id_type)
+          if (!is.null(pre$kegg)) shiny::updateTextInput(session, "organism_kegg", value = pre$kegg)
+        }), once = TRUE)
+      })
     }
     chosen <- function(fixed, value, what) {
       if (!is.null(organism)) return(organism[[fixed]])
