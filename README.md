@@ -8,23 +8,21 @@ This app is designed to help biologists with less programming skills to perform 
 
 ## Installation
 
-The app could be installed locally via [GitHub](https://github.com/Eabdelsalam/TransciptMetaAnalyst) using the following commands (please note that `BiocManager` and `devtools` packages should be installed before installing the app):
+TMA is installed from [GitHub](https://github.com/Eabdelsalam/TranscriptMetaAnalyst) with `BiocManager`, which also installs the Bioconductor packages it depends on (DESeq2, edgeR, limma, GEOquery and others). It needs R 4.5.0 or later.
 
-1.  Check if devtools and BiocManager are installed, and install them if not
+```r
+# install BiocManager if needed
+if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
 
-`if (!requireNamespace("devtools", quietly = TRUE)) {   install.packages("devtools") }`
+# install TranscriptMetaAnalyst and its dependencies
+BiocManager::install("Eabdelsalam/TranscriptMetaAnalyst")
 
-`if (!requireNamespace("BiocManager", quietly = TRUE)) {   install.packages("BiocManager") }`
+# start the app
+library(TranscriptMetaAnalyst)
+runTMA()
+```
 
-2.  Use `devtools` to install the ShinyApp
-
-`devtools::install_github("Eabdelsalam/TranscriptMetaAnalyst")`
-
-3.  Finally, run the app
-
-`library(TranscriptMetaAnalyst)`
-
-`runTMA()`
+To also build the vignette, use `BiocManager::install("Eabdelsalam/TranscriptMetaAnalyst", build_vignettes = TRUE)`.
 
 ## Scope
 
@@ -57,4 +55,4 @@ matrices <- list(read_array_matrix("study1.txt"), read_array_matrix("study2.txt"
 array_analysis <- run_array_analysis(matrices, design, meta_method = "fisher")
 ```
 
-A worked example with the demo data is in the vignette: `vignette("TranscriptMetaAnalyst")` (install with `build_vignettes = TRUE`).
+A worked example with the demo data is in the vignette: `vignette("TranscriptMetaAnalyst")` (installed with `build_vignettes = TRUE`, see [Installation](#installation)).

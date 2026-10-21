@@ -1,4 +1,4 @@
-# TranscriptMetaAnalyst 1.0.0
+# TranscriptMetaAnalyst 2.0.0
 
 Revision in response to the reviewers' comments.
 
