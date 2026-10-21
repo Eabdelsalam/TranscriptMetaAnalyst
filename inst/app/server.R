@@ -77,7 +77,6 @@ function(input, output, session) {
     inputs <- rnaseq_inputs()
     shinyalert("Running...", "RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
-    shinyjs::hide("rnaseq_steps")
     rnaseq_task$invoke(inputs$counts, inputs$design, inputs$de_method, inputs$meta_method,
                        inputs$batch_method, inputs$batch_plots, inputs$reference)
   })

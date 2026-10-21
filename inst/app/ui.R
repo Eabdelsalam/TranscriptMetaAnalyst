@@ -18,25 +18,9 @@ ui <- dashboardPage(
              selected = T), #close home tab
     
     #create a RNA-Seq tab
-    convertMenuItem(menuItem("RNA-Seq Meta Analysis",
-                             tabName = "rnaseq",
-                             icon = icon("list-alt", lib = "glyphicon"),
-                             # upload button for counts
-                             fileInput(inputId = "rnaseq_counts",
-                                       label = "Upload the raw counts file (tab-delimited)",
-                                       accept = c("text/csv", "text/comma-separated-values,text/plain", "txt")),
-                             #upload button for experimental design
-                             fileInput(inputId = "rnaseq_design",
-                                       label = "Upload the experimental design file (tab-delimited)",
-                                       accept = c("text/csv", "text/comma-separated-values,text/plain", ".txt")),
-                             #example files
-                             downloadLink("example_counts", label = "Download example counts file \n"),
-                             p(),
-                             downloadLink("example_design", label = "Download example design file"),
-                             #add button to start analysis
-                             actionButton("rnaseq_analyze", "Start Analysis!", icon = icon("laptop"))
-                             ),
-                    tabName = "rnaseq"), #close rna-seq tab
+    menuItem("RNA-Seq Meta-Analysis",
+             tabName = "rnaseq",
+             icon = icon("list-alt", lib = "glyphicon")),
 
     #create a microarray tab
     menuItem("Microarray Meta-Analysis",
@@ -79,7 +63,7 @@ ui <- dashboardPage(
             p("As shown on the side panel, the app consists of several tabs as follows:"),
             tags$ul(
               tags$li(strong("Home:"), "contains the preliminary information about the app and information about how to use it."),
-              tags$li(strong("RNA-Seq Meta Analysis:"), "is designed to perform meta-analysis for a group of RNA-Seq-generated transcriptomic datasets."),
+              tags$li(strong("RNA-Seq Meta-Analysis:"), "performs the meta-analysis for a group of RNA-Seq datasets (raw read counts), uploaded as files, and has its own demo data."),
               tags$li(strong("Microarray Meta-Analysis:"), "performs the meta-analysis for normalised single-colour microarray datasets, uploaded as files or imported from GEO, and has its own demo data."),
               tags$li(strong("Run Demo Analysis:"), "could be used to perform a sample RNA-Seq meta analysis on a dataset provided with the app. When the user clicks this tab, the analysis will start automatically and the results will appear on the screen after a few seconds. The provided figures and tables are examples of what the application will provide under RNA-Seq Meta Analysis tab using the user's uploaded files"),
               tags$li(strong("Methods Guide:"), "explains when to use which differential expression, meta-analysis, batch and enrichment method, lists the study requirements, and gives the references."),
@@ -95,20 +79,21 @@ ui <- dashboardPage(
       ################################
       tabItem(tabName = "rnaseq",
         fluidRow(mod_settings_ui("rnaseq_settings", per_study = TRUE)),
+        fluidRow(box(
+          title = "RNA-Seq data", status = "primary", solidHeader = TRUE, width = 12,
+          p("Meta-analysis of raw RNA-Seq read counts. Upload a counts file and an experimental design file."),
+          fluidRow(
+            column(6, fileInput("rnaseq_counts", "Raw counts file (tab-delimited)",
+                                accept = c("text/plain", ".txt", ".tsv")),
+                   downloadLink("example_counts", label = "Download example counts file")),
+            column(6, fileInput("rnaseq_design", "Experimental design file (tab-delimited)",
+                                accept = c("text/plain", ".txt", ".tsv")),
+                   downloadLink("example_design", label = "Download example design file"))
+          ),
+          helpText("The counts file has a 'Geneid' column with the gene IDs and one column of raw (unnormalised) read counts per sample, e.g. from featureCounts or htseq-count; all studies are in the same file. The design file has the columns 'sample' (the column names of the counts file), 'study' and 'condition' (and optionally 'batch'). Every condition needs at least 2 samples in a study, and every comparison at least 2 studies."),
+          actionButton("rnaseq_analyze", "Start Analysis!", icon = icon("laptop"))
+        )),
         fluidRow(mod_batch_check_ui("rnaseq_batch_check")),
-        div(id = "rnaseq_steps",
-            fluidPage(
-              box(title = "RNA-Seq Quick Start",
-                  p("To start the RNA-Seq meta analysis please perform the following steps:",
-                    tags$ul(
-                      tags$li("After cleaning the raw RNA-Seq read files (either downloaded from public databases of generated via your own experiments) of each sample, align them individually to the studied organism's reference genome."),
-                      tags$li("Count the mapped reads to the reference genomic features of interest and combine all the counts in one file. Keeping genomic features as rows and the samples that will be included in the analysis as columns. To produce the final raw (unnormalized) counts comma-separated file.", strong("Note that the counts file should have a 'geneid' column.")),
-                      tags$li("Upload the ", strong("counts"),"file produced by any feature counting tool, e.g., featureCounts or htseq-count, as explained above to the raw counts placeholder.", strong(" Please refer to example counts file via the provided download link.")),
-                      tags$li("Upload the experimental design file.", strong(" Please refer to the example file via the provided download link."), "This file should contain at least 3 columns, namely 'sample' refers to the sample names used as columns in the counts file, 'study' refers to the study to which the sample belong, 'condition' refers to the treatment or control conditions. With more than two conditions, each one is compared with the reference condition chosen in the Analysis settings. Every condition needs at least 2 samples in a study, and every comparison at least 2 studies (an optional 'batch' column can give the batch of each sample)."),
-                      tags$li("Hit",strong('Start Analysis!'), "button and wait for the results to appear.")
-                    )),
-                  solidHeader = T, width = 12, status = "info")
-            )), #close steps box
         #results of the analysis, shown once it has run
         uiOutput("rnaseq_results")
       ), #close rnaseq tab item
