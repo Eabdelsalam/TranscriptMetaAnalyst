@@ -2,16 +2,21 @@
 #'
 #' A box to choose the differential expression method (for all studies, with
 #' an optional override per study) and the meta-analysis method, with short
-#' guidance on when to use each.
+#' guidance on when to use each. With `per_study = TRUE` (the RNA-seq tab) it
+#' also offers the batch-effect options; they need a `batch` column in the
+#' design, which is checked when the analysis starts (see
+#' [validate_batch_choice()]).
 #'
 #' @param id Module id.
 #' @param per_study If `TRUE`, show a DE-method override for each study of
-#'   the design passed to `mod_settings_server()`.
+#'   the design passed to `mod_settings_server()`, and the batch-effect
+#'   options.
 #' @param design A reactive returning the experimental design, used to list
 #'   the studies for the per-study override (`NULL` if `per_study = FALSE`).
 #' @return `mod_settings_ui()` returns UI. `mod_settings_server()` returns a
 #'   reactive list with `de_method` (one method, or a named vector with one
-#'   method per study) and `meta_method`.
+#'   method per study), `meta_method`, `batch_method` (see [batch_methods()])
+#'   and `batch_plots`.
 #' @name mod_settings
 #' @export
 mod_settings_ui <- function(id, per_study = FALSE) {
@@ -26,6 +31,7 @@ mod_settings_ui <- function(id, per_study = FALSE) {
                                            choices = meta_methods(), selected = "fisher")),
       if (per_study) shiny::column(4, shiny::uiOutput(ns("per_study")))
     ),
+    if (per_study) batch_inputs(ns),
     method_guidance()
   )
 }
@@ -39,7 +45,6 @@ mod_settings_server <- function(id, design = NULL) {
       unique(design()$study)
     })
     study_input <- function(study) paste0("study_method_", make.names(study))
-
     output$per_study <- shiny::renderUI({
       shiny::req(length(studies()) > 0)
       shiny::tagList(
@@ -63,9 +68,25 @@ mod_settings_server <- function(id, design = NULL) {
         }, character(1))
         if (any(per_study != global)) de_method <- stats::setNames(per_study, studies())
       }
-      list(de_method = de_method, meta_method = meta_method)
+      list(de_method = de_method, meta_method = meta_method,
+           batch_method = if (is.null(input$batch_method)) "none" else input$batch_method,
+           batch_plots = isTRUE(input$batch_plots))
     })
   })
+}
+
+# Batch-effect inputs; "Ignore batch" is selected by default because most
+# designs have no batch column
+batch_inputs <- function(ns) {
+  shiny::fluidRow(
+    shiny::column(6, shiny::radioButtons(ns("batch_method"),
+                                         "Batch effects (needs a 'batch' column in the design file)",
+                                         choices = batch_methods(), selected = "none")),
+    shiny::column(6, shiny::checkboxInput(ns("batch_plots"),
+                                          "Use batch-corrected values in the PCA and heatmap",
+                                          value = FALSE),
+                  shiny::helpText("Batch is handled within each study. The Batch effects tab of the results shows PCA and RLE plots before and after the correction."))
+  )
 }
 
 # Short in-app guidance on choosing the methods
@@ -83,6 +104,13 @@ method_guidance <- function() {
     shiny::tags$ul(
       shiny::tags$li(shiny::strong("Fisher"), ": sums -log(p) over the studies. A very strong signal in a single study can be enough to make a gene significant."),
       shiny::tags$li(shiny::strong("Inverse normal"), ": combines the studies' z-scores, weighting each study by the square root of its number of samples. It favours genes with consistent evidence across studies and gives larger studies more weight (Rau et al., 2014, BMC Bioinformatics 15:91).")
+    ),
+    shiny::tags$p(shiny::strong("Batch effects"), " (RNA-Seq tab; needs a 'batch' column in the design file):"),
+    shiny::tags$ul(
+      shiny::tags$li(shiny::strong("Batch in the DE model"), " (recommended when there is a batch column): fits ~ batch + condition in each study. The counts are not changed; the batch effect is estimated together with the condition effect, so the p-values account for it."),
+      shiny::tags$li(shiny::strong("ComBat-seq"), ": corrects the raw counts for batch first (keeping the condition effect), then fits ~ condition. The DE test then treats the corrected counts as raw data, which can make p-values too small in small studies (Nygaard et al., 2016, Biostatistics 17:29-39); it also needs at least two samples per batch."),
+      shiny::tags$li(shiny::strong("Ignore batch"), " (default): the batch column, if any, is not used."),
+      shiny::tags$li("Batch can only be used in a study with at least two batches that are not confounded with the condition; otherwise that study is analysed without batch, and the Batch effects tab says why.")
     ),
     shiny::tags$p("On the RNA-Seq tab, click Start Analysis! again after changing a setting; the Demo tab updates by itself.")
   )

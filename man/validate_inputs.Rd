@@ -3,11 +3,14 @@
 \name{validate_inputs}
 \alias{validate_inputs}
 \alias{validate_design}
+\alias{validate_batch_choice}
 \alias{validate_counts}
 \alias{validate_match}
 \title{Validate TMA input files}
 \usage{
 validate_design(design)
+
+validate_batch_choice(design, batch_method = "none", batch_plots = FALSE)
 
 validate_counts(counts)
 
@@ -15,7 +18,10 @@ validate_match(counts, design)
 }
 \arguments{
 \item{design}{Experimental design data frame with \code{sample}, \code{study} and
-\code{condition} columns.}
+\code{condition} columns, and optionally a \code{batch} column.}
+
+\item{batch_method, batch_plots}{The batch settings, see
+\code{\link[=run_tma_pipeline]{run_tma_pipeline()}}.}
 
 \item{counts}{Counts data frame with a \code{Geneid} column and one column per
 sample.}
@@ -34,5 +40,6 @@ demo <- tma_demo_data()
 validate_design(demo$design)
 validate_counts(demo$counts)
 validate_match(demo$counts, demo$design)
+validate_batch_choice(demo$design, "model")
 validate_design(data.frame(sample = "S1"))
 }

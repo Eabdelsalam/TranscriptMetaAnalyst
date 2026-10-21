@@ -4,7 +4,7 @@
 \alias{run_deseq2}
 \title{Differential expression of one study with DESeq2}
 \usage{
-run_deseq2(counts, design, alpha = 0.05)
+run_deseq2(counts, design, alpha = 0.05, use_batch = FALSE)
 }
 \arguments{
 \item{counts}{Count matrix (genes x samples) with gene names as row names.}
@@ -13,6 +13,9 @@ run_deseq2(counts, design, alpha = 0.05)
 names, in the same order as the columns of \code{counts}.}
 
 \item{alpha}{Significance level used by DESeq2's independent filtering.}
+
+\item{use_batch}{If \code{TRUE}, \code{design} must have a \code{batch} column, and batch
+is added to the model as \code{~ batch + condition}.}
 }
 \value{
 A list with
@@ -23,7 +26,8 @@ A list with
 }
 }
 \description{
-Fits \code{~ condition} with DESeq2 and returns a standardised result table and
+Fits \code{~ condition} (or \code{~ batch + condition}) with DESeq2 and returns a
+standardised result table and
 the normalised counts. The full \code{DESeqDataSet} is not kept, so the result is
 small enough to hold for many studies.
 }

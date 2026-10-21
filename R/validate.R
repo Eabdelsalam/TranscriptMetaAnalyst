@@ -6,7 +6,7 @@
 #' Shiny.
 #'
 #' @param design Experimental design data frame with `sample`, `study` and
-#'   `condition` columns.
+#'   `condition` columns, and optionally a `batch` column.
 #' @param counts Counts data frame with a `Geneid` column and one column per
 #'   sample.
 #' @return A character vector of error messages; empty when the input is valid.
@@ -16,6 +16,7 @@
 #' validate_design(demo$design)
 #' validate_counts(demo$counts)
 #' validate_match(demo$counts, demo$design)
+#' validate_batch_choice(demo$design, "model")
 #' validate_design(data.frame(sample = "S1"))
 NULL
 
@@ -31,8 +32,30 @@ validate_design <- function(design) {
   if (length(unique(design$condition)) != 2) {
     return("The Experimental Design file should have two unique conditions only!")
   }
+  if ("batch" %in% colnames(design) &&
+      any(is.na(design$batch) | trimws(as.character(design$batch)) == "")) {
+    return("The optional 'batch' column in the Experimental Design file has empty values; give every sample a batch or remove the column!")
+  }
   if (anyDuplicated(design$sample) > 0) {
     return("The 'sample' column in the Experimental Design file has duplicated sample names, please correct and re-upload it!")
+  }
+  character(0)
+}
+
+#' @rdname validate_inputs
+#' @param batch_method,batch_plots The batch settings, see
+#'   [run_tma_pipeline()].
+#' @export
+validate_batch_choice <- function(design, batch_method = "none", batch_plots = FALSE) {
+  uses_batch <- batch_method != "none" || isTRUE(batch_plots)
+  if (uses_batch && !"batch" %in% colnames(design)) {
+    choice <- if (batch_method != "none") {
+      names(batch_methods())[batch_methods() == batch_method]
+    } else {
+      "Use batch-corrected values in the PCA and heatmap"
+    }
+    return(sprintf("'%s' needs a 'batch' column in the Experimental Design file. Add the column or choose 'Ignore batch'.",
+                   choice))
   }
   character(0)
 }

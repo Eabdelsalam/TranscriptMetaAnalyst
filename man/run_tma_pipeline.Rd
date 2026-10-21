@@ -10,6 +10,8 @@ run_tma_pipeline(
   alpha = 0.05,
   de_method = "DESeq2",
   meta_method = "fisher",
+  batch_method = "model",
+  batch_plots = FALSE,
   filter = TRUE,
   BPPARAM = tma_bpparam(length(unique(design$study)))
 )
@@ -28,6 +30,13 @@ named character vector with one method per study.}
 
 \item{meta_method}{Meta-analysis method, \code{"fisher"} or \code{"invnorm"} (see
 \code{\link[=run_meta]{run_meta()}}).}
+
+\item{batch_method}{How to use an optional \code{batch} column of \code{design}, one
+of \code{\link[=batch_methods]{batch_methods()}}. By default batch is added to the DE model in every
+study where that is possible (see \code{\link[=batch_status]{batch_status()}}).}
+
+\item{batch_plots}{If \code{TRUE}, the PCA and heatmap of the results use the
+batch-corrected values (see \link{batch_diagnostics}).}
 
 \item{filter}{If \code{TRUE}, remove genes with low counts in every study
 before the analysis (see \code{\link[=filter_low_counts]{filter_low_counts()}}).}
@@ -52,6 +61,10 @@ fold changes and the direction \code{signFC} of each gene.}
 \item{idd_irr}{integration-driven discoveries and lost DEGs
 (\code{\link[metaRNASeq:IDD.IRR]{metaRNASeq::IDD.IRR()}}).}
 \item{de_methods}{the DE method used for each study.}
+\item{batch}{\code{NULL} without a \code{batch} column; otherwise a list with the
+\code{method} requested, its \code{status} in each study (see
+\code{\link[=batch_status]{batch_status()}}), the batch-corrected log2 values
+\code{corrected_log}, and \code{plots} (use them in the PCA and heatmap).}
 \item{meta_method}{the meta-analysis method used.}
 \item{alpha}{the significance level used.}
 }

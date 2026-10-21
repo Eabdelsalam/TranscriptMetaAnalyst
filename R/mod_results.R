@@ -63,7 +63,13 @@ mod_results_ui <- function(id, select_organism = FALSE, hidden = FALSE) {
                  shiny::downloadButton(ns("download_upset"), label = "Download plot")),
         plot_tab("Volcano Plot", "volcano",
                  shiny::downloadButton(ns("download_volcano"), label = "Download plot"),
-                 shiny::downloadButton(ns("download_volcano_data"), label = "Download data"))
+                 shiny::downloadButton(ns("download_volcano_data"), label = "Download data")),
+        shiny::tabPanel(title = "Batch effects", value = "batch",
+                        shiny::tableOutput(ns("batch_status")),
+                        shiny::plotOutput(ns("batch_pca"), height = "420px"),
+                        shiny::downloadButton(ns("download_batch_pca"), label = "Download PCA"),
+                        shiny::plotOutput(ns("batch_rle"), height = "420px"),
+                        shiny::downloadButton(ns("download_batch_rle"), label = "Download RLE plot"))
       ),
       shinydashboard::box(title = "Meta-analysis DEGs", status = "success", solidHeader = TRUE,
                           DT::DTOutput(ns("meta_table")),
@@ -113,6 +119,12 @@ mod_results_server <- function(id, result, organism = NULL) {
         shiny::hideTab("main_plots", target = "Venn diagram")
       } else {
         shiny::showTab("main_plots", target = "Venn diagram")
+      }
+      # the batch diagnostics only exist when the design has a batch column
+      if (is.null(res$batch)) {
+        shiny::hideTab("main_plots", target = "batch")
+      } else {
+        shiny::showTab("main_plots", target = "batch")
       }
     })
 
@@ -203,6 +215,33 @@ mod_results_server <- function(id, result, organism = NULL) {
     output$download_volcano_data <- shiny::downloadHandler(fname("volcano_data.csv"), content = function(file) {
       utils::write.csv(volcano(), file, quote = FALSE, row.names = FALSE)
     }, contentType = "text/csv")
+
+    # batch effects ----------------------------------------------------------
+    output$batch_status <- shiny::renderTable({
+      batch <- result()$batch
+      shiny::req(batch)
+      method <- names(batch_methods())[batch_methods() == batch$method]
+      data.frame(Study = names(batch$status),
+                 `Batch handling` = ifelse(batch$status == "applied", method,
+                                           paste0("not used (", batch$status, ")")),
+                 check.names = FALSE)
+    })
+    batch_pca <- shiny::reactive({
+      shiny::req(result()$batch)
+      plot_batch_pca(result())
+    })
+    batch_rle <- shiny::reactive({
+      shiny::req(result()$batch)
+      plot_rle(result())
+    })
+    output$batch_pca <- shiny::renderPlot(batch_pca())
+    output$batch_rle <- shiny::renderPlot(batch_rle())
+    output$download_batch_pca <- shiny::downloadHandler(fname("batch_pca.pdf"), content = function(file) {
+      ggplot2::ggsave(file, batch_pca(), device = "pdf", width = 25, height = 15, units = "cm")
+    })
+    output$download_batch_rle <- shiny::downloadHandler(fname("batch_rle.pdf"), content = function(file) {
+      ggplot2::ggsave(file, batch_rle(), device = "pdf", width = 25, height = 15, units = "cm")
+    })
 
     # meta-analysis table and count plots ------------------------------------
     output$meta_table <- DT::renderDT(meta_table_widget(result()$meta))

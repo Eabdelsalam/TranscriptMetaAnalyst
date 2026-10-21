@@ -4,10 +4,14 @@
 \alias{heatmap_matrix}
 \title{Scaled DEG matrix of a TMA result}
 \usage{
-heatmap_matrix(result)
+heatmap_matrix(result, corrected = use_corrected(result))
 }
 \arguments{
 \item{result}{A \code{tma_result} from \code{\link[=run_tma_pipeline]{run_tma_pipeline()}}.}
+
+\item{corrected}{If \code{TRUE}, use the batch-corrected log2 values (see
+\link{batch_diagnostics}) instead of the normalised counts. By default they
+are used when the result was created with \code{batch_plots = TRUE}.}
 }
 \value{
 A numeric matrix (meta DEGs x samples).

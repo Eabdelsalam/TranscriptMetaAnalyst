@@ -24,8 +24,8 @@ function(input, output, session) {
   })
   rnaseq_settings <- mod_settings_server("rnaseq_settings", design = uploaded_design)
 
-  #read and check the uploaded files when "Start Analysis!" is hit
-  rnaseq_inputs <- eventReactive(input$rnaseq_analyze, {
+  #read and check the uploaded files; shows an alert and stops on a problem
+  read_uploads <- function() {
     if (is.null(input$rnaseq_counts)) {
       shinyalert("Missed Counts File!!!", "Please upload the raw counts file first!")
     } else if (is.null(input$rnaseq_design)) {
@@ -40,14 +40,31 @@ function(input, output, session) {
       shinyalert(text = problems[1])
       req(FALSE)
     }
-    c(list(counts = counts, design = design), rnaseq_settings())
+    list(counts = counts, design = design)
+  }
+
+  #check the uploaded data for batch effects before the analysis
+  mod_batch_check_server("rnaseq_batch_check", data = read_uploads)
+
+  #read and check the uploaded files when "Start Analysis!" is hit
+  rnaseq_inputs <- eventReactive(input$rnaseq_analyze, {
+    uploads <- read_uploads()
+    settings <- rnaseq_settings()
+    problems <- validate_batch_choice(uploads$design, settings$batch_method, settings$batch_plots)
+    if (length(problems) > 0) {
+      shinyalert(text = problems[1])
+      req(FALSE)
+    }
+    c(uploads, settings)
   })
 
   #run the meta-analysis once per click, in a background process so the app
   #stays responsive while it runs
-  rnaseq_task <- ExtendedTask$new(function(counts, design, de_method, meta_method) {
+  rnaseq_task <- ExtendedTask$new(function(counts, design, de_method, meta_method,
+                                            batch_method, batch_plots) {
     promises::future_promise(
-      run_tma_pipeline(counts, design, de_method = de_method, meta_method = meta_method),
+      run_tma_pipeline(counts, design, de_method = de_method, meta_method = meta_method,
+                       batch_method = batch_method, batch_plots = batch_plots),
       seed = TRUE
     )
   })
@@ -60,7 +77,8 @@ function(input, output, session) {
     shinyalert("Running...", "RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
     shinyjs::hide("rnaseq_steps")
-    rnaseq_task$invoke(inputs$counts, inputs$design, inputs$de_method, inputs$meta_method)
+    rnaseq_task$invoke(inputs$counts, inputs$design, inputs$de_method, inputs$meta_method,
+                       inputs$batch_method, inputs$batch_plots)
   })
   rnaseq_result <- reactive({
     #an error in the analysis is shown to the user instead of stopping the app
@@ -76,6 +94,7 @@ function(input, output, session) {
   #computed the first time the Demo tab is opened with given settings, then
   #cached for all sessions
   demo_settings <- mod_settings_server("demo_settings")
+  mod_batch_check_server("demo_batch_check", data = tma_demo_data)
   demo_result <- reactive({
     shinyalert("Demo Running!", "Demo RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
