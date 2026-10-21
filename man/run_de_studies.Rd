@@ -4,21 +4,29 @@
 \alias{run_de_studies}
 \title{Differential expression of every study}
 \usage{
-run_de_studies(studies, alpha = 0.05, BPPARAM = tma_bpparam(length(studies)))
+run_de_studies(
+  studies,
+  methods = "DESeq2",
+  alpha = 0.05,
+  BPPARAM = tma_bpparam(length(studies))
+)
 }
 \arguments{
 \item{studies}{Output of \code{\link[=split_studies]{split_studies()}}.}
 
-\item{alpha}{Significance level passed to \code{\link[=run_deseq2]{run_deseq2()}}.}
+\item{methods}{DE method for all studies (one of \code{\link[=de_methods]{de_methods()}}), or a
+named character vector with one method per study.}
+
+\item{alpha}{Significance level passed to the DE method.}
 
 \item{BPPARAM}{A BiocParallel back-end; by default \code{\link[=tma_bpparam]{tma_bpparam()}}.}
 }
 \value{
-A named list with one \code{\link[=run_deseq2]{run_deseq2()}} result per study.
+A named list with one DE result (see \code{\link[=run_deseq2]{run_deseq2()}}) per study.
 }
 \description{
-Runs \code{\link[=run_deseq2]{run_deseq2()}} on every study. The studies are independent, so they
-are fitted in parallel with BiocParallel.
+Runs the chosen DE method on every study. The studies are independent, so
+they are fitted in parallel with BiocParallel.
 }
 \examples{
 \donttest{

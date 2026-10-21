@@ -8,6 +8,8 @@ run_tma_pipeline(
   counts,
   design,
   alpha = 0.05,
+  de_method = "DESeq2",
+  meta_method = "fisher",
   filter = TRUE,
   BPPARAM = tma_bpparam(length(unique(design$study)))
 )
@@ -20,6 +22,12 @@ sample.}
 \code{condition} columns.}
 
 \item{alpha}{Significance level for the per-study and meta-analysis tests.}
+
+\item{de_method}{DE method for all studies (one of \code{\link[=de_methods]{de_methods()}}), or a
+named character vector with one method per study.}
+
+\item{meta_method}{Meta-analysis method, \code{"fisher"} or \code{"invnorm"} (see
+\code{\link[=run_meta]{run_meta()}}).}
 
 \item{filter}{If \code{TRUE}, remove genes with low counts in every study
 before the analysis (see \code{\link[=filter_low_counts]{filter_low_counts()}}).}
@@ -37,25 +45,30 @@ An object of class \code{tma_result}, a list with
 \item{fold_changes}{log2 fold changes (genes x studies).}
 \item{meta}{meta-analysis table: \code{TestStatistic}, \code{rawpval}, \code{adjpval}
 and \code{significant} ("yes"/"no"), one row per gene.}
-\item{fc_select}{per-study DE flags, the Fisher flag \code{DE.fishercomb},
+\item{fc_select}{per-study DE flags, the meta-analysis flag \code{DE.meta},
 fold changes and the direction \code{signFC} of each gene.}
 \item{meta_degs}{meta-significant, direction-consistent DEGs.}
 \item{study_degs}{direction-consistent DEGs of each study.}
 \item{idd_irr}{integration-driven discoveries and lost DEGs
 (\code{\link[metaRNASeq:IDD.IRR]{metaRNASeq::IDD.IRR()}}).}
+\item{de_methods}{the DE method used for each study.}
+\item{meta_method}{the meta-analysis method used.}
 \item{alpha}{the significance level used.}
 }
 }
 \description{
 Removes genes with low counts in every study (\code{\link[=filter_low_counts]{filter_low_counts()}}), runs
-DESeq2 in every study, combines the p-values with Fisher's method, removes
-genes whose direction conflicts between studies, and collects everything
-the results tabs need in one \code{tma_result} object.
+the chosen DE method in every study, combines the p-values with the chosen
+meta-analysis method, removes genes whose direction conflicts between
+studies, and collects everything the results tabs need in one \code{tma_result}
+object.
 }
 \examples{
 \donttest{
 demo <- tma_demo_data()
 res <- run_tma_pipeline(demo$counts, demo$design)
 length(res$meta_degs)
+res2 <- run_tma_pipeline(demo$counts, demo$design, de_method = "edgeR",
+                         meta_method = "invnorm")
 }
 }

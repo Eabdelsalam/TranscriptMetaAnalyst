@@ -15,6 +15,15 @@ function(input, output, session) {
   )
 
   ####### RNA-Seq Analysis #######
+  #the uploaded design lists the studies for the per-study DE method setting
+  uploaded_design <- reactive({
+    req(input$rnaseq_design)
+    design <- read_tma_table(input$rnaseq_design$datapath)
+    req(length(validate_design(design)) == 0)
+    design
+  })
+  rnaseq_settings <- mod_settings_server("rnaseq_settings", design = uploaded_design)
+
   #read and check the uploaded files when "Start Analysis!" is hit
   rnaseq_inputs <- eventReactive(input$rnaseq_analyze, {
     if (is.null(input$rnaseq_counts)) {
@@ -31,13 +40,16 @@ function(input, output, session) {
       shinyalert(text = problems[1])
       req(FALSE)
     }
-    list(counts = counts, design = design)
+    c(list(counts = counts, design = design), rnaseq_settings())
   })
 
   #run the meta-analysis once per click, in a background process so the app
   #stays responsive while it runs
-  rnaseq_task <- ExtendedTask$new(function(counts, design) {
-    promises::future_promise(run_tma_pipeline(counts, design), seed = TRUE)
+  rnaseq_task <- ExtendedTask$new(function(counts, design, de_method, meta_method) {
+    promises::future_promise(
+      run_tma_pipeline(counts, design, de_method = de_method, meta_method = meta_method),
+      seed = TRUE
+    )
   })
   #disable "Start Analysis!" while an analysis is running
   observe({
@@ -48,7 +60,7 @@ function(input, output, session) {
     shinyalert("Running...", "RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
     shinyjs::hide("rnaseq_steps")
-    rnaseq_task$invoke(inputs$counts, inputs$design)
+    rnaseq_task$invoke(inputs$counts, inputs$design, inputs$de_method, inputs$meta_method)
   })
   rnaseq_result <- reactive({
     #an error in the analysis is shown to the user instead of stopping the app
@@ -61,15 +73,20 @@ function(input, output, session) {
   mod_results_server("rnaseq", rnaseq_result)
 
   ####### Demo #######
-  #computed the first time the Demo tab is opened, then cached for all sessions
+  #computed the first time the Demo tab is opened with given settings, then
+  #cached for all sessions
+  demo_settings <- mod_settings_server("demo_settings")
   demo_result <- reactive({
     shinyalert("Demo Running!", "Demo RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
     demo <- tma_demo_data()
-    run_tma_pipeline(demo$counts, demo$design)
+    run_tma_pipeline(demo$counts, demo$design,
+                     de_method = demo_settings()$de_method,
+                     meta_method = demo_settings()$meta_method)
   }) |>
-    bindCache("tma-demo", utils::packageVersion("TranscriptMetaAnalyst"), cache = "app") |>
-    bindEvent(req(input$main_tabs == "demo"))
+    bindCache("tma-demo", utils::packageVersion("TranscriptMetaAnalyst"), demo_settings(),
+              cache = "app") |>
+    bindEvent(req(input$main_tabs == "demo"), demo_settings())
   mod_results_server("demo", demo_result, organism = list(go = 1111708, kegg = "syn"))
 
   #stop the app after the browser closes, but only for local runs started with

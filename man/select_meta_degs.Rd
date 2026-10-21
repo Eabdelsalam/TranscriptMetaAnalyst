@@ -8,19 +8,19 @@ select_meta_degs(fc_select)
 }
 \arguments{
 \item{fc_select}{A data frame with gene names as row names, a
-\code{DE.fishercomb} column (1 = meta-significant) and a \code{signFC} column
+\code{DE.meta} column (1 = meta-significant) and a \code{signFC} column
 (1 or -1 = consistent direction, 0 = conflicting).}
 }
 \value{
 A character vector of gene names.
 }
 \description{
-Selects the genes that are significant in the Fisher meta-analysis and whose
+Selects the genes that are significant in the meta-analysis and whose
 fold changes have the same sign in every study. These are the genes used for
 the heatmap, the Venn/UpSet plots and the GO/KEGG enrichment.
 }
 \examples{
-fc_select <- data.frame(DE.fishercomb = c(1, 1, 0), signFC = c(1, 0, -1),
+fc_select <- data.frame(DE.meta = c(1, 1, 0), signFC = c(1, 0, -1),
                         row.names = c("g1", "g2", "g3"))
 select_meta_degs(fc_select)
 }

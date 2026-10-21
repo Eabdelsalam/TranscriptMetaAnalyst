@@ -47,45 +47,101 @@ mean_fold_change <- function(fc_list) {
 
 #' Meta-significant, direction-consistent DEGs
 #'
-#' Selects the genes that are significant in the Fisher meta-analysis and whose
+#' Selects the genes that are significant in the meta-analysis and whose
 #' fold changes have the same sign in every study. These are the genes used for
 #' the heatmap, the Venn/UpSet plots and the GO/KEGG enrichment.
 #'
 #' @param fc_select A data frame with gene names as row names, a
-#'   `DE.fishercomb` column (1 = meta-significant) and a `signFC` column
+#'   `DE.meta` column (1 = meta-significant) and a `signFC` column
 #'   (1 or -1 = consistent direction, 0 = conflicting).
 #' @return A character vector of gene names.
 #' @export
 #' @examples
-#' fc_select <- data.frame(DE.fishercomb = c(1, 1, 0), signFC = c(1, 0, -1),
+#' fc_select <- data.frame(DE.meta = c(1, 1, 0), signFC = c(1, 0, -1),
 #'                         row.names = c("g1", "g2", "g3"))
 #' select_meta_degs(fc_select)
 select_meta_degs <- function(fc_select) {
-  keep <- fc_select$DE.fishercomb == 1 & abs(fc_select$signFC) == 1
+  keep <- fc_select$DE.meta == 1 & abs(fc_select$signFC) == 1
   rownames(fc_select)[which(keep)]
 }
 
-#' Fisher meta-analysis of per-study p-values
+#' Meta-analysis of per-study p-values
 #'
 #' Combines the raw p-values of the studies with Fisher's method
-#' ([metaRNASeq::fishercomb()]) and adjusts them with Benjamini-Hochberg. As in
-#' DESeq2's independent filtering, a gene whose adjusted p-value is `NA` in a
-#' study does not contribute that study's p-value.
+#' ([metaRNASeq::fishercomb()]) or the inverse-normal method (as in
+#' [metaRNASeq::invnorm()]: each study weighted by the square root of its
+#' number of samples), and adjusts the combined p-values with
+#' Benjamini-Hochberg. As in DESeq2's independent filtering, a gene whose
+#' adjusted p-value is `NA` in a study does not contribute that study's
+#' p-value.
+#'
+#' The combined p-values are computed from the upper tail of the chi-squared
+#' (Fisher) or normal (inverse normal) distribution, and the inverse-normal
+#' z-scores from the upper tail of the normal distribution, so p-values far
+#' below 1e-16 stay accurate instead of being rounded to 0 (or, for the
+#' z-scores, to infinity).
+#'
+#' For the inverse-normal method, p-values of exactly 1 are moved just below 1,
+#' so that a study with p = 1 cannot turn the combined statistic into `NaN`.
 #'
 #' @param pvalues Matrix of raw p-values (genes x studies).
 #' @param padj Matrix of adjusted p-values with the same layout.
+#' @param method `"fisher"` or `"invnorm"`, see [meta_methods()].
+#' @param nrep Number of samples in each study (used by `"invnorm"`).
 #' @param alpha Significance level for the meta-analysis.
 #' @return A data frame with one row per gene and columns `TestStatistic`,
 #'   `rawpval` and `adjpval`.
 #' @export
 #' @examples
 #' p <- matrix(c(0.001, 0.2, 0.5, 0.004, 0.3, 0.9), ncol = 2)
-#' run_fisher_meta(p, p)
-run_fisher_meta <- function(pvalues, padj, alpha = 0.05) {
+#' run_meta(p, p)
+#' run_meta(p, p, method = "invnorm", nrep = c(4, 6))
+run_meta <- function(pvalues, padj, method = "fisher", nrep = NULL, alpha = 0.05) {
+  method <- match.arg(method, meta_methods())
   pvalues[is.na(padj)] <- NA
-  fish <- metaRNASeq::fishercomb(lapply(seq_len(ncol(pvalues)), function(i) pvalues[, i]),
-                                 BHth = alpha)
-  data.frame(TestStatistic = fish$TestStatistic, rawpval = fish$rawpval, adjpval = fish$adjpval)
+  if (method == "invnorm") {
+    if (length(nrep) != ncol(pvalues)) {
+      stop("`nrep` needs one sample count per study.", call. = FALSE)
+    }
+    pvalues <- pmin(pvalues, 1 - .Machine$double.eps)
+  }
+  if (method == "fisher") {
+    indpval <- lapply(seq_len(ncol(pvalues)), function(i) pvalues[, i])
+    stat <- metaRNASeq::fishercomb(indpval, BHth = alpha)$TestStatistic
+    # metaRNASeq returns 1 - pchisq(), which rounds p-values below ~1e-16 to
+    # exactly 0; take the upper tail directly to keep them accurate
+    rawpval <- stats::pchisq(stat, df = 2 * rowSums(!is.na(pvalues)), lower.tail = FALSE)
+  } else {
+    stat <- inverse_normal_statistic(pvalues, nrep)
+    rawpval <- stats::pnorm(stat, lower.tail = FALSE)
+  }
+  data.frame(TestStatistic = stat, rawpval = rawpval,
+             adjpval = stats::p.adjust(rawpval, method = "BH"))
+}
+
+# Inverse-normal combination as in metaRNASeq::invnorm(): each study's
+# z-score weighted by sqrt(n_s / sum(n)), over the studies with a p-value.
+# The z-scores use qnorm(p, lower.tail = FALSE) instead of qnorm(1 - p), which
+# is Inf for p below ~1e-16.
+inverse_normal_statistic <- function(pvalues, nrep) {
+  z <- stats::qnorm(pvalues, lower.tail = FALSE)
+  n <- matrix(nrep, nrow = nrow(z), ncol = ncol(z), byrow = TRUE)
+  n[is.na(z)] <- 0
+  weighted <- sqrt(n / rowSums(n)) * z
+  stat <- rowSums(weighted, na.rm = TRUE)
+  stat[rowSums(!is.na(z)) == 0] <- NA
+  stat
+}
+
+#' Meta-analysis methods
+#'
+#' @return A named character vector: the method codes used by [run_meta()],
+#'   named by their labels.
+#' @export
+#' @examples
+#' meta_methods()
+meta_methods <- function() {
+  c("Fisher" = "fisher", "Inverse normal" = "invnorm")
 }
 
 #' Direction of each gene's fold change across studies
@@ -105,15 +161,20 @@ consistent_direction <- function(fold_changes) {
 #' Run the TMA RNA-seq meta-analysis
 #'
 #' Removes genes with low counts in every study ([filter_low_counts()]), runs
-#' DESeq2 in every study, combines the p-values with Fisher's method, removes
-#' genes whose direction conflicts between studies, and collects everything
-#' the results tabs need in one `tma_result` object.
+#' the chosen DE method in every study, combines the p-values with the chosen
+#' meta-analysis method, removes genes whose direction conflicts between
+#' studies, and collects everything the results tabs need in one `tma_result`
+#' object.
 #'
 #' @param counts Counts data frame with a `Geneid` column and one column per
 #'   sample.
 #' @param design Experimental design data frame with `sample`, `study` and
 #'   `condition` columns.
 #' @param alpha Significance level for the per-study and meta-analysis tests.
+#' @param de_method DE method for all studies (one of [de_methods()]), or a
+#'   named character vector with one method per study.
+#' @param meta_method Meta-analysis method, `"fisher"` or `"invnorm"` (see
+#'   [run_meta()]).
 #' @param filter If `TRUE`, remove genes with low counts in every study
 #'   before the analysis (see [filter_low_counts()]).
 #' @param BPPARAM BiocParallel back-end for the per-study analyses, see
@@ -127,12 +188,14 @@ consistent_direction <- function(fold_changes) {
 #'     \item{fold_changes}{log2 fold changes (genes x studies).}
 #'     \item{meta}{meta-analysis table: `TestStatistic`, `rawpval`, `adjpval`
 #'       and `significant` ("yes"/"no"), one row per gene.}
-#'     \item{fc_select}{per-study DE flags, the Fisher flag `DE.fishercomb`,
+#'     \item{fc_select}{per-study DE flags, the meta-analysis flag `DE.meta`,
 #'       fold changes and the direction `signFC` of each gene.}
 #'     \item{meta_degs}{meta-significant, direction-consistent DEGs.}
 #'     \item{study_degs}{direction-consistent DEGs of each study.}
 #'     \item{idd_irr}{integration-driven discoveries and lost DEGs
 #'       ([metaRNASeq::IDD.IRR()]).}
+#'     \item{de_methods}{the DE method used for each study.}
+#'     \item{meta_method}{the meta-analysis method used.}
 #'     \item{alpha}{the significance level used.}
 #'   }
 #' @export
@@ -141,12 +204,16 @@ consistent_direction <- function(fold_changes) {
 #' demo <- tma_demo_data()
 #' res <- run_tma_pipeline(demo$counts, demo$design)
 #' length(res$meta_degs)
+#' res2 <- run_tma_pipeline(demo$counts, demo$design, de_method = "edgeR",
+#'                          meta_method = "invnorm")
 #' }
-run_tma_pipeline <- function(counts, design, alpha = 0.05, filter = TRUE,
+run_tma_pipeline <- function(counts, design, alpha = 0.05, de_method = "DESeq2",
+                             meta_method = "fisher", filter = TRUE,
                              BPPARAM = tma_bpparam(length(unique(design$study)))) {
   studies <- split_studies(counts, design)
   if (filter) studies <- filter_low_counts(studies)
-  de <- run_de_studies(studies, alpha = alpha, BPPARAM = BPPARAM)
+  de_methods_used <- study_methods(de_method, names(studies))
+  de <- run_de_studies(studies, methods = de_methods_used, alpha = alpha, BPPARAM = BPPARAM)
   genes <- rownames(studies[[1]]$counts)
   study_ids <- names(studies)
   tables <- lapply(de, `[[`, "table")
@@ -159,13 +226,14 @@ run_tma_pipeline <- function(counts, design, alpha = 0.05, filter = TRUE,
   padj <- de_column("padj")
   fold_changes <- de_column("log2_fc")
 
-  meta <- run_fisher_meta(pvalues, padj, alpha = alpha)
+  nrep <- vapply(studies, function(st) ncol(st$counts), integer(1))
+  meta <- run_meta(pvalues, padj, method = meta_method, nrep = nrep, alpha = alpha)
   sign_fc <- consistent_direction(fold_changes)
   consistent <- abs(sign_fc) == 1 & !is.na(sign_fc)
   study_flags <- ifelse(padj <= alpha, 1, 0)
 
   fc_select <- data.frame(study_flags,
-                          DE.fishercomb = ifelse(meta$adjpval <= alpha, 1, 0),
+                          DE.meta = ifelse(meta$adjpval <= alpha, 1, 0),
                           fold_changes,
                           signFC = sign_fc,
                           row.names = genes)
@@ -188,6 +256,8 @@ run_tma_pipeline <- function(counts, design, alpha = 0.05, filter = TRUE,
     meta_degs = meta_degs,
     study_degs = study_degs,
     idd_irr = metaRNASeq::IDD.IRR(meta_degs, unname(study_degs)),
+    de_methods = de_methods_used,
+    meta_method = unname(match.arg(meta_method, meta_methods())),
     alpha = alpha
   ), class = "tma_result")
 }
@@ -218,6 +288,8 @@ print.tma_result <- function(x, ...) {
   cat("TMA meta-analysis result\n")
   cat(" ", length(x$studies), "studies,", length(x$genes), "genes,",
       nrow(x$design), "samples\n")
+  cat("  DE methods:", paste(unique(x$de_methods), collapse = ", "),
+      " meta-analysis:", names(meta_methods())[meta_methods() == x$meta_method], "\n")
   cat(" ", length(x$meta_degs), "meta-analysis DEGs (alpha =", x$alpha, ")\n")
   invisible(x)
 }

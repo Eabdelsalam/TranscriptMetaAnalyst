@@ -36,9 +36,10 @@ Several of these changes fix errors in the results of earlier versions, so resul
 | Heatmap | The heatmap values are now attached to the correct gene and sample. Earlier versions could place values in the wrong cells. The heatmap no longer fails when the meta-analysis finds fewer DEGs than there are samples. |
 | Heatmap clusters | A new **Number of gene clusters** input (default 2) sets how many clusters the genes are split into, both in the interactive heatmap and in the downloaded PDF. |
 | PCA | The PCA now uses the correct normalized counts for every sample. Earlier versions mixed values between genes and samples. |
-| Volcano plot | The x-axis now shows the correct mean log2 fold change of each gene across studies. |
+| Volcano plot | The x-axis now shows the correct mean log2 fold change of each gene across studies. Very small *p*-values are now kept exact, so the most significant genes are drawn at their real height instead of on a flat line at the top of the plot. |
 | GO / KEGG enrichment | Enrichment is now run on the meta-analysis DEGs only (significant in the meta-analysis *and* changed in the same direction in every study). Earlier versions used every gene with a consistent direction, whether significant or not. |
 | Closing the app | When the app is started with `runTMA()`, it stops when its browser window is closed, as before. When it is deployed on a Shiny Server, closing one browser window no longer shuts the app down for all other users. |
+| Methods | Besides DESeq2, the differential expression can now be run with edgeR or limma-voom, for all studies or chosen per study. Besides Fisher's method, the *p*-values can be combined with the inverse-normal method. See [Analysis settings](#422-analysis-settings). |
 | Speed | The studies are analysed in parallel, and an uploaded analysis runs in the background, so the app stays responsive while it runs. The **Start Analysis!** button is disabled until the running analysis has finished. |
 | Demo | The demo analysis is computed the first time the **Run Demo Analysis** tab is opened and then reused, so opening the tab again shows the results immediately. |
 | Low-count genes | Genes with too few reads in every study are removed before the analysis (see [Analysis Pipeline](#5-analysis-pipeline)). They no longer appear in the results table. |
@@ -85,6 +86,7 @@ To start the RNA-Seq meta-analysis, click on the **RNA-Seq Meta Analysis** tab a
 - Count the mapped reads for the genomic features of interest and combine all the counts in one file, keeping genomic features as rows and the samples that will be included in the analysis as columns. This produces the final raw (unnormalized) counts file. ***Note that the counts file should have a 'Geneid' column.***
 - Upload the counts file produced by any feature counting tool, e.g., featureCounts or htseq-count, to the raw counts placeholder. ***Please refer to the example counts file via the provided download link.***
 - Upload the experimental design file. ***Please refer to the example file via the provided download link.*** This file should contain at least 3 columns: 'sample' refers to the sample names used as columns in the counts file, 'study' refers to the study to which the sample belongs, and 'condition' refers to the treatment or control conditions (only two conditions are allowed for comparison).
+- Optionally, choose the differential expression and meta-analysis methods in the **Analysis settings** box (the defaults are DESeq2 and Fisher's method).
 - Hit the ***Start Analysis!*** button and wait for the results to appear.
 - To perform further **Functional Annotation** of the DEGs identified via the meta-analysis, use the functional annotation box in the bottom-left corner of the page. The user needs to choose the organism before performing this analysis. This analysis needs an active internet connection and might take a while.
 
@@ -122,9 +124,28 @@ To perform a meta-analysis of RNA-Seq data using TMA, the user needs two input f
 
 *Figure 4: An example of the experimental design file. This example file contains the three required columns only.*
 
+#### 4.2.2 Analysis settings
+
+The **Analysis settings** box at the top of the tab sets how the data are analysed:
+
+- **Differential expression method**, used in each study: DESeq2 (default) [4], edgeR (quasi-likelihood F-test) [9] or limma-voom [10, 11].
+- **DE method per study (optional)**: once the experimental design file is uploaded, one drop-down per study lets you use a different method for that study. "Same as above" uses the method chosen for all studies.
+- **Meta-analysis method**: Fisher's method [5] (default) or the inverse-normal method [3], which weights each study by the square root of its number of samples.
+
+The **Which method should I use?** link in the box gives a short guide:
+
+- DESeq2 and edgeR both model counts with a negative-binomial distribution and work well with few replicates per group; in a benchmark with few replicates they were among the best-performing tools [12].
+- limma-voom fits linear models on log-counts with precision weights. It is fast and a good choice for larger studies or when library sizes differ a lot.
+- Fisher's method can make a gene significant on the strength of a single study.
+- The inverse-normal method favours genes with consistent evidence across studies and gives larger studies more weight.
+
+Changes take effect the next time **Start Analysis!** is clicked. The methods used are shown in the *Number of studies* box of the results.
+
 ### 4.3 Run Demo Analysis
 
 The Demo Analysis tab (Figure 5) gives users hands-on experience of how TMA works. By clicking the ***"Run Demo Analysis"*** tab, users run a demo analysis using simulated data of *Synechocystis* sp. based on our previously published meta-analysis [1]. After clicking, a message shows that the demo analysis is running. After a while, the message disappears and the results become visible. The demo analysis generates the entire set of results, including all the meta-analysis outputs and figures discussed in the [Outputs](#6-outputs) section. This lets users test the app's functionality, understand the analysis workflow, and learn how to navigate the app's tabs and sections before working with their own data.
+
+The Demo tab has its own **Analysis settings** box with the differential expression and meta-analysis methods (without the per-study option), so all method combinations can be tried on the demo data. The results update when a setting is changed; each combination is computed once and then reused.
 
 ![Figure 5](figures/fig05_demo_tab.png)
 
@@ -145,8 +166,8 @@ After uploading the required files, several checks are performed to make sure th
 If the files pass the checks, the analysis starts automatically and a loading screen appears until the results are ready. Behind the scenes:
 
 1. Genes with too few reads are removed with the `filterByExpr` function of the edgeR package [9]. A gene is kept for all studies if it has enough reads in at least one study; genes that are low in every study are removed. Within each study, DESeq2's own filtering still handles genes that are low there.
-2. DEGs are identified in each study separately using the DESeq2 package [4]. The studies are analysed in parallel.
-3. The raw *p*-values of the studies are combined using Fisher's method [5] via the metaRNASeq package [3], and the combined *p*-values are adjusted with the Benjamini–Hochberg method. Genes with an adjusted meta-analysis *p*-value ≤ 0.05 are significant.
+2. DEGs are identified in each study separately with the chosen method: DESeq2 [4], edgeR [9] or limma-voom [10, 11]. The studies are analysed in parallel. Whatever the method, the plots (PCA, heatmap, count plots) use DESeq2-normalised counts, so they look the same for every method.
+3. The raw *p*-values of the studies are combined with Fisher's method [5] or the inverse-normal method via the metaRNASeq package [3], and the combined *p*-values are adjusted with the Benjamini–Hochberg method. Genes with an adjusted meta-analysis *p*-value ≤ 0.05 are significant.
 4. As a validation step, genes with conflicting directions (up-regulated in one study and down-regulated in another) are removed. The remaining significant genes are the **meta-analysis DEGs**. They are used for the heatmap, the Venn/UpSet plots and the functional annotation.
 
 If the user would like to perform further functional annotation of the identified DEGs, Gene Ontology (GO) and KEGG pathway enrichment analyses can be run on the **meta-analysis DEGs**. For GO, the user selects the studied organism from the drop-down menu (Figure 7a) and runs the analysis. This analysis is based on the PANTHER Classification System v17.0 [6] and is performed with the `rbioapi` package. The KEGG pathway enrichment analysis is performed with the clusterProfiler package [7]. For KEGG, the user types the 3-letter code of the studied organism, which can be found in the [KEGG Organisms Database](https://www.genome.jp/kegg-bin/get_htext?br08601), before running the analysis (Figure 7b). If the meta-analysis found no DEGs, the app shows a message instead of running the enrichment.
@@ -163,7 +184,7 @@ The same analysis can also be run from R without the app, for example to reprodu
 library(TranscriptMetaAnalyst)
 counts <- read_tma_table("counts.txt")
 design <- read_tma_table("design.txt")
-res <- run_tma_pipeline(counts, design)
+res <- run_tma_pipeline(counts, design, de_method = "edgeR", meta_method = "invnorm")
 res$meta_degs              # meta-analysis DEGs
 plot_volcano(volcano_data(res))
 ```
@@ -186,7 +207,7 @@ Below the information boxes, the results screen is divided into 4 main sections.
 
 TMA generates several main plots to give the user an overview of the analyzed dataset and the identified DEGs. The figures below were produced from the demo data.
 
-1. The ***p*-values distribution** plot (Figure 9) shows the distribution of all raw meta-analysis *p*-values, so the user can check their distribution. The *p*-value combination method assumes a uniform distribution under the null hypothesis, so no peak other than the one near zero should appear in the distribution.
+1. The ***p*-values distribution** plot (Figure 9) shows the distribution of all raw meta-analysis *p*-values (its title names the meta-analysis method), so the user can check their distribution. The *p*-value combination method assumes a uniform distribution under the null hypothesis, so no peak other than the one near zero should appear in the distribution.
 
    ![Figure 9](figures/fig09_pvalue_dist.png)
 
@@ -212,7 +233,7 @@ TMA generates several main plots to give the user an overview of the analyzed da
 
    *Figure 12: The intersection of identified DEGs is shown via (a) a Venn diagram, if the number of analyzed studies is 3 or fewer, and (b) an UpSet plot.*
 
-5. Finally, a **volcano plot** (Figure 13) shows the adjusted meta-analysis *p*-values (−log10) on the y-axis and the mean log2 fold change of each gene across all studies on the x-axis. It is generated with the `EnhancedVolcano` package. The figure and the data used to create it are available for download.
+5. Finally, a **volcano plot** (Figure 13) shows the adjusted meta-analysis *p*-values (−log10) on the y-axis and the mean log2 fold change of each gene across all studies on the x-axis. It is generated with the `EnhancedVolcano` package. TMA computes the meta-analysis *p*-values so that values far below 10⁻¹⁶ stay exact; in the rare case that a *p*-value is still exactly 0, it is drawn at the height of the smallest non-zero *p*-value. The figure and the data used to create it are available for download.
 
    ![Figure 13](figures/fig13_volcano.png)
 
@@ -247,3 +268,6 @@ If the user performs functional annotation of the meta-analysis DEGs via GO and 
 7. Wu, T. *et al.* clusterProfiler 4.0: A universal enrichment tool for interpreting omics data. *The Innovation* **2**, 100141 (2021).
 8. Galili, T., O'Callaghan, A., Sidi, J. & Sievert, C. Heatmaply: An R package for creating interactive cluster heatmaps for online publishing. *Bioinformatics* **34**, 1600–1602 (2017).
 9. Chen, Y., Lun, A. T. L. & Smyth, G. K. From reads to genes to pathways: differential expression analysis of RNA-Seq experiments using Rsubread and the edgeR quasi-likelihood pipeline. *F1000Research* **5**, 1438 (2016).
+10. Law, C. W., Chen, Y., Shi, W. & Smyth, G. K. voom: precision weights unlock linear model analysis tools for RNA-seq read counts. *Genome Biology* **15**, R29 (2014).
+11. Ritchie, M. E. *et al.* limma powers differential expression analyses for RNA-sequencing and microarray studies. *Nucleic Acids Research* **43**, e47 (2015).
+12. Schurch, N. J. *et al.* How many biological replicates are needed in an RNA-seq experiment and which differential expression tool should you use? *RNA* **22**, 839–851 (2016).

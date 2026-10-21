@@ -32,3 +32,17 @@ test_that("deg_sets holds each study's DEGs and the meta DEGs", {
   expect_named(sets, c(res$studies, "Meta"))
   expect_equal(sets$Meta, res$meta_degs)
 })
+
+test_that("volcano_data has no zero p-values for the plot", {
+  res <- demo_result()
+  vol <- volcano_data(res)
+  expect_false(any(vol$pval == 0, na.rm = TRUE))
+  expect_false(any(vol$capped))
+
+  # a p-value that is exactly 0 is capped at the smallest non-zero one
+  res$meta$adjpval[1:2] <- 0
+  vol <- volcano_data(res)
+  smallest <- min(res$meta$adjpval[res$meta$adjpval > 0], na.rm = TRUE)
+  expect_equal(vol$pval[1:2], c(smallest, smallest))
+  expect_equal(which(vol$capped), 1:2)
+})

@@ -51,7 +51,7 @@ baseline_pipeline <- function(counts, design) {
                           DE.fishercomb = ifelse(fishcomb$adjpval <= 0.05, 1, 0),
                           do.call(cbind, fold_changes),
                           signFC = common_sign)
-  meta_degs <- select_meta_degs(fc_select)
+  meta_degs <- rownames(fc_select)[which(fc_select$DE.fishercomb == 1 & abs(fc_select$signFC) == 1)]
 
   norm_counts <- lapply(studies_deseq, function(x) DESeq2::counts(x, normalized = TRUE))
   list(

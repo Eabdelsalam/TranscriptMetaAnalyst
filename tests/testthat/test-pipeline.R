@@ -11,11 +11,11 @@ test_that("split_studies orders columns by the design and ignores annotation col
   expect_equal(rownames(studies$B$design), "s3")
 })
 
-test_that("run_fisher_meta matches fishercomb and drops filtered p-values", {
+test_that("run_meta (Fisher) matches fishercomb and drops filtered p-values", {
   p <- matrix(c(0.001, 0.2, 0.5, 0.04, 0.004, 0.3, 0.9, 0.01), ncol = 2)
   padj <- p
   padj[2, 1] <- NA
-  meta <- run_fisher_meta(p, padj)
+  meta <- run_meta(p, padj)
 
   manual <- p
   manual[2, 1] <- NA
@@ -23,7 +23,7 @@ test_that("run_fisher_meta matches fishercomb and drops filtered p-values", {
   expect_equal(meta$rawpval, fish$rawpval)
   expect_equal(meta$adjpval, fish$adjpval)
   # the filtered p-value is left out, so the result differs from using it
-  unfiltered <- run_fisher_meta(p, p)
+  unfiltered <- run_meta(p, p)
   expect_false(isTRUE(all.equal(meta$rawpval[2], unfiltered$rawpval[2])))
 })
 
@@ -100,4 +100,98 @@ test_that("pre-filtering keeps every demo gene, so the demo result is unchanged"
   expect_equal(res$genes, demo$counts$Geneid)
   unfiltered <- run_tma_pipeline(demo$counts, demo$design, filter = FALSE)
   expect_equal(res$meta_degs, unfiltered$meta_degs)
+})
+
+test_that("run_meta (inverse normal) matches invnorm with sqrt(n) weights", {
+  p <- matrix(c(0.001, 0.2, 0.5, 0.04, 0.004, 0.3, 0.9, 0.01), ncol = 2)
+  meta <- run_meta(p, p, method = "invnorm", nrep = c(4, 8))
+  ref <- metaRNASeq::invnorm(list(p[, 1], p[, 2]), nrep = c(4, 8), BHth = 0.05)
+  expect_equal(meta$rawpval, ref$rawpval)
+  expect_equal(meta$adjpval, ref$adjpval)
+
+  # by hand for the first gene: weights sqrt(4/12) and sqrt(8/12)
+  z <- sqrt(4 / 12) * stats::qnorm(1 - 0.001) + sqrt(8 / 12) * stats::qnorm(1 - 0.004)
+  expect_equal(meta$TestStatistic[1], z)
+  expect_error(run_meta(p, p, method = "invnorm"), "nrep")
+})
+
+test_that("run_meta (inverse normal) stays finite when a study has p = 1", {
+  p <- matrix(c(1e-20, 0.3, 1, 0.2), ncol = 2)
+  meta <- run_meta(p, p, method = "invnorm", nrep = c(4, 4))
+  expect_false(anyNA(meta$rawpval))
+})
+
+test_that("run_tma_pipeline runs every DE and meta-analysis method combination", {
+  demo <- tma_demo_data()
+  for (de in de_methods()) {
+    for (meta in meta_methods()) {
+      res <- run_tma_pipeline(demo$counts, demo$design, de_method = de, meta_method = meta)
+      expect_equal(unname(res$de_methods), rep(de, 3))
+      expect_equal(res$meta_method, meta)
+      expect_gt(length(res$meta_degs), 0)
+      expect_true(all(res$meta[res$meta_degs, "adjpval"] <= 0.05))
+    }
+  }
+})
+
+test_that("run_tma_pipeline accepts a DE method per study", {
+  demo <- tma_demo_data()
+  methods <- c(A = "DESeq2", B = "edgeR", C = "limma-voom")
+  res <- run_tma_pipeline(demo$counts, demo$design, de_method = methods)
+  expect_equal(res$de_methods, methods)
+  expect_equal(res$de$B, run_edger(split_studies(demo$counts, demo$design)$B$counts,
+                                   split_studies(demo$counts, demo$design)$B$design)$table)
+  expect_output(print(res), "DESeq2, edgeR, limma-voom")
+})
+
+test_that("the inverse-normal meta-analysis weights studies by their sample size", {
+  res <- demo_result()
+  inv <- run_tma_pipeline(tma_demo_data()$counts, tma_demo_data()$design, meta_method = "invnorm")
+  p <- res$de
+  pval <- sapply(p, `[[`, "pvalue")
+  padj <- sapply(p, `[[`, "padj")
+  direct <- run_meta(pval, padj, method = "invnorm", nrep = c(4, 4, 4))
+  expect_equal(inv$meta$adjpval, direct$adjpval)
+})
+
+test_that("meta-analysis p-values keep their precision below 1e-16", {
+  # metaRNASeq computes 1 - pchisq() / 1 - pnorm(), which rounds very small
+  # p-values to exactly 0; they must stay positive
+  res <- demo_result()
+  expect_false(any(res$meta$rawpval == 0, na.rm = TRUE))
+  expect_false(any(res$meta$adjpval == 0, na.rm = TRUE))
+
+  p <- matrix(c(1e-12, 0.3, 1e-10, 0.2, 1e-9, 0.5), ncol = 3)
+  for (m in meta_methods()) {
+    meta <- run_meta(p, p, method = m, nrep = c(4, 4, 4))
+    expect_gt(meta$rawpval[1], 0)
+    expect_lt(meta$rawpval[1], 1e-20)
+  }
+  fisher <- run_meta(p, p)
+  expect_equal(fisher$rawpval[1], stats::pchisq(-2 * sum(log(p[1, ])), df = 6, lower.tail = FALSE))
+})
+
+test_that("inverse normal stays finite when a study has p below 1e-16", {
+  # metaRNASeq::invnorm uses qnorm(1 - p), which is Inf for p < ~1e-16, so one
+  # tiny p-value made the gene infinitely significant whatever the others say
+  p <- matrix(c(1e-30, 0.5, 0.6), nrow = 1)
+  meta <- run_meta(p, p, method = "invnorm", nrep = c(4, 4, 4))
+  w <- sqrt(c(4, 4, 4) / 12)
+  z <- sum(w * stats::qnorm(c(1e-30, 0.5, 0.6), lower.tail = FALSE))
+  expect_true(is.finite(meta$TestStatistic))
+  expect_equal(meta$TestStatistic, z)
+  expect_equal(meta$rawpval, stats::pnorm(z, lower.tail = FALSE))
+
+  # a missing p-value drops that study and renormalises the weights
+  p_na <- matrix(c(1e-30, NA, 0.6), nrow = 1)
+  meta_na <- run_meta(p_na, p_na, method = "invnorm", nrep = c(4, 4, 4))
+  z_na <- sum(sqrt(c(4, 4) / 8) * stats::qnorm(c(1e-30, 0.6), lower.tail = FALSE))
+  expect_equal(meta_na$TestStatistic, z_na)
+})
+
+test_that("the inverse-normal demo result has no infinite statistics", {
+  demo <- tma_demo_data()
+  res <- run_tma_pipeline(demo$counts, demo$design, meta_method = "invnorm")
+  expect_false(any(is.infinite(res$meta$TestStatistic)))
+  expect_false(any(res$meta$rawpval == 0, na.rm = TRUE))
 })

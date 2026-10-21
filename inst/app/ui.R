@@ -82,6 +82,7 @@ ui <- dashboardPage(
       ##### RNA-SEQ ANALYSIS TAB #####
       ################################
       tabItem(tabName = "rnaseq",
+        fluidRow(mod_settings_ui("rnaseq_settings", per_study = TRUE)),
         div(id = "rnaseq_steps",
             fluidPage(
               box(title = "RNA-Seq Quick Start",
@@ -101,6 +102,7 @@ ui <- dashboardPage(
       ##### DEMO ANALYSIS TAB #####
       #############################
       tabItem(tabName = "demo",
+              fluidRow(mod_settings_ui("demo_settings")),
               mod_results_ui("demo")
       ), #close demo tab item
       
