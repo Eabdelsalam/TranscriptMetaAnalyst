@@ -7,11 +7,14 @@
 \usage{
 tma_script(
   settings,
-  data = c("upload", "demo"),
+  data = c("upload", "demo", "geo"),
   counts_name = NULL,
   design_name = NULL,
   enrichment = NULL,
-  output_dir = "tma_results"
+  output_dir = "tma_results",
+  platform = c("rnaseq", "array"),
+  array_files = NULL,
+  geo = NULL
 )
 
 write_tma_script(file, ...)
@@ -22,7 +25,9 @@ settings module: \code{de_method} (one method or a named vector with one per
 study), \code{meta_method}, \code{batch_method}, \code{batch_plots} and \code{reference}
 (\code{NULL} for the default reference).}
 
-\item{data}{\code{"upload"} (placeholder paths) or \code{"demo"} (bundled demo data).}
+\item{data}{\code{"upload"} (placeholder paths), \code{"demo"} (bundled demo data) or,
+for microarrays, \code{"geo"} (studies imported from GEO; the script downloads
+them again).}
 
 \item{counts_name, design_name}{Names of the uploaded files, quoted in the
 script to help the user find them.}
@@ -33,6 +38,14 @@ placeholders.}
 
 \item{output_dir}{Folder, relative to the working directory, where the
 script writes its results.}
+
+\item{platform}{\code{"rnaseq"} or \code{"array"} (microarray tab).}
+
+\item{array_files}{Names of the uploaded microarray expression files.}
+
+\item{geo}{For \code{data = "geo"}: a list with one element per study, each a
+list with \code{gse}, \code{platform}, \code{condition_column}, \code{labels} (named
+character vector) and \code{gene_column}, as chosen in the app.}
 
 \item{file}{Path of the script file to write.}
 

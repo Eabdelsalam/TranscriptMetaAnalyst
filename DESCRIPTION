@@ -6,7 +6,7 @@ Description: This app is designed to help biologists with less programming skill
 License: MIT + file LICENSE
 Encoding: UTF-8
 Imports:
-  shiny (>= 1.8.1), shinydashboard, shinyjs, shinyalert, shinycssloaders, DESeq2, metaRNASeq, ggplot2, ggvenn, ComplexHeatmap, pheatmap, EnhancedVolcano, DT, rbioapi, clusterProfiler, heatmaply, plotly, SummarizedExperiment, edgeR, limma, sva, BiocParallel, future, promises, graphics, grDevices, stats, utils
+  shiny (>= 1.8.1), shinydashboard, shinyjs, shinyalert, shinycssloaders, DESeq2, metaRNASeq, ggplot2, ggvenn, ComplexHeatmap, pheatmap, EnhancedVolcano, DT, rbioapi, clusterProfiler, heatmaply, plotly, SummarizedExperiment, edgeR, limma, sva, GEOquery, Biobase, BiocParallel, future, promises, graphics, grDevices, stats, utils
 Suggests:
   testthat (>= 3.0.0),
   withr,

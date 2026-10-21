@@ -77,7 +77,9 @@ conditions and returns the single \code{tma_result}, a list with
 \item{design}{the design rows of the samples used in this contrast.}
 \item{studies, genes}{study names and the names of the analysed genes.}
 \item{de}{per-study DE tables of this contrast (see \code{\link[=run_deseq2]{run_deseq2()}}).}
-\item{norm_counts}{normalised counts of the samples used (genes x samples).}
+\item{norm_counts}{normalised counts of the samples used (genes x samples);
+for microarray data, the log2 expression values.}
+\item{scale}{\code{"counts"} (RNA-seq) or \code{"log2"} (microarray).}
 \item{fold_changes}{log2 fold changes (genes x studies).}
 \item{meta}{meta-analysis table: \code{TestStatistic}, \code{rawpval}, \code{adjpval}
 and \code{significant} ("yes"/"no"), one row per gene.}

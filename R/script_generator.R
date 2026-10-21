@@ -15,9 +15,16 @@
 #'   settings module: `de_method` (one method or a named vector with one per
 #'   study), `meta_method`, `batch_method`, `batch_plots` and `reference`
 #'   (`NULL` for the default reference).
-#' @param data `"upload"` (placeholder paths) or `"demo"` (bundled demo data).
+#' @param data `"upload"` (placeholder paths), `"demo"` (bundled demo data) or,
+#'   for microarrays, `"geo"` (studies imported from GEO; the script downloads
+#'   them again).
 #' @param counts_name,design_name Names of the uploaded files, quoted in the
 #'   script to help the user find them.
+#' @param platform `"rnaseq"` or `"array"` (microarray tab).
+#' @param array_files Names of the uploaded microarray expression files.
+#' @param geo For `data = "geo"`: a list with one element per study, each a
+#'   list with `gse`, `platform`, `condition_column`, `labels` (named
+#'   character vector) and `gene_column`, as chosen in the app.
 #' @param enrichment Optional list with `id_type`, `go`, `kegg` and `string`
 #'   (organisms) to fill in the enrichment section; missing values are left as
 #'   placeholders.
@@ -30,9 +37,12 @@
 #' settings <- list(de_method = "DESeq2", meta_method = "fisher",
 #'                  batch_method = "none", batch_plots = FALSE, reference = NULL)
 #' cat(tma_script(settings, data = "demo"), sep = "\n")
-tma_script <- function(settings, data = c("upload", "demo"), counts_name = NULL,
-                       design_name = NULL, enrichment = NULL, output_dir = "tma_results") {
+tma_script <- function(settings, data = c("upload", "demo", "geo"), counts_name = NULL,
+                       design_name = NULL, enrichment = NULL, output_dir = "tma_results",
+                       platform = c("rnaseq", "array"), array_files = NULL, geo = NULL) {
   data <- match.arg(data)
+  platform <- match.arg(platform)
+  if (data == "geo" && platform != "array") stop("GEO import is only used for microarray data.", call. = FALSE)
   r <- function(x) paste(deparse(x, width.cutoff = 500L), collapse = "")
   setting <- function(name, default) if (is.null(settings[[name]])) default else settings[[name]]
   version <- tryCatch(as.character(utils::packageVersion("TranscriptMetaAnalyst")),
@@ -40,12 +50,14 @@ tma_script <- function(settings, data = c("upload", "demo"), counts_name = NULL,
 
   banner <- if (data == "upload") {
     c("# ======================================================================",
-      "# !! The two file paths below are PLACEHOLDERS.                       !!",
-      "# !! Replace them with the paths of your counts and design files      !!",
-      "# !! before running this script.                                      !!",
+      "# !! The input file paths below are PLACEHOLDERS.                     !!",
+      "# !! Replace them with the paths of your files before running this    !!",
+      "# !! script.                                                          !!",
       "# ======================================================================")
   }
-  input <- if (data == "upload") {
+  input <- if (platform == "array") {
+    array_input(data, array_files, design_name, geo, r)
+  } else if (data == "upload") {
     c("# Input files (EDIT THESE TWO PATHS)",
       sprintf("counts <- read_tma_table(\"PATH/TO/%s\")  # <- your counts file%s",
               if (is.null(counts_name)) "counts_file.txt" else counts_name,
@@ -79,10 +91,10 @@ tma_script <- function(settings, data = c("upload", "demo"), counts_name = NULL,
     input,
     "",
     "# Analysis settings used in the app",
-    "analysis <- run_tma_analysis(",
-    "  counts, design,",
+    if (platform == "array") "analysis <- run_array_analysis(" else "analysis <- run_tma_analysis(",
+    if (platform == "array") "  matrices, design," else "  counts, design,",
     sprintf("  reference = %s,", r(setting("reference", NULL))),
-    sprintf("  de_method = %s,", r(setting("de_method", "DESeq2"))),
+    if (platform == "rnaseq") sprintf("  de_method = %s,", r(setting("de_method", "DESeq2"))),
     sprintf("  meta_method = %s,", r(setting("meta_method", "fisher"))),
     sprintf("  batch_method = %s,", r(setting("batch_method", "none"))),
     sprintf("  batch_plots = %s", r(isTRUE(setting("batch_plots", FALSE)))),
@@ -140,4 +152,36 @@ tma_script <- function(settings, data = c("upload", "demo"), counts_name = NULL,
 write_tma_script <- function(file, ...) {
   writeLines(tma_script(...), file)
   invisible(file)
+}
+
+# Input section of a microarray script
+array_input <- function(data, array_files, design_name, geo, r) {
+  if (data == "demo") {
+    return(c("# Input: the microarray demo data bundled with TranscriptMetaAnalyst",
+             "demo <- tma_microarray_demo_data()",
+             "matrices <- demo$matrices",
+             "design <- demo$design"))
+  }
+  if (data == "geo") {
+    studies <- vapply(geo, function(g) {
+      sprintf("  %s = geo_study(fetch_geo(%s)[[%s]], %s,\n    condition_column = %s,\n    labels = %s,\n    gene_column = %s)",
+              g$gse, r(g$gse), r(g$platform), r(g$gse), r(g$condition_column), r(g$labels),
+              r(if (is.null(g$gene_column) || g$gene_column == "") NULL else g$gene_column))
+    }, character(1))
+    return(c("# Input: the GEO series imported in the app (downloaded and cached;",
+             "# needs an internet connection the first time)",
+             "studies <- list(",
+             paste(studies, collapse = ",\n"),
+             ")",
+             "matrices <- lapply(studies, `[[`, \"matrix\")",
+             "design <- do.call(rbind, unname(lapply(studies, `[[`, \"design\")))"))
+  }
+  files <- if (length(array_files) == 0) "expression_file.txt" else array_files
+  c("# Input files (EDIT THESE PATHS): one expression file per study, and the design file",
+    "matrices <- list(",
+    paste0(sprintf("  read_array_matrix(\"PATH/TO/%s\")", files), c(rep(",", length(files) - 1), ""),
+           "  # <- your expression file"),
+    ")",
+    sprintf("design <- read_tma_table(\"PATH/TO/%s\")  # <- your design file",
+            if (is.null(design_name)) "design_file.txt" else design_name))
 }
