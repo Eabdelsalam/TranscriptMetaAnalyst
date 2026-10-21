@@ -95,7 +95,7 @@ open_tab <- function(tab) {
 # Home (Figure 1)
 app$get_screenshot(fig("fig01_home_tab"), selector = "viewport")
 
-# RNA-Seq tab before an upload: settings, batch check and quick start (Figure 2)
+# RNA-Seq tab before an analysis: settings, data and batch-check boxes (Figure 2)
 open_tab("rnaseq")
 app$get_screenshot(fig("fig02_rnaseq_tab"), selector = "viewport")
 
@@ -110,26 +110,18 @@ shot_of(fig("fig05_microarray_input"), "#fig-array-input")
 mark_box("Data preparation", "fig-array-preparation")
 shot_from(fig("fig06_microarray_preparation"), "#fig-array-preparation")
 
-# Demo tab with the results (Figures 7 and 11)
-open_tab("demo")
-wait_for_text("genes were identified as DEGs")
-Sys.sleep(3)
-app$get_screenshot(fig("fig07_demo_tab"), selector = "viewport")
-mark_box("Meta-analysis DEGs", "fig-degs")
-shot_from(fig("fig10_outputs_overview"), "#shiny-tab-demo .info-box")
-
-# DEGs table (Figure 16a)
-shot_of(fig("fig16a_degs_table"), "#fig-degs")
-
-# Functional annotation inputs of an RNA-Seq analysis of the example files:
-# GO and KEGG tabs with the organism and ID-type inputs (Figure 9)
+# RNA-Seq tab with the results of the demo data (Figures 9, 10 and 16a)
 open_tab("rnaseq")
-app$upload_file(rnaseq_counts = tma_example_file("counts"))
-app$upload_file(rnaseq_design = tma_example_file("design"))
-app$click("rnaseq_analyze")
+app$click("rnaseq_demo")
 wait_for_text("Download R script")
 wait_for_text("genes were identified as DEGs")
 Sys.sleep(5)
+shot_from(fig("fig10_outputs_overview"), "#shiny-tab-rnaseq .info-box")
+mark_box("Meta-analysis DEGs", "fig-degs")
+shot_of(fig("fig16a_degs_table"), "#fig-degs")
+
+# Functional annotation inputs, with the demo organism preselected: GO and
+# KEGG tabs with the organism and ID-type inputs (Figure 9)
 mark_box("Functional Annotation", "fig-enrichment")
 # the tab box and the Enrichment input box below it
 app$run_js("document.querySelector('#fig-enrichment').closest('.col-sm-6').id = 'fig-enrichment-column';")
