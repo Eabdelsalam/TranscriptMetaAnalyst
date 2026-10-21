@@ -7,7 +7,7 @@
 # Review the diff of demo-reference.txt before committing it.
 
 testthat::source_test_helpers("tests/testthat", env = environment())
-demo <- demo_pipeline()
+demo <- demo_result()
 
 out_file <- file.path("tests", "testthat", "fixtures", "demo-reference.txt")
 header <- c(
