@@ -87,6 +87,12 @@ test_that("the RNA-Seq tab runs the demo data", {
   wait_for_text(app, "genes were identified as DEGs")
   expect_match(page_text(app), "Meta-analysis DEGs")
   expect_match(page_text(app), "Treated vs Cont")
+  # the reproducible analysis downloads as a valid ZIP (once the button's
+  # link is set; before that it points to the page itself)
+  app$wait_for_js("(document.getElementById('rnaseq_bundle').getAttribute('href') || '').includes('session/')")
+  zip_file <- app$get_download("rnaseq_bundle")
+  listed <- zip::zip_list(zip_file)$filename
+  expect_true(all(c("tma_analysis/analysis.R", "tma_analysis/setup.R", "tma_analysis/data/counts.txt") %in% listed))
   expect_no_app_errors(app)
 })
 

@@ -14,6 +14,14 @@ function(input, output, session) {
     contentType = "text/plain"
   )
 
+  #an analysis with its run time (seconds) recorded, for the analysis bundle
+  timed <- function(expr) {
+    start <- Sys.time()
+    out <- expr
+    attr(out, "run_time") <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+    out
+  }
+
   ####### RNA-Seq Analysis #######
   #the data that "Start Analysis!" analyses: the uploaded files, or the demo
   #data after "Load demo data" (until a file is uploaded again)
@@ -59,9 +67,9 @@ function(input, output, session) {
   rnaseq_task <- ExtendedTask$new(function(counts, design, de_method, meta_method,
                                             batch_method, batch_plots, reference) {
     promises::future_promise(
-      run_tma_analysis(counts, design, reference = reference, de_method = de_method,
-                       meta_method = meta_method, batch_method = batch_method,
-                       batch_plots = batch_plots),
+      timed(run_tma_analysis(counts, design, reference = reference, de_method = de_method,
+                             meta_method = meta_method, batch_method = batch_method,
+                             batch_plots = batch_plots)),
       seed = TRUE
     )
   })
@@ -80,7 +88,7 @@ function(input, output, session) {
     }
     shinyalert("Running...", "RNA-Seq meta-analysis is in progress... \nResults will appear soon!",
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
-    rnaseq_run(list(data = rnaseq_source(), settings = settings,
+    rnaseq_run(list(data = rnaseq_source(), settings = settings, inputs = data[c("counts", "design")],
                     counts_name = input$rnaseq_counts$name, design_name = input$rnaseq_design$name))
     rnaseq_task$invoke(data$counts, data$design, settings$de_method, settings$meta_method,
                        settings$batch_method, settings$batch_plots, settings$reference)
@@ -110,7 +118,7 @@ function(input, output, session) {
 
   #results of an analysis: a summary of the comparisons and one results tab per
   #contrast (condition vs reference); used by the RNA-seq and microarray tabs
-  analysis_results <- function(prefix, analysis, script_id, selected = NULL) {
+  analysis_results <- function(prefix, analysis, script_id, bundle_id, bundle, selected = NULL) {
     output[[paste0(prefix, "_results")]] <- renderUI({
       res <- analysis()
       results <- res$results
@@ -129,7 +137,8 @@ function(input, output, session) {
           tableOutput(paste0(prefix, "_summary")),
           if (length(messages) > 0) tags$ul(lapply(messages, tags$li)),
           downloadButton(script_id, "Download R script"),
-          helpText("An R script that repeats this analysis with the TranscriptMetaAnalyst package. For uploaded files, the input file paths in the script are placeholders: replace them with the paths of your files before running it.")
+          downloadButton(bundle_id, "Download reproducible analysis (ZIP)"),
+          helpText("The R script repeats this analysis with the TranscriptMetaAnalyst package; for uploaded files, its input file paths are placeholders that you replace with the paths of your files. The reproducible analysis (ZIP) is ready to run: it contains the data as used, a setup script that installs this TMA release, the analysis script with every setting of this run (including the plot options and enrichment choices of each comparison), and the results of this run for comparison.")
         )),
         do.call(tabsetPanel, c(list(id = paste0(prefix, "_contrasts")), unname(tabs)))
       )
@@ -139,8 +148,10 @@ function(input, output, session) {
       data.frame(Comparison = summary$contrast, `Studies used` = summary$studies,
                  `Meta-analysed` = ifelse(summary$analysed, "yes", "no"), check.names = FALSE)
     })
-    #a results module per contrast tab, created once per tab position
+    #a results module per contrast tab, created once per tab position; each
+    #reports the plot options and enrichment choices made in its tab
     n_modules <- 0
+    modules <- list()
     observeEvent(analysis(), {
       res <- analysis()
       while (n_modules < length(res$results)) {
@@ -152,9 +163,10 @@ function(input, output, session) {
             req(length(results) >= i)
             results[[i]]
           })
-          mod_results_server(paste0(prefix, "_c", i), result_i,
-                             file_prefix = reactive(paste0(prefix, "_", gsub("[^A-Za-z0-9]+", "_", result_i()$contrast))),
-                             selected = selected)
+          modules[[i]] <<- mod_results_server(
+            paste0(prefix, "_c", i), result_i,
+            file_prefix = reactive(paste0(prefix, "_", gsub("[^A-Za-z0-9]+", "_", result_i()$contrast))),
+            selected = selected)
         })
       }
       #tell the user which studies or comparisons were left out (replicate rule)
@@ -163,11 +175,39 @@ function(input, output, session) {
         shinyalert("Some studies were left out", paste(messages, collapse = "\n\n"), type = "warning")
       }
     })
+    #plot options and enrichment choices of every comparison, by name
+    tab_settings <- function() {
+      contrasts <- names(analysis()$results)
+      list(plot_options = stats::setNames(lapply(seq_along(contrasts), function(i) modules[[i]]$plot_options()), contrasts),
+           enrichment = stats::setNames(lapply(seq_along(contrasts), function(i) modules[[i]]$enrichment()), contrasts))
+    }
+    #ready-to-run bundle: data, setup and analysis scripts, settings, results
+    output[[bundle_id]] <- downloadHandler(
+      filename = function() paste0("tma_analysis_", format(Sys.Date()), ".zip"),
+      content = function(file) {
+        res <- analysis()
+        tabs <- tab_settings()
+        b <- bundle()
+        withProgress(message = "Preparing the reproducible analysis...", value = 0.5, {
+          write_tma_bundle(file, res, b$inputs, b$settings, platform = b$platform, source = b$source,
+                           plot_options = tabs$plot_options, enrichment = tabs$enrichment, geo = b$geo,
+                           input_names = b$input_names, run_time = attr(res, "run_time"))
+        })
+      },
+      contentType = "application/zip"
+    )
+    tab_settings
   }
   #the demo data use Synechocystis locus tags: preselect them for the enrichment
   demo_enrichment <- list(id_type = "kegg", go = 1111708, kegg = "syn", string = 1148)
-  analysis_results("rnaseq", rnaseq_analysis, "rnaseq_script",
-                   selected = reactive(if (identical(rnaseq_run()$data, "demo")) demo_enrichment))
+  rnaseq_tabs <- analysis_results(
+    "rnaseq", rnaseq_analysis, "rnaseq_script", "rnaseq_bundle",
+    bundle = function() {
+      run <- rnaseq_run()
+      list(inputs = run$inputs, settings = run$settings, platform = "rnaseq", source = run$data,
+           input_names = c(counts = run$counts_name, design = run$design_name))
+    },
+    selected = reactive(if (identical(rnaseq_run()$data, "demo")) demo_enrichment))
 
   #reproducible R script of the last analysis (placeholder file paths for
   #uploaded files)
@@ -177,12 +217,11 @@ function(input, output, session) {
       run <- rnaseq_run()
       settings <- run$settings[c("de_method", "meta_method", "batch_method", "batch_plots")]
       settings$reference <- rnaseq_analysis()$reference
-      #enrichment choices of the first results tab, if made
-      choice <- function(name) input[[paste0("rnaseq_c1-", name)]]
+      #plot options and enrichment choices of every results tab
+      tabs <- rnaseq_tabs()
       write_tma_script(file, settings = settings, data = run$data,
                        counts_name = run$counts_name, design_name = run$design_name,
-                       enrichment = list(id_type = choice("id_type"), go = choice("organism_go"),
-                                         kegg = choice("organism_kegg"), string = choice("organism_string")))
+                       enrichment = lapply(tabs$enrichment, `[[`, "params"), plot_options = tabs$plot_options)
     },
     contentType = "text/plain"
   )
@@ -311,8 +350,8 @@ function(input, output, session) {
   array_run <- reactiveVal(NULL)
   array_task <- ExtendedTask$new(function(matrices, design, reference, meta_method, batch_method, batch_plots) {
     promises::future_promise(
-      run_array_analysis(matrices, design, reference = reference, meta_method = meta_method,
-                         batch_method = batch_method, batch_plots = batch_plots),
+      timed(run_array_analysis(matrices, design, reference = reference, meta_method = meta_method,
+                               batch_method = batch_method, batch_plots = batch_plots)),
       seed = TRUE
     )
   })
@@ -323,7 +362,7 @@ function(input, output, session) {
   start_array_analysis <- function(matrices, design, settings, run) {
     shinyalert("Running...", "Microarray meta-analysis is in progress... \nResults will appear soon!",
                type = "info", closeOnEsc = TRUE, closeOnClickOutside = TRUE, timer = 7000)
-    array_run(c(run, list(settings = settings)))
+    array_run(c(run, list(settings = settings, inputs = list(matrices = matrices, design = design))))
     array_task$invoke(matrices, design, settings$reference, settings$meta_method,
                       settings$batch_method, settings$batch_plots)
   }
@@ -388,18 +427,23 @@ function(input, output, session) {
                Genes = report$genes, `log2 applied` = ifelse(report$log2_applied, "yes", "no"),
                check.names = FALSE)
   })
-  analysis_results("array", array_analysis, "array_script")
+  array_tabs <- analysis_results(
+    "array", array_analysis, "array_script", "array_bundle",
+    bundle = function() {
+      run <- array_run()
+      list(inputs = run$inputs, settings = run$settings, platform = "array", source = run$data,
+           geo = run$geo, input_names = c(run$files, design = run$design_name))
+    })
   output$array_script <- downloadHandler(
     filename = "tma_microarray_analysis.R",
     content = function(file) {
       run <- array_run()
       settings <- run$settings
       settings$reference <- array_analysis()$reference
-      choice <- function(name) input[[paste0("array_c1-", name)]]
+      tabs <- array_tabs()
       write_tma_script(file, settings = settings, data = run$data, platform = "array",
                        array_files = run$files, design_name = run$design_name, geo = run$geo,
-                       enrichment = list(id_type = choice("id_type"), go = choice("organism_go"),
-                                         kegg = choice("organism_kegg"), string = choice("organism_string")))
+                       enrichment = lapply(tabs$enrichment, `[[`, "params"), plot_options = tabs$plot_options)
     },
     contentType = "text/plain"
   )

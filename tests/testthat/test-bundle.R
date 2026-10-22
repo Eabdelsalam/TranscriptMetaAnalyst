@@ -151,3 +151,32 @@ test_that("a GEO bundle keeps the downloaded series and the sample-to-condition 
   expect_true(file.exists(file.path(dir, "data", "GSE1.txt")))
   expect_match(readLines(file.path(dir, "analysis.R")), 'read_array_matrix("data/GSE1.txt")', all = FALSE, fixed = TRUE)
 })
+
+test_that("the RNA-Seq tab offers the run as a reproducible analysis ZIP", {
+  res <- demo_result()
+  local_mocked_bindings(run_tma_analysis = function(counts, design, ...) fake_analysis(res))
+  mock_organism_lists()
+  app <- shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
+  shiny::testServer(app, {
+    session$setInputs(rnaseq_demo = 1)
+    for (i in 1:200) {
+      later::run_now(0.05)
+      session$flushReact()
+      if (rnaseq_task$status() != "running") break
+    }
+    session$setInputs(`rnaseq_c1-heatmap_top` = 30, `rnaseq_c1-volcano_p` = 0.001)
+    zip_file <- output$rnaseq_bundle
+    expect_match(basename(zip_file), "\\.zip$")
+    listed <- zip::zip_list(zip_file)$filename
+    expect_true(all(paste0("tma_analysis/", c("README.md", "setup.R", "analysis.R", "settings.json",
+                                              "session_info.txt", "data/counts.txt", "data/design.txt")) %in% listed))
+    expect_true(any(grepl("^tma_analysis/results/.*meta_analysis_results\\.csv$", listed)))
+    dir <- unzip_bundle(zip_file)
+    script <- paste(readLines(file.path(dir, "analysis.R")), collapse = "\n")
+    expect_match(script, "heatmap_top = 30")
+    expect_match(script, "volcano_p = 0.001")
+    # the demo's preselected enrichment choices are recorded
+    json <- jsonlite::read_json(file.path(dir, "settings.json"))
+    expect_equal(json$source, "demo")
+  })
+})
