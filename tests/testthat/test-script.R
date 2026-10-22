@@ -50,10 +50,12 @@ test_that("the demo script runs and reproduces the app's result", {
   demo <- tma_demo_data()
   expected <- run_tma_pipeline(demo$counts, demo$design, meta_method = "invnorm", batch_method = "none")
   expect_equal(res$meta_degs, expected$meta_degs)
+  # the files the app offers for download, with the same names
   files <- list.files("tma_results")
   expect_setequal(files, paste0("Treated_vs_Cont_",
-                                c("meta_analysis_results.csv", "pca.pdf", "volcano.pdf",
-                                  "heatmap.pdf", "venn.pdf", "upset.pdf")))
+                                c("meta_analysis_results.csv", "A_DEGs.csv", "B_DEGs.csv", "C_DEGs.csv",
+                                  "pdist.pdf", "pca.pdf", "heatmap.pdf", "heatmap_data.csv",
+                                  "venndiagram.pdf", "upset.pdf", "volcano_plot.pdf", "volcano_data.csv")))
 })
 
 test_that("the upload script runs once the placeholder paths are filled in", {

@@ -24,8 +24,11 @@
 #'   `id_type`, `go`, `kegg` and `string` (as for `organism`): the choices
 #'   preselected in the organism and ID-type inputs for each new result (e.g.
 #'   for the demo data). The user can still change them.
-#' @return `mod_results_ui()` returns UI; `mod_results_server()` is called for
-#'   its side effects.
+#' @return `mod_results_ui()` returns UI. `mod_results_server()` returns a
+#'   list of two reactives: `plot_options` (the display options of the tab, see
+#'   [tma_plot_options()]) and `enrichment` (a list with `params`, the ID type,
+#'   organisms and services run, and `results`, the enrichment results), used
+#'   for the R script and the analysis bundle.
 #' @name mod_results
 #' @examples
 #' # the UI part; the server part runs inside a Shiny app
@@ -234,20 +237,31 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, 
     output$pca <- shiny::renderPlot(pca_plot())
     output$download_pca <- plot_download("pca", pca_plot, 20, 16)
 
-    # the heatmap options only change what is shown, not the DEGs
-    heat_genes <- shiny::reactive({
-      heatmap_genes(result(), padj_cutoff = number_or(input$heatmap_padj, result()$alpha),
-                    lfc_cutoff = number_or(input$heatmap_lfc, 0),
-                    top_n = number_or(input$heatmap_top, NA))
-    })
-    heat <- shiny::reactive(heatmap_matrix(result(), genes = heat_genes()))
-    heat_k <- shiny::reactive(heatmap_row_clusters(nrow(heat()), input$heatmap_k))
+    # every display option of this tab, as used by the plots here, the
+    # downloads and the reproducible analysis bundle; they only change what is
+    # shown, not the DEGs
+    or_default <- function(x, default) if (is.null(x) || identical(x, "")) default else x
+    plot_opts <- shiny::reactive(tma_plot_options(
+      heatmap_k = number_or(input$heatmap_k, 2), heatmap_top = number_or(input$heatmap_top, NA),
+      heatmap_padj = number_or(input$heatmap_padj, NA), heatmap_lfc = number_or(input$heatmap_lfc, 0),
+      heatmap_palette = or_default(input$heatmap_palette, "yellow_black_purple"),
+      heatmap_method = or_default(input$heatmap_method, "complete"),
+      heatmap_cluster_rows = !isFALSE(input$heatmap_cluster_rows),
+      heatmap_cluster_cols = !isFALSE(input$heatmap_cluster_cols),
+      heatmap_names = isTRUE(input$heatmap_names),
+      volcano_p = number_or(input$volcano_p, 0.05), volcano_fc = number_or(input$volcano_fc, 1),
+      volcano_labels = or_default(input$volcano_labels, "significant"),
+      volcano_top = number_or(input$volcano_top, 10), volcano_ymax = number_or(input$volcano_ymax, NA),
+      format = download_format(), width = number_or(input$download_width, NA),
+      height = number_or(input$download_height, NA)
+    ))
+    heat_display <- shiny::reactive(heatmap_display(result(), plot_opts()))
+    heat <- shiny::reactive(heat_display()$mat)
+    heat_k <- shiny::reactive(heat_display()$k_row)
     heat_options <- shiny::reactive(list(
-      palette = if (is.null(input$heatmap_palette)) "yellow_black_purple" else input$heatmap_palette,
-      cluster_rows = !isFALSE(input$heatmap_cluster_rows),
-      cluster_cols = !isFALSE(input$heatmap_cluster_cols),
-      method = if (is.null(input$heatmap_method)) "complete" else input$heatmap_method,
-      show_rownames = isTRUE(input$heatmap_names)
+      palette = heat_display()$palette, cluster_rows = heat_display()$cluster_rows,
+      cluster_cols = heat_display()$cluster_cols, method = heat_display()$method,
+      show_rownames = heat_display()$show_rownames
     ))
     need_heat <- function() {
       shiny::validate(shiny::need(nrow(heat()) >= 2,
@@ -289,14 +303,7 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, 
                                            function() max(4, length(result()$studies)) * 2.54)
 
     volcano <- shiny::reactive(volcano_data(result()))
-    volcano_plot <- shiny::reactive({
-      plot_volcano(volcano(),
-                   p_cutoff = number_or(input$volcano_p, 0.05),
-                   fc_cutoff = number_or(input$volcano_fc, 1),
-                   labels = if (is.null(input$volcano_labels)) "significant" else input$volcano_labels,
-                   top_n = number_or(input$volcano_top, 10),
-                   y_max = number_or(input$volcano_ymax, NA))
-    })
+    volcano_plot <- shiny::reactive(volcano_display(result(), plot_opts(), volcano()))
     output$volcano <- shiny::renderPlot(volcano_plot())
     output$download_volcano <- plot_download("volcano_plot", volcano_plot, 30, 25)
     output$download_volcano_data <- shiny::downloadHandler(function() fname("volcano_data.csv"), content = function(file) {
@@ -472,6 +479,25 @@ mod_results_server <- function(id, result, organism = NULL, file_prefix = NULL, 
                        species = chosen("string", input$organism_string, "STRING organism"),
                        background = result()$genes, id_type = id_type()))
     }, plot_string_lollipop)
+
+    # the settings of this tab, for the R script and the analysis bundle
+    finished <- function(res) tryCatch(res(), error = function(e) NULL)
+    choice <- function(fixed, value) {
+      if (!is.null(organism)) return(organism[[fixed]])
+      if (is.null(value) || identical(value, "")) NULL else value
+    }
+    list(
+      plot_options = plot_opts,
+      enrichment = shiny::reactive({
+        results <- list(go = finished(go_result), kegg = finished(kegg_result),
+                        string = finished(string_result))
+        results <- results[!vapply(results, is.null, logical(1))]
+        params <- list(id_type = choice("id_type", input$id_type), go = choice("go", input$organism_go),
+                       kegg = choice("kegg", trimws(or_default(input$organism_kegg, ""))),
+                       string = choice("string", input$organism_string), run = names(results))
+        list(params = params[!vapply(params, is.null, logical(1))], results = results)
+      })
+    )
   })
 }
 

@@ -18,7 +18,7 @@ Encoding: UTF-8
 Depends:
   R (>= 4.5.0)
 Imports:
-  shiny (>= 1.8.1), shinydashboard, shinyjs, shinyalert, shinycssloaders, DESeq2, metaRNASeq, ggplot2, ggvenn, ComplexHeatmap, pheatmap, EnhancedVolcano, DT, rbioapi, clusterProfiler, heatmaply, plotly, SummarizedExperiment, edgeR, limma, sva, GEOquery, Biobase, BiocParallel, future, promises, graphics, grDevices, stats, utils
+  shiny (>= 1.8.1), shinydashboard, shinyjs, shinyalert, shinycssloaders, DESeq2, metaRNASeq, ggplot2, ggvenn, ComplexHeatmap, pheatmap, EnhancedVolcano, DT, rbioapi, clusterProfiler, heatmaply, plotly, SummarizedExperiment, edgeR, limma, sva, GEOquery, Biobase, BiocParallel, future, promises, jsonlite, zip, graphics, grDevices, stats, utils
 Suggests:
   testthat (>= 3.0.0),
   withr,
@@ -26,7 +26,8 @@ Suggests:
   shinytest2,
   chromote,
   knitr,
-  rmarkdown
+  rmarkdown,
+  pkgload
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 biocViews: Software, GUI, ShinyApps, Transcriptomics, RNASeq, Microarray,

@@ -1,33 +1,45 @@
 #' Reproducible R script of an analysis
 #'
 #' Writes an R script that repeats an analysis done in the app with the same
-#' package functions: it reads the input files, runs [run_tma_analysis()] with
-#' the settings used in the app, and saves the meta-analysis table and the
-#' main plots of every comparison. An optional, commented-out section runs the
-#' functional enrichment (it needs an internet connection).
+#' package functions: it reads the input files, runs [run_tma_analysis()] (or
+#' [run_array_analysis()]) with the settings used in the app, and saves, with
+#' [save_tma_results()], the tables and figures of every comparison with its
+#' plot display options. Enrichment services that were run in the app are run
+#' again (they need an internet connection); otherwise a commented-out
+#' enrichment section is added.
 #'
 #' For uploaded data the file paths in the script are **placeholders**: the
 #' app does not know where the files are on the user's computer. The script
-#' starts with a banner that says so, and the two lines to edit are marked.
-#' For the demo, the script uses the demo data bundled with the package.
+#' starts with a banner that says so, and the lines to edit are marked. For the
+#' demo, the script uses the demo data bundled with the package; in a
+#' reproducible analysis bundle (`data = "bundle"`, see [write_tma_bundle()]),
+#' it reads the files in `data/` with relative paths.
 #'
 #' @param settings A list with the analysis settings, as returned by the
 #'   settings module: `de_method` (one method or a named vector with one per
 #'   study), `meta_method`, `batch_method`, `batch_plots` and `reference`
 #'   (`NULL` for the default reference).
-#' @param data `"upload"` (placeholder paths), `"demo"` (bundled demo data) or,
-#'   for microarrays, `"geo"` (studies imported from GEO; the script downloads
-#'   them again).
+#' @param data `"upload"` (placeholder paths), `"demo"` (bundled demo data),
+#'   `"bundle"` (the files in `data/` of an analysis bundle) or, for
+#'   microarrays, `"geo"` (studies imported from GEO; the script downloads them
+#'   again).
 #' @param counts_name,design_name Names of the uploaded files, quoted in the
 #'   script to help the user find them.
 #' @param platform `"rnaseq"` or `"array"` (microarray tab).
-#' @param array_files Names of the uploaded microarray expression files.
+#' @param array_files Names of the microarray expression files (uploaded, or in
+#'   `data/` of a bundle; for a bundle, named by study).
 #' @param geo For `data = "geo"`: a list with one element per study, each a
 #'   list with `gse`, `platform`, `condition_column`, `labels` (named
 #'   character vector) and `gene_column`, as chosen in the app.
-#' @param enrichment Optional list with `id_type`, `go`, `kegg` and `string`
-#'   (organisms) to fill in the enrichment section; missing values are left as
-#'   placeholders.
+#' @param enrichment Enrichment choices: either one list with `id_type`, `go`,
+#'   `kegg` and `string` (organisms) that fills in the commented-out enrichment
+#'   section (missing values are left as placeholders), or a list named by
+#'   comparison, each with `id_type`, `go`, `kegg`, `string` and `run` (the
+#'   services run in the app, which the script runs again, see
+#'   [run_tma_enrichment()]).
+#' @param plot_options Plot display options: `NULL` (defaults), one list as
+#'   from [tma_plot_options()] for all comparisons, or a list of them named by
+#'   comparison.
 #' @param output_dir Folder, relative to the working directory, where the
 #'   script writes its results.
 #' @return `tma_script()` returns the script as a character vector of lines;
@@ -37,9 +49,12 @@
 #' settings <- list(de_method = "DESeq2", meta_method = "fisher",
 #'                  batch_method = "none", batch_plots = FALSE, reference = NULL)
 #' cat(tma_script(settings, data = "demo"), sep = "\n")
-tma_script <- function(settings, data = c("upload", "demo", "geo"), counts_name = NULL,
+#' cat(tma_script(settings, data = "demo", plot_options = tma_plot_options(heatmap_top = 50)),
+#'     sep = "\n")
+tma_script <- function(settings, data = c("upload", "demo", "geo", "bundle"), counts_name = NULL,
                        design_name = NULL, enrichment = NULL, output_dir = "tma_results",
-                       platform = c("rnaseq", "array"), array_files = NULL, geo = NULL) {
+                       platform = c("rnaseq", "array"), array_files = NULL, geo = NULL,
+                       plot_options = NULL) {
   data <- match.arg(data)
   platform <- match.arg(platform)
   if (data == "geo" && platform != "array") stop("GEO import is only used for microarray data.", call. = FALSE)
@@ -65,6 +80,10 @@ tma_script <- function(settings, data = c("upload", "demo", "geo"), counts_name 
       sprintf("design <- read_tma_table(\"PATH/TO/%s\")  # <- your design file%s",
               if (is.null(design_name)) "design_file.txt" else design_name,
               if (is.null(design_name)) "" else " (uploaded in the app as this name)"))
+  } else if (data == "bundle") {
+    c("# Input: the data of the original run, in data/",
+      "counts <- read_tma_table(\"data/counts.txt\")",
+      "design <- read_tma_table(\"data/design.txt\")")
   } else {
     c("# Input: the demo data bundled with TranscriptMetaAnalyst",
       "demo <- tma_demo_data()",
@@ -72,18 +91,14 @@ tma_script <- function(settings, data = c("upload", "demo", "geo"), counts_name 
       "design <- demo$design")
   }
 
-  enrich <- function(name, placeholder) {
-    value <- enrichment[[name]]
-    if (is.null(value) || identical(value, "")) placeholder else r(value)
-  }
   c(
     "# Reproducible analysis script generated by TranscriptMetaAnalyst (TMA)",
     sprintf("# TMA version %s, %s", version, format(Sys.Date())),
     "#",
     "# Repeats the analysis done in the app with the same settings and saves the",
-    "# meta-analysis tables and the main plots of every comparison.",
-    "# Plot display options (cutoffs, colours, labels) are the defaults; change",
-    "# the arguments of the plot functions below to customise them.",
+    "# tables and figures of every comparison with its plot display options.",
+    "# Change the plot options below to customise the figures; they never change",
+    "# the DEGs.",
     banner,
     "",
     "library(TranscriptMetaAnalyst)",
@@ -101,44 +116,19 @@ tma_script <- function(settings, data = c("upload", "demo", "geo"), counts_name 
     ")",
     "print(analysis)",
     "",
-    "# Save the results of every comparison",
+    plot_options_code(plot_options, r),
+    "",
+    enrichment_code(enrichment, r),
+    "",
+    "# Save the tables and figures of every comparison",
     sprintf("output_dir <- %s", r(output_dir)),
-    "dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)",
     "for (contrast in names(analysis$results)) {",
     "  res <- analysis$results[[contrast]]",
-    "  prefix <- file.path(output_dir, gsub(\"[^A-Za-z0-9]+\", \"_\", contrast))",
-    "  utils::write.csv(res$meta, paste0(prefix, \"_meta_analysis_results.csv\"))",
-    "  save_plot(paste0(prefix, \"_pca.pdf\"), plot_pca(res), default_width = 20, default_height = 16)",
-    "  save_plot(paste0(prefix, \"_volcano.pdf\"), plot_volcano(volcano_data(res)),",
-    "            default_width = 30, default_height = 25)",
-    "  heat <- heatmap_matrix(res)",
-    "  if (nrow(heat) >= 2) {",
-    "    save_plot(paste0(prefix, \"_heatmap.pdf\"), function() {",
-    "      plot_heatmap_static(heat, res$design, heatmap_row_clusters(nrow(heat)), length(res$studies))",
-    "    }, default_width = 17.78, default_height = 25.4)",
-    "  }",
-    "  sets <- deg_sets(res)",
-    "  if (overlap_plot_type(sets) == \"venn\") {",
-    "    save_plot(paste0(prefix, \"_venn.pdf\"), plot_venn(sets), default_width = 15, default_height = 15)",
-    "  }",
-    "  save_plot(paste0(prefix, \"_upset.pdf\"), plot_upset(sets), default_width = 20, default_height = 12)",
+    "  options <- if (is.null(plot_options[[contrast]])) default_options else plot_options[[contrast]]",
+    "  enriched <- if (length(enrichment[[contrast]]$run) > 0) run_tma_enrichment(res, enrichment[[contrast]])",
+    "  save_tma_results(res, output_dir, paste0(gsub(\"[^A-Za-z0-9]+\", \"_\", contrast), \"_\"),",
+    "                   options, enriched)",
     "}",
-    "",
-    "# Optional: functional enrichment of the meta-analysis DEGs against all",
-    "# tested genes (needs an internet connection). Remove the '#' and replace",
-    "# any <...> placeholder to run it.",
-    sprintf("# id_type <- %s  # one of: %s", enrich("id_type", "\"kegg\""),
-            paste(sprintf("\"%s\"", id_types()), collapse = ", ")),
-    "# for (contrast in names(analysis$results)) {",
-    "#   res <- analysis$results[[contrast]]",
-    sprintf("#   go <- run_go_enrichment(res$meta_degs, organism = %s, background = res$genes, id_type = id_type)",
-            enrich("go", "<PANTHER taxon ID>")),
-    sprintf("#   kegg <- run_kegg_enrichment(res$meta_degs, organism = %s, background = res$genes, id_type = id_type)",
-            enrich("kegg", "\"<KEGG organism code>\"")),
-    sprintf("#   string <- run_string_enrichment(res$meta_degs, species = %s, background = res$genes, id_type = id_type)",
-            enrich("string", "<STRING taxon ID>")),
-    "#   print(string)",
-    "# }",
     "",
     "# Software versions, for the methods section",
     "sessionInfo()"
@@ -154,6 +144,71 @@ write_tma_script <- function(file, ...) {
   invisible(file)
 }
 
+# Plot options section: a tma_plot_options() call per comparison, with every
+# option written out
+plot_options_code <- function(plot_options, r) {
+  call <- function(o, indent) {
+    o <- complete_plot_options(o)
+    args <- vapply(names(o), function(n) sprintf("%s = %s", n, r(o[[n]])), character(1))
+    pad <- strrep(" ", indent)
+    paste0("tma_plot_options(\n", pad, paste(args, collapse = paste0(",\n", pad)), ")")
+  }
+  per_contrast <- !is.null(plot_options) && !is.null(names(plot_options)) &&
+    !any(names(plot_options) %in% names(tma_plot_options()))
+  c("# Plot display options of each comparison (heatmap and volcano plot content,",
+    "# figure format and size; width/height NA = default size)",
+    sprintf("default_options <- %s", call(if (per_contrast) NULL else plot_options, 2)),
+    if (per_contrast) {
+      c("plot_options <- list(",
+        paste(vapply(names(plot_options), function(n) {
+          sprintf("  %s = %s", r(n), call(plot_options[[n]], 4))
+        }, character(1)), collapse = ",\n"),
+        ")")
+    } else {
+      "plot_options <- list()"
+    })
+}
+
+# Enrichment section: the services run in the app, per comparison; otherwise a
+# commented-out template filled with the choices made
+enrichment_code <- function(enrichment, r) {
+  keys <- c("id_type", "go", "kegg", "string", "run")
+  per_contrast <- !is.null(enrichment) && !is.null(names(enrichment)) && !any(names(enrichment) %in% keys)
+  ran <- per_contrast && any(vapply(enrichment, function(e) length(e$run) > 0, logical(1)))
+  if (ran) {
+    entries <- vapply(names(enrichment), function(n) {
+      e <- enrichment[[n]][intersect(keys, names(enrichment[[n]]))]
+      sprintf("  %s = %s", r(n), r(e))
+    }, character(1))
+    return(c("# Functional enrichment run in the app (needs an internet connection;",
+             "# a service that cannot be reached is skipped with a message)",
+             "enrichment <- list(",
+             paste(entries, collapse = ",\n"),
+             ")"))
+  }
+  single <- if (per_contrast) enrichment[[1]] else enrichment
+  enrich <- function(name, placeholder) {
+    value <- single[[name]]
+    if (is.null(value) || identical(value, "")) placeholder else r(value)
+  }
+  c("# Optional: functional enrichment of the meta-analysis DEGs against all",
+    "# tested genes (needs an internet connection). Remove the '#' and replace",
+    "# any <...> placeholder to run it.",
+    "enrichment <- list()",
+    sprintf("# id_type <- %s  # one of: %s", enrich("id_type", "\"kegg\""),
+            paste(sprintf("\"%s\"", id_types()), collapse = ", ")),
+    "# for (contrast in names(analysis$results)) {",
+    "#   res <- analysis$results[[contrast]]",
+    sprintf("#   go <- run_go_enrichment(res$meta_degs, organism = %s, background = res$genes, id_type = id_type)",
+            enrich("go", "<PANTHER taxon ID>")),
+    sprintf("#   kegg <- run_kegg_enrichment(res$meta_degs, organism = %s, background = res$genes, id_type = id_type)",
+            enrich("kegg", "\"<KEGG organism code>\"")),
+    sprintf("#   string <- run_string_enrichment(res$meta_degs, species = %s, background = res$genes, id_type = id_type)",
+            enrich("string", "<STRING taxon ID>")),
+    "#   print(string)",
+    "# }")
+}
+
 # Input section of a microarray script
 array_input <- function(data, array_files, design_name, geo, r) {
   if (data == "demo") {
@@ -161,6 +216,17 @@ array_input <- function(data, array_files, design_name, geo, r) {
              "demo <- tma_microarray_demo_data()",
              "matrices <- demo$matrices",
              "design <- demo$design"))
+  }
+  if (data == "bundle") {
+    files <- vapply(names(array_files), function(study) {
+      sprintf("  %s = read_array_matrix(%s)", r(study), r(file.path("data", array_files[[study]])))
+    }, character(1))
+    return(c("# Input: the expression data (one file per study) and design of the original",
+             "# run, in data/",
+             "matrices <- list(",
+             paste(files, collapse = ",\n"),
+             ")",
+             "design <- read_tma_table(\"data/design.txt\")"))
   }
   if (data == "geo") {
     studies <- vapply(geo, function(g) {

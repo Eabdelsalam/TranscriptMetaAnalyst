@@ -51,8 +51,11 @@ preselected in the organism and ID-type inputs for each new result (e.g.
 for the demo data). The user can still change them.}
 }
 \value{
-\code{mod_results_ui()} returns UI; \code{mod_results_server()} is called for
-its side effects.
+\code{mod_results_ui()} returns UI. \code{mod_results_server()} returns a
+list of two reactives: \code{plot_options} (the display options of the tab, see
+\code{\link[=tma_plot_options]{tma_plot_options()}}) and \code{enrichment} (a list with \code{params}, the ID type,
+organisms and services run, and \code{results}, the enrichment results), used
+for the R script and the analysis bundle.
 }
 \description{
 The results area shared by the RNA-seq and microarray tabs: information boxes,
