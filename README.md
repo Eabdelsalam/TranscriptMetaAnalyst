@@ -41,7 +41,14 @@ The app tells you which studies and comparisons it left out and why. The **Metho
 
 ## Reproducibility
 
-After an analysis, the app can write an R script that repeats it with the same settings (**Download R script**). For your own data, the input file paths in the script are placeholders that you replace with the paths of your files. The analysis can also be run directly from R:
+After an analysis, **Download reproducible analysis (ZIP)** gives a ready-to-run bundle of that analysis: the input data as used, `setup.R` (installs the same TMA release and checks the package versions), `analysis.R` (repeats the analysis with every setting of the run, including the plot options and enrichment choices), `settings.json`, the results of the run for comparison, and the R session information. Unzip it and run:
+
+```
+Rscript setup.R
+Rscript analysis.R
+```
+
+**Download R script** gives the analysis script alone; for your own data, its input file paths are placeholders that you replace with the paths of your files. The analysis can also be run directly from R:
 
 ```r
 library(TranscriptMetaAnalyst)
@@ -53,6 +60,11 @@ analysis
 # microarrays: one expression file per study
 matrices <- list(read_array_matrix("study1.txt"), read_array_matrix("study2.txt"))
 array_analysis <- run_array_analysis(matrices, design, meta_method = "fisher")
+
+# tables and figures of every comparison, and a ready-to-run bundle
+save_tma_results(analysis$results[[1]], "results", options = tma_plot_options(heatmap_top = 50))
+write_tma_bundle("tma_analysis.zip", analysis, list(counts = counts, design = design),
+                 settings = list(de_method = "DESeq2", meta_method = "fisher"))
 ```
 
 A worked example with the demo data is in the vignette: `vignette("TranscriptMetaAnalyst")` (installed with `build_vignettes = TRUE`, see [Installation](#installation)).

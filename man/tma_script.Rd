@@ -7,14 +7,15 @@
 \usage{
 tma_script(
   settings,
-  data = c("upload", "demo", "geo"),
+  data = c("upload", "demo", "geo", "bundle"),
   counts_name = NULL,
   design_name = NULL,
   enrichment = NULL,
   output_dir = "tma_results",
   platform = c("rnaseq", "array"),
   array_files = NULL,
-  geo = NULL
+  geo = NULL,
+  plot_options = NULL
 )
 
 write_tma_script(file, ...)
@@ -25,27 +26,36 @@ settings module: \code{de_method} (one method or a named vector with one per
 study), \code{meta_method}, \code{batch_method}, \code{batch_plots} and \code{reference}
 (\code{NULL} for the default reference).}
 
-\item{data}{\code{"upload"} (placeholder paths), \code{"demo"} (bundled demo data) or,
-for microarrays, \code{"geo"} (studies imported from GEO; the script downloads
-them again).}
+\item{data}{\code{"upload"} (placeholder paths), \code{"demo"} (bundled demo data),
+\code{"bundle"} (the files in \verb{data/} of an analysis bundle) or, for
+microarrays, \code{"geo"} (studies imported from GEO; the script downloads them
+again).}
 
 \item{counts_name, design_name}{Names of the uploaded files, quoted in the
 script to help the user find them.}
 
-\item{enrichment}{Optional list with \code{id_type}, \code{go}, \code{kegg} and \code{string}
-(organisms) to fill in the enrichment section; missing values are left as
-placeholders.}
+\item{enrichment}{Enrichment choices: either one list with \code{id_type}, \code{go},
+\code{kegg} and \code{string} (organisms) that fills in the commented-out enrichment
+section (missing values are left as placeholders), or a list named by
+comparison, each with \code{id_type}, \code{go}, \code{kegg}, \code{string} and \code{run} (the
+services run in the app, which the script runs again, see
+\code{\link[=run_tma_enrichment]{run_tma_enrichment()}}).}
 
 \item{output_dir}{Folder, relative to the working directory, where the
 script writes its results.}
 
 \item{platform}{\code{"rnaseq"} or \code{"array"} (microarray tab).}
 
-\item{array_files}{Names of the uploaded microarray expression files.}
+\item{array_files}{Names of the microarray expression files (uploaded, or in
+\verb{data/} of a bundle; for a bundle, named by study).}
 
 \item{geo}{For \code{data = "geo"}: a list with one element per study, each a
 list with \code{gse}, \code{platform}, \code{condition_column}, \code{labels} (named
 character vector) and \code{gene_column}, as chosen in the app.}
+
+\item{plot_options}{Plot display options: \code{NULL} (defaults), one list as
+from \code{\link[=tma_plot_options]{tma_plot_options()}} for all comparisons, or a list of them named by
+comparison.}
 
 \item{file}{Path of the script file to write.}
 
@@ -57,19 +67,25 @@ character vector) and \code{gene_column}, as chosen in the app.}
 }
 \description{
 Writes an R script that repeats an analysis done in the app with the same
-package functions: it reads the input files, runs \code{\link[=run_tma_analysis]{run_tma_analysis()}} with
-the settings used in the app, and saves the meta-analysis table and the
-main plots of every comparison. An optional, commented-out section runs the
-functional enrichment (it needs an internet connection).
+package functions: it reads the input files, runs \code{\link[=run_tma_analysis]{run_tma_analysis()}} (or
+\code{\link[=run_array_analysis]{run_array_analysis()}}) with the settings used in the app, and saves, with
+\code{\link[=save_tma_results]{save_tma_results()}}, the tables and figures of every comparison with its
+plot display options. Enrichment services that were run in the app are run
+again (they need an internet connection); otherwise a commented-out
+enrichment section is added.
 }
 \details{
 For uploaded data the file paths in the script are \strong{placeholders}: the
 app does not know where the files are on the user's computer. The script
-starts with a banner that says so, and the two lines to edit are marked.
-For the demo, the script uses the demo data bundled with the package.
+starts with a banner that says so, and the lines to edit are marked. For the
+demo, the script uses the demo data bundled with the package; in a
+reproducible analysis bundle (\code{data = "bundle"}, see \code{\link[=write_tma_bundle]{write_tma_bundle()}}),
+it reads the files in \verb{data/} with relative paths.
 }
 \examples{
 settings <- list(de_method = "DESeq2", meta_method = "fisher",
                  batch_method = "none", batch_plots = FALSE, reference = NULL)
 cat(tma_script(settings, data = "demo"), sep = "\n")
+cat(tma_script(settings, data = "demo", plot_options = tma_plot_options(heatmap_top = 50)),
+    sep = "\n")
 }

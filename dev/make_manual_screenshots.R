@@ -12,13 +12,14 @@ fig_dir <- normalizePath(file.path("manual", "figures"))
 width <- 1600
 height <- 1000
 
-app <- shinytest2::AppDriver$new(
-  function() {
-    library(TranscriptMetaAnalyst)
-    shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
-  },
-  width = width, height = height, load_timeout = 120 * 1000, timeout = 300 * 1000
-)
+# the app of this source tree (also when another version is installed)
+app_fun <- function() {
+  pkgload::load_all(PKG, quiet = TRUE)
+  shiny::shinyAppDir(TranscriptMetaAnalyst:::tma_app_dir())
+}
+body(app_fun) <- do.call(substitute, list(body(app_fun), list(PKG = normalizePath("."))))
+app <- shinytest2::AppDriver$new(app_fun, width = width, height = height,
+                                 load_timeout = 120 * 1000, timeout = 300 * 1000)
 
 # path of a figure; an existing file is removed first, as screenshots do not
 # overwrite files
