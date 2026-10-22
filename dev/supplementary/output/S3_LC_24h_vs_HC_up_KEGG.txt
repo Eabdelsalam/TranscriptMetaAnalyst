@@ -1,0 +1,4 @@
+# KEGG pathway enrichment (clusterProfiler) (KEGG pathway database of 2026/10/21); organism: Synechocystis sp. PCC 6803 (syn); background: all 3358 tested genes (981 recognised by KEGG).
+# IDs submitted: 1075; mapped: 219 (20%)
+category	subcategory	ID	Description	GeneRatio	BgRatio	RichFactor	FoldEnrichment	oddsRatio	zScore	pvalue	p.adjust	qvalue	geneID	Count
+Environmental Information Processing	Signal transduction	syn02020	Two-component system	32/230	69/981	0.463768115942029	1.97807183364839	3.11875511875512	4.6607398869921	1.17311250275742e-05	0.000750792001764749	0.000750792001764749	sll0034/sll0540/sll1695/slr0473/slr0897/slr0794/slr0796/slr1041/sll1294/sll1293/slr1044/sll1371/slr1729/slr0624/sll0679/sll1103/slr1214/slr0795/sll1600/slr1037/sll0040/slr0721/slr1837/sll1291/slr1728/slr0474/sll1581/slr1731/slr2079/sll1694/sll1292/slr1042	32

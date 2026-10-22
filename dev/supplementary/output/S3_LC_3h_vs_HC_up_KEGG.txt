@@ -1,0 +1,4 @@
+# KEGG pathway enrichment (clusterProfiler) (KEGG pathway database of 2026/10/21); organism: Synechocystis sp. PCC 6803 (syn); background: all 3358 tested genes (981 recognised by KEGG).
+# IDs submitted: 466; mapped: 116 (25%)
+category	subcategory	ID	Description	GeneRatio	BgRatio	RichFactor	FoldEnrichment	oddsRatio	zScore	pvalue	p.adjust	qvalue	geneID	Count
+Metabolism	Energy metabolism	syn00190	Oxidative phosphorylation	19/121	49/981	0.387755102040816	3.14370045538877	5.15359477124183	5.7717921268021	1.09015468545732e-06	5.66880436437807e-05	5.66880436437807e-05	sll0223/sll1898/slr1291/sll1262/sll1484/sll0290/slr0331/slr1281/sll0520/slr1233/sll0521/sll0519/sll0522/slr0261/sll1732/slr1280/sll1733/slr2082/slr1279	19

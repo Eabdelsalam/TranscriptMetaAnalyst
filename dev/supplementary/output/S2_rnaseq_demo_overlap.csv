@@ -1,0 +1,7 @@
+"analysis","DESeq2 + Fisher","DESeq2 + Inverse normal","edgeR + Fisher","edgeR + Inverse normal","limma-voom + Fisher","limma-voom + Inverse normal"
+"DESeq2 + Fisher",100,86.6,86.3,73.7,86.1,72.4
+"DESeq2 + Inverse normal",98.5,100,90.9,81.7,90.2,80.8
+"edgeR + Fisher",85.6,79.3,100,82.2,93.6,78.5
+"edgeR + Inverse normal",88.1,85.9,99,100,95.8,93.3
+"limma-voom + Fisher",87,80.2,95.4,81,100,80.5
+"limma-voom + Inverse normal",89.1,87.5,97.4,96,98,100

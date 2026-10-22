@@ -1,0 +1,3 @@
+# STRING functional enrichment (STRING version 12.0); organism: Synechocystis sp. PCC6803 (1148); background: all 3358 tested genes (3117 recognised by STRING).
+# IDs submitted: 1075; mapped: 991 (92%)
+category	term	description	number_of_genes	number_of_genes_in_background	p_value	fdr	inputGenes	preferredNames

@@ -1,0 +1,13 @@
+"sdlog","study","samples","condition_var","batch_var","pc1_var","pc1_condition_r2","message","flagged"
+0.5,"A",6,27.9631119401426,31.0679551561754,32.9332833852816,0.492748862283297,"Batch explains as much variance as condition or more (31% vs 28%): consider 'Batch in the DE model' or ComBat-seq.",TRUE
+0.5,"B",6,26.5819164311945,30.5880339347486,32.9022909891139,0.489840148743711,"Batch explains as much variance as condition or more (31% vs 27%): consider 'Batch in the DE model' or ComBat-seq.",TRUE
+0.5,"C",6,26.4111173017439,31.6390999283709,33.4385697335699,0.431119338924878,"Batch explains as much variance as condition or more (32% vs 26%): consider 'Batch in the DE model' or ComBat-seq.",TRUE
+0.5,"D",6,27.9224867575091,32.0794393336396,34.7369568749659,0.506743183364063,"Batch explains as much variance as condition or more (32% vs 28%): consider 'Batch in the DE model' or ComBat-seq.",TRUE
+0.5,"E",6,28.6120122735958,31.7596536497191,34.8080615477152,0.533612033073543,"Batch explains as much variance as condition or more (32% vs 29%): consider 'Batch in the DE model' or ComBat-seq.",TRUE
+0.5,"F",6,27.8793249149878,32.3269103221793,35.2798286083363,0.511933625354865,"Batch explains as much variance as condition or more (32% vs 28%): consider 'Batch in the DE model' or ComBat-seq.",TRUE
+1,"A",6,16.628793986284,76.3546770678646,76.4155731812977,0.126964295957152,"Batch explains as much variance as condition or more (76% vs 17%): consider 'Batch in the DE model' or ComBat-seq.",TRUE
+1,"B",6,18.2874083699495,74.7251355304588,74.961737933876,0.150801300067529,"Batch explains as much variance as condition or more (75% vs 18%): consider 'Batch in the DE model' or ComBat-seq.",TRUE
+1,"C",6,18.3022669190107,76.93349727333,77.2248326389887,0.154162874205045,"Batch explains as much variance as condition or more (77% vs 18%): consider 'Batch in the DE model' or ComBat-seq.",TRUE
+1,"D",6,18.2372481790608,72.5275624232329,72.7352247861041,0.147741509763657,"Batch explains as much variance as condition or more (73% vs 18%): consider 'Batch in the DE model' or ComBat-seq.",TRUE
+1,"E",6,18.3803691093023,76.7158007531525,76.9168378618595,0.146222970999411,"Batch explains as much variance as condition or more (77% vs 18%): consider 'Batch in the DE model' or ComBat-seq.",TRUE
+1,"F",6,17.500044064803,73.3958595630589,73.5145508444734,0.138412152468087,"Batch explains as much variance as condition or more (73% vs 18%): consider 'Batch in the DE model' or ComBat-seq.",TRUE

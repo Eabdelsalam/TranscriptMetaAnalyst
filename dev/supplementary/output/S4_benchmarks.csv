@@ -1,0 +1,7 @@
+"dataset","pipeline","median_time","memory","result_size","meta_degs"
+"Demo","before","3.28 s","533 MB","6.3 MB","373"
+"Demo","after, serial","3.70 s","521 MB","2.9 MB","373"
+"Demo","after, parallel","2.85 s","n/a","2.9 MB","373"
+"Simulated","before","23.2 s","3.58 GB","120.9 MB","2,600"
+"Simulated","after, serial","23.2 s","3.40 GB","44.7 MB","2,603"
+"Simulated","after, parallel","8.34 s","n/a","44.7 MB","2,603"
