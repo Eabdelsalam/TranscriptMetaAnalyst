@@ -135,6 +135,31 @@ string$mapping   # how many IDs STRING recognised
 enrichment_label(string)
 ```
 
+## Saving results and a reproducible bundle
+
+`save_tma_results()` writes the tables and figures of a comparison, as the
+app's downloads do, with the display options of `tma_plot_options()`.
+`write_tma_bundle()` writes the app's "Download reproducible analysis (ZIP)":
+the data as used, `setup.R`, `analysis.R` with every setting, `settings.json`,
+the results and the session information.
+
+```{r bundle}
+out <- file.path(tempdir(), "tma_demo")
+files <- save_tma_results(res, file.path(out, "results"), "Treated_vs_Cont_",
+                          tma_plot_options(heatmap_top = 50, format = "png"))
+basename(files)
+
+zip_file <- file.path(tempdir(), "tma_analysis.zip")
+write_tma_bundle(zip_file, analysis, demo,
+                 settings = list(de_method = "DESeq2", meta_method = "fisher",
+                                 batch_method = "none", batch_plots = FALSE),
+                 source = "demo")
+head(zip::zip_list(zip_file)$filename, 8)
+```
+
+Unzipped, `Rscript setup.R` and `Rscript analysis.R` repeat the analysis on
+another computer and write the same files to `rerun/`.
+
 ## Session information
 
 ```{r session-info}

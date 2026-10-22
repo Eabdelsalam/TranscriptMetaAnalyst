@@ -89,6 +89,15 @@ methods_guide_ui <- function() {
       shiny::p("The meta-analysis DEGs are compared with all genes tested in the analysis (the background), not with the whole genome, so that terms are not enriched only because the tested genes differ from the genome. All three services are queried online; no local annotation database is needed.")
     )),
     shiny::fluidRow(guide_box(
+      "Reproducibility",
+      shiny::p("After an analysis, the Comparisons box offers two downloads:"),
+      shiny::tags$ul(
+        li(b("Download reproducible analysis (ZIP)"), ": a ready-to-run bundle with the input data as used, a setup script that installs the same TMA release and checks the package versions, the analysis script with every setting of the run (analysis methods, plot display options, enrichment choices), the settings as JSON, the results of the run and the R session information. Run ", shiny::code("Rscript setup.R"), " and then ", shiny::code("Rscript analysis.R"), "; the re-run writes the same files to rerun/, for comparison with results/."),
+        li(b("Download R script"), ": the analysis script alone, for the methods section; for uploaded data its input paths are placeholders.")
+      ),
+      shiny::p("Report the TMA version, the methods and the settings (all in the bundle's README.md and settings.json) in the methods section.")
+    )),
+    shiny::fluidRow(guide_box(
       "References", status = "info",
       shiny::tags$ol(
         li("Conesa, A. et al. A survey of best practices for RNA-seq data analysis. Genome Biology 17, 13 (2016)."),

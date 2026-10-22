@@ -1,3 +1,22 @@
+# TranscriptMetaAnalyst 2.1.0
+
+## New features
+
+* **Download reproducible analysis (ZIP)** on the RNA-Seq and Microarray tabs:
+  a ready-to-run bundle of an analysis with the input data as used, `setup.R`
+  (installs the same TMA release and reports package versions that differ from
+  the original run), `analysis.R` (every setting of the run, including the plot
+  display options and enrichment choices of each comparison; relative paths),
+  `settings.json`, the results of the run and the R session information. GEO
+  imports include the downloaded series files and the sample-to-condition
+  mapping, so the bundle runs offline.
+* New functions `write_tma_bundle()`, `save_tma_results()`,
+  `tma_plot_options()` and `run_tma_enrichment()`. The app's downloads, the
+  R script and the bundle use the same functions, so a re-run gives the same
+  files.
+* **Download R script** now also records the plot options of every
+  comparison and re-runs the enrichment services used in the app.
+
 # TranscriptMetaAnalyst 2.0.0
 
 Revision in response to the reviewers' comments.
