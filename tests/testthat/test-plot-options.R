@@ -91,12 +91,12 @@ test_that("the results module applies the plot options and download format", {
   res <- demo_result()
   shiny::testServer(mod_results_server,
                     args = list(result = shiny::reactive(res), organism = list(go = 1, kegg = "syn")), {
-    expect_equal(heat_genes(), res$meta_degs)
+    expect_equal(rownames(heat()), res$meta_degs)
     session$setInputs(heatmap_top = 25, heatmap_lfc = 1)
-    expect_length(heat_genes(), 25)
+    expect_equal(plot_opts()$heatmap_top, 25)
     expect_equal(nrow(heat()), 25)
     session$setInputs(heatmap_top = NA, heatmap_lfc = 0, heatmap_padj = 1e-10)
-    expect_true(all(res$meta[heat_genes(), "adjpval"] <= 1e-10))
+    expect_true(all(res$meta[rownames(heat()), "adjpval"] <= 1e-10))
 
     session$setInputs(heatmap_palette = "viridis", heatmap_cluster_rows = FALSE, heatmap_names = TRUE)
     expect_equal(heat_options()$palette, "viridis")
@@ -105,6 +105,10 @@ test_that("the results module applies the plot options and download format", {
 
     session$setInputs(volcano_p = 0.01, volcano_fc = 2, volcano_labels = "none")
     expect_s3_class(volcano_plot(), "ggplot")
+    # the options reported for the R script and the analysis bundle
+    reported <- session$returned$plot_options()
+    expect_equal(reported[c("volcano_p", "volcano_fc", "volcano_labels", "heatmap_palette")],
+                 list(volcano_p = 0.01, volcano_fc = 2, volcano_labels = "none", heatmap_palette = "viridis"))
 
     session$setInputs(download_format = "png", download_width = 12, download_height = 9)
     expect_equal(fname(paste0("pca.", download_format())), paste0(session$ns(NULL), "_pca.png"))
