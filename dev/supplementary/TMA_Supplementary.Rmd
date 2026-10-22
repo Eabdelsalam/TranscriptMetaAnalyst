@@ -20,7 +20,7 @@ perf <- s1$performance
 p <- function(sdlog, strategy, meta, col) perf[perf$sdlog == sdlog & perf$strategy == strategy & perf$meta == meta, col]
 ```
 
-All results in this file were produced with the scripts in `dev/supplementary/` of the TranscriptMetaAnalyst (TMA) repository, with fixed random seeds (seed `r 2026`). They can be reproduced with `NOT_CRAN=true Rscript dev/supplementary/run_all.R`. Software: `r s1$session`. The test suite of the package has `r format(tests$expectations, big.mark = ",")` testthat expectations in `r tests$tests` tests (`r tests$failed` failed).
+All results in this file were produced with the scripts in `dev/supplementary/` of the TranscriptMetaAnalyst (TMA) repository, with fixed random seeds (seed `r 2026`). They can be reproduced with `NOT_CRAN=true Rscript dev/supplementary/run_all.R`. Software: `r s5$session`. Sections S1–S4 were computed with the same code before its version number was raised from 2.0.0 to 2.1.0 (`r s1$session`). The test suite of the package has `r format(tests$expectations, big.mark = ",")` testthat expectations in `r tests$tests` tests (`r tests$failed` failed).
 
 # S1. Batch-effect case study
 
