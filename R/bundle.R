@@ -310,7 +310,9 @@ write_tma_bundle <- function(file, analysis, inputs, settings, platform = c("rna
 
   if (zipped) {
     dir.create(dirname(file), showWarnings = FALSE, recursive = TRUE)
-    zip::zip(normalizePath(file, mustWork = FALSE), files = basename(dir), root = dirname(dir))
+    # an absolute path: zip() writes from inside the temporary folder
+    target <- file.path(normalizePath(dirname(file)), basename(file))
+    zip::zip(target, files = basename(dir), root = dirname(dir))
     unlink(dirname(dir), recursive = TRUE)
   }
   invisible(file)

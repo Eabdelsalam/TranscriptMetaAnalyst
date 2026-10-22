@@ -131,6 +131,15 @@ test_that("a microarray bundle re-runs with Rscript and reproduces the app's tab
   }
 })
 
+test_that("a bundle can be written to a relative path", {
+  withr::local_dir(withr::local_tempdir())
+  res <- demo_result()
+  write_tma_bundle(file.path("out", "bundle.zip"), fake_analysis(res), tma_demo_data(),
+                   list(meta_method = "fisher"), source = "demo")
+  expect_true(file.exists(file.path("out", "bundle.zip")))
+  expect_true("tma_analysis/analysis.R" %in% zip::zip_list(file.path("out", "bundle.zip"))$filename)
+})
+
 test_that("a GEO bundle keeps the downloaded series and the sample-to-condition mapping", {
   res <- demo_result()
   analysis <- fake_analysis(res)

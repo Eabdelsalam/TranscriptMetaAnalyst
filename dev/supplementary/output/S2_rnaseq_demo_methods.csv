@@ -1,0 +1,7 @@
+"de_method","meta_method","genes_tested","meta_degs","new","new_pct","sidetracked","sidetracked_pct","study_degs"
+"DESeq2","Fisher",3405,373,1,0.27,27,6.77,"377 / 73 / 59"
+"DESeq2","Inverse normal",3405,328,6,1.83,77,19.3,"377 / 73 / 59"
+"edgeR","Fisher",3405,376,27,7.18,80,18.65,"399 / 6 / 120"
+"edgeR","Inverse normal",3405,312,27,8.65,144,33.57,"399 / 6 / 120"
+"limma-voom","Fisher",3405,369,29,7.86,83,19.62,"404 / 8 / 85"
+"limma-voom","Inverse normal",3405,303,29,9.57,149,35.22,"404 / 8 / 85"

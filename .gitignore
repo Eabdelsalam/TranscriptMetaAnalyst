@@ -54,3 +54,6 @@ rsconnect/
 
 # BiocCheck output
 *.BiocCheck/
+
+# run logs of the supplementary analyses
+dev/supplementary/output/*.log

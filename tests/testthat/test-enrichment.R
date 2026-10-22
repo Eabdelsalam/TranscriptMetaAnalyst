@@ -225,3 +225,26 @@ test_that("id_types lists the ID types and KEGG's key types", {
   expect_equal(kegg_key_type(c("kegg", "entrez", "uniprot")), c("kegg", "ncbi-geneid", "uniprot"))
   expect_true(all(is.na(kegg_key_type(c("symbol", "ensembl")))))
 })
+
+test_that("STRING gene lists returned as list columns are written as text", {
+  # STRING can return inputGenes and preferredNames as lists of IDs per term;
+  # the table must still download as a flat tab-delimited file
+  local_mocked_bindings(
+    rba_string_map_ids = fake_string_map,
+    rba_string_enrichment = function(...) {
+      table <- data.frame(category = "Process", term = "GO:0015979", description = "Photosynthesis",
+                          number_of_genes = 2, number_of_genes_in_background = 40, p_value = 1e-6, fdr = 1e-4)
+      table$inputGenes <- list(c("1148.g1", "1148.g2"))
+      table$preferredNames <- list(c("psbA", "psbB"))
+      table
+    },
+    rba_string_version = function(...) list(string_version = "12.0"),
+    .package = "rbioapi"
+  )
+  string <- run_string_enrichment(c("g1", "g2"), species = 1148, background = c("g1", "g2", "g3"))
+  expect_false(any(vapply(string$table, is.list, logical(1))))
+  expect_equal(string$table$preferredNames, "psbA,psbB")
+  file <- withr::local_tempfile(fileext = ".txt")
+  expect_no_error(write_enrichment(string, file))
+  expect_match(readLines(file), "psbA,psbB", all = FALSE)
+})

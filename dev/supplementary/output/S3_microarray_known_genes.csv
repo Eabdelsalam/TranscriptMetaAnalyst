@@ -1,0 +1,13 @@
+"locus","expected","system","kegg","kegg_symbol","uniprot","uniprot_genes","uniprot_protein","verified_locus","LC_24h_vs_HC_meta_deg","LC_24h_vs_HC_log2fc","LC_3h_vs_HC_meta_deg","LC_3h_vs_HC_log2fc"
+"slr1512","sbtA","Na+/HCO3- symporter SbtA","unknown protein",NA,"P73953","slr1512","Slr1512 protein",TRUE,TRUE,3.22,TRUE,3.15
+"slr1513","sbtB","SbtA-associated protein SbtB","unknown protein",NA,"P73954","slr1513","Membrane-associated protein slr1513",TRUE,TRUE,2.94,TRUE,3.01
+"slr0040","cmpA","BCT1 HCO3- transporter","cmpA; bicarbonate transporter","cmpA","Q55460","cmpA slr0040","Bicarbonate-binding protein CmpA",TRUE,TRUE,4.2,TRUE,3.68
+"slr0041","cmpB","BCT1 HCO3- transporter","cmpB; unknown protein","cmpB","Q55461","cmpB slr0041","Bicarbonate transport system permease protein CmpB",TRUE,TRUE,4.16,TRUE,3.82
+"slr0043","cmpC","BCT1 HCO3- transporter","nrtC; nitrate transport protein; NrtC","nrtC","Q55462","cmpC slr0043","Bicarbonate transport ATP-binding protein CmpC (EC 7.6.2.-)",TRUE,TRUE,3.46,TRUE,3.11
+"slr0044","cmpD","BCT1 HCO3- transporter","nrtD; nitrate transport protein; NrtD","nrtD","Q55463","cmpD slr0044","Bicarbonate transport ATP-binding protein CmpD (EC 7.6.2.-)",TRUE,TRUE,3.22,TRUE,2.23
+"sll1732","ndhF3","NDH-1(3) CO2 uptake complex","ndhF; NADH dehydrogenase subunit 5","ndhF","P73395","ndhF","NADH dehydrogenase subunit 5",TRUE,TRUE,3.41,TRUE,3
+"sll1733","ndhD3","NDH-1(3) CO2 uptake complex","ndhD3; NADH dehydrogenase subunit 4","ndhD3","P73394","ndhD3","NADH dehydrogenase subunit 4",TRUE,TRUE,4.07,TRUE,3.41
+"sll1734","cupA","NDH-1(3) CO2 uptake complex","unknown protein",NA,"P73393","sll1734","Sll1734 protein",TRUE,TRUE,3.63,TRUE,2.92
+"sll0217","flv4","flv4-2 operon","potential FMN-protein",NA,"P72723","dfa2 sll0217","Putative diflavin flavoprotein A 2 (EC 1.-.-.-)",TRUE,TRUE,3.7,TRUE,3.02
+"sll0218","sll0218","flv4-2 operon","unknown protein",NA,"P72722","sll0218","Sll0218 protein",TRUE,TRUE,4.99,TRUE,3.91
+"sll0219","flv2","flv4-2 operon","potential FMN-protein",NA,"P72721","dfa4 sll0219","Putative diflavin flavoprotein A 4 (EC 1.-.-.-)",TRUE,TRUE,5.08,TRUE,3.88
