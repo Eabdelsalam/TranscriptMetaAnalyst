@@ -17,18 +17,27 @@ skip_if_no_browser <- function() {
 }
 
 # The app, with the online organism lists replaced by offline stubs. Runs in
-# the background R process of shinytest2, which loads the package source.
-smoke_app <- function() {
-  library(TranscriptMetaAnalyst)
-  utils::assignInNamespace("organisms_go", function() {
-    data.frame(long_name = "Synechocystis", taxon_id = 1111708)
-  }, "TranscriptMetaAnalyst")
-  utils::assignInNamespace("organisms_string", function() {
-    data.frame(taxon_id = 1148, name = "Synechocystis sp. PCC 6803", domain = "Bacteria")
-  }, "TranscriptMetaAnalyst")
-  future::plan(future::sequential)
-  shiny::shinyAppDir(system.file("app", package = "TranscriptMetaAnalyst"))
-}
+# a background R process. When the tests run from the source tree (devtools),
+# that process loads the same source, also when another version of the package
+# is installed; under R CMD check it uses the installed package under test.
+smoke_app <- local({
+  pkg <- if (requireNamespace("pkgload", quietly = TRUE) && pkgload::is_dev_package("TranscriptMetaAnalyst")) {
+    pkgload::pkg_path(testthat::test_path())
+  }
+  app <- function() {
+    if (is.null(PKG)) library(TranscriptMetaAnalyst) else pkgload::load_all(PKG, quiet = TRUE)
+    utils::assignInNamespace("organisms_go", function() {
+      data.frame(long_name = "Synechocystis", taxon_id = 1111708)
+    }, "TranscriptMetaAnalyst")
+    utils::assignInNamespace("organisms_string", function() {
+      data.frame(taxon_id = 1148, name = "Synechocystis sp. PCC 6803", domain = "Bacteria")
+    }, "TranscriptMetaAnalyst")
+    future::plan(future::sequential)
+    shiny::shinyAppDir(TranscriptMetaAnalyst:::tma_app_dir())
+  }
+  body(app) <- do.call(substitute, list(body(app), list(PKG = pkg)))
+  app
+})
 
 start_app <- function(name) {
   shinytest2::AppDriver$new(smoke_app, name = name, height = 1000, width = 1400,

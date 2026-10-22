@@ -10,7 +10,7 @@
 #' runTMA()
 #' }
 runTMA <- function() {
-  appDir <- system.file("app", package = "TranscriptMetaAnalyst")
+  appDir <- tma_app_dir()
   if (appDir == "") {
     stop("Could not find the TMA app. Try re-installing `TranscriptMetaAnalyst`.", call. = FALSE)
   }
@@ -19,4 +19,11 @@ runTMA <- function() {
   old_opts <- options(tma.stop_on_session_end = TRUE)
   on.exit(options(old_opts), add = TRUE)
   shiny::runApp(appDir, display.mode = "normal")
+}
+
+# Folder of the Shiny app. Looked up from inside the package, so that under
+# devtools::load_all() (tests, development) it is the app of the source tree
+# and not that of an installed copy
+tma_app_dir <- function() {
+  system.file("app", package = "TranscriptMetaAnalyst")
 }
