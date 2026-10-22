@@ -1,6 +1,6 @@
 # Reproducible TranscriptMetaAnalyst analysis
 
-This folder repeats an RNA-Seq meta-analysis made with TranscriptMetaAnalyst (TMA) 2.0.0, on the demo data bundled with TranscriptMetaAnalyst, with every setting of the run.
+This folder repeats an RNA-Seq meta-analysis made with TranscriptMetaAnalyst (TMA) 2.1.0, on the demo data bundled with TranscriptMetaAnalyst, with every setting of the run.
 
 ## Run it
 
@@ -11,7 +11,7 @@ Rscript setup.R      # once: installs this TMA release and checks the package ve
 Rscript analysis.R   # repeats the analysis and writes the results to rerun/
 ```
 
-Expected run time: about 1 minute (the analysis took 4 s in the app; saving the figures adds a little).
+Expected run time: about 1 minute (the analysis took 3 s in the app; saving the figures adds a little).
 
 ## Contents
 
