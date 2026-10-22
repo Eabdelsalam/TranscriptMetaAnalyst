@@ -1,0 +1,162 @@
+---
+title: "Supplementary Information"
+subtitle: "TranscriptMetaAnalyst: a graphical interface for the gene-level meta-analysis of RNA-Seq and microarray studies"
+output:
+  word_document:
+    fig_caption: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+out <- function(name) file.path("output", name)
+s1 <- readRDS(out("S1_batch.rds"))
+s2 <- readRDS(out("S2_rnaseq_demo.rds"))
+s3 <- readRDS(out("S3_microarray.rds"))
+s4 <- readRDS(out("S4_performance.rds"))
+s5 <- readRDS(out("S5_bundle.rds"))
+tests <- readRDS(out("tests.rds"))
+f1 <- function(x) sprintf("%.1f", x)
+perf <- s1$performance
+p <- function(sdlog, strategy, meta, col) perf[perf$sdlog == sdlog & perf$strategy == strategy & perf$meta == meta, col]
+```
+
+All results in this file were produced with the scripts in `dev/supplementary/` of the TranscriptMetaAnalyst (TMA) repository, with fixed random seeds (seed `r 2026`). They can be reproduced with `NOT_CRAN=true Rscript dev/supplementary/run_all.R`. Software: `r s1$session`. The test suite of the package has `r format(tests$expectations, big.mark = ",")` testthat expectations in `r tests$tests` tests (`r tests$failed` failed).
+
+# S1. Batch-effect case study
+
+**Data.** The simulated benchmark data of `dev/simulate_studies.R` were used, so that the truly differentially expressed genes are known. The data have 6 studies × 6 samples (3 control vs 3 treated) and 30,000 genes, with negative-binomial counts; 10% of the genes are truly DE (|log2FC| = 1.5, same direction in all studies), and every study has its own gene-wise baseline shift. In every study, the samples were split into two batches that are balanced with condition (batch 1: 2 control + 1 treated; batch 2: 1 control + 2 treated). The counts of batch 2 were multiplied by gene-specific log-normal factors (meanlog 0, sdlog 0.5, and sdlog 1 as a strong-batch scenario; a separate set of factors per study).
+
+**Detection.** Before any differential expression analysis, `batch_check()` (the *Check for batch effects* box of the app) flagged `r sum(s1$batch_checks$flagged[s1$batch_checks$sdlog == 0.5])` of the 6 studies with sdlog 0.5 and `r sum(s1$batch_checks$flagged[s1$batch_checks$sdlog == 1])` of 6 with sdlog 1, because batch explained as much of the variance of the first principal components as condition, or more (Table S1).
+
+```{r table-s1}
+x <- s1$batch_checks
+knitr::kable(data.frame(sdlog = x$sdlog, Study = x$study, Samples = x$samples,
+                        `Condition (%)` = f1(x$condition_var), `Batch (%)` = f1(x$batch_var),
+                        Flagged = ifelse(x$flagged, "yes", "no"), check.names = FALSE),
+             caption = "Table S1. batch_check() on the simulated data with a batch effect: share of the variance of the first principal components explained by condition and by batch, per study.")
+```
+
+**Correction.** The data were analysed in four ways: (i) the original data without a batch effect (reference), (ii) the data with the batch effect, batch ignored, (iii) batch in the DE model (`~ batch + condition`), and (iv) ComBat-seq on the raw counts, each with DESeq2 and Fisher's or the inverse-normal method (Table S2, Figure S1). With sdlog 0.5 and Fisher's method, the sensitivity (TPR) was `r f1(p(0.5, "No batch effect (reference)", "Fisher", "tpr"))`% without a batch effect, `r f1(p(0.5, "Batch ignored", "Fisher", "tpr"))`% with batch ignored, `r f1(p(0.5, "Batch in the DE model", "Fisher", "tpr"))`% with batch in the model and `r f1(p(0.5, "ComBat-seq", "Fisher", "tpr"))`% with ComBat-seq; the false discovery proportions (FDP) were `r f1(p(0.5, "No batch effect (reference)", "Fisher", "fdp"))`%, `r f1(p(0.5, "Batch ignored", "Fisher", "fdp"))`%, `r f1(p(0.5, "Batch in the DE model", "Fisher", "fdp"))`% and `r f1(p(0.5, "ComBat-seq", "Fisher", "fdp"))`%. With the strong batch effect (sdlog 1), ignoring batch lowered the TPR to `r f1(p(1, "Batch ignored", "Fisher", "tpr"))`%, while batch in the DE model kept it at `r f1(p(1, "Batch in the DE model", "Fisher", "tpr"))`% with an FDP of `r f1(p(1, "Batch in the DE model", "Fisher", "fdp"))`%. ComBat-seq recovered more true DEGs but at a higher FDP (`r f1(p(1, "ComBat-seq", "Fisher", "fdp"))`%), in line with the known over-confidence of tests on batch-corrected data (Nygaard et al., 2016); TMA therefore recommends batch in the DE model.
+
+```{r table-s2}
+x <- s1$performance
+knitr::kable(data.frame(sdlog = x$sdlog, Strategy = x$strategy, `Meta-analysis` = x$meta, DEGs = x$degs,
+                        `TPR (%)` = f1(x$tpr), `FDP (%)` = f1(x$fdp), `Jaccard vs reference` = sprintf("%.3f", x$jaccard),
+                        check.names = FALSE),
+             caption = "Table S2. Meta-analysis DEGs (DESeq2 per study) for each batch strategy: number of DEGs, sensitivity (TPR) and false discovery proportion (FDP) against the 3,000 truly DE genes, and overlap (Jaccard index) with the DEGs of the reference analysis (no batch effect, same meta-analysis method).")
+```
+
+```{r figure-s1, fig.cap = "Figure S1 (Figure 3 of the manuscript). Batch-effect case study (sdlog 0.5). (a) PCA of two of the six studies before and after ComBat-seq correction, coloured by batch. (b) Relative log expression of the same samples before and after the correction. (c) TPR and FDP of the meta-analysis DEGs (DESeq2 + Fisher) for the four strategies, with sdlog 0.5 and 1."}
+knitr::include_graphics(out("figures/fig3_batch.png"))
+```
+
+**Between-study differences.** Differences between studies (for example in sequencing depth, library preparation or baseline expression) do not need a correction, because every study is analysed separately and only its p-values enter the meta-analysis. To show this, the same simulation was drawn twice from the same random numbers, with and without the gene-wise baseline shift of each study. The per-study p-values were almost unchanged (Spearman correlation `r sprintf("%.3f", min(s1$shift_check$spearman))`–`r sprintf("%.3f", max(s1$shift_check$spearman))`; median absolute difference in log10 p `r sprintf("%.3f", median(s1$shift_check$median_abs_diff_log10p))`; `r f1(min(s1$shift_check$same_call))`–`r f1(max(s1$shift_check$same_call))`% of the genes with the same call at adjusted p < 0.05), and the meta-analysis found `r s1$shift_summary$degs_with_shift` and `r s1$shift_summary$degs_without_shift` DEGs (Jaccard index `r sprintf("%.3f", s1$shift_summary$jaccard)`). The small remaining differences come from the counts themselves, which change with the expected values.
+
+# S2. RNA-Seq demo case study
+
+The bundled RNA-Seq demo (three studies of *Synechocystis* sp., 2 control vs 2 treated samples each, `r s2$summary$genes_tested[1]` genes after filtering) was analysed with each DE method and both meta-analysis methods (Table S3). With DESeq2 and Fisher's method, the meta-analysis found `r s2$reference_degs` DEGs, of which `r s2$summary$new[s2$summary$de_method == "DESeq2" & s2$summary$meta_method == "Fisher"]` were new (not significant in any single study) and `r s2$summary$sidetracked[s2$summary$de_method == "DESeq2" & s2$summary$meta_method == "Fisher"]` study DEGs were side-tracked (significant in a study but not in the meta-analysis). `r f1(s2$method_overlap)`% of the DESeq2 meta-DEGs (`r s2$shared_degs` of `r s2$reference_degs`) were also found with both edgeR and limma-voom (Table S4).
+
+```{r table-s3}
+x <- s2$summary
+knitr::kable(data.frame(`DE method` = x$de_method, `Meta-analysis` = x$meta_method, `Meta-DEGs` = x$meta_degs,
+                        `New (%)` = sprintf("%d (%s)", x$new, x$new_pct),
+                        `Side-tracked (%)` = sprintf("%d (%s)", x$sidetracked, x$sidetracked_pct),
+                        `Study DEGs (A / B / C)` = x$study_degs, check.names = FALSE),
+             caption = "Table S3. RNA-Seq demo: meta-analysis DEGs with each DE and meta-analysis method. New: meta-DEGs not significant in any study; side-tracked: study DEGs not found by the meta-analysis (metaRNASeq IDD/IRR).")
+```
+
+```{r table-s4}
+knitr::kable(s2$overlap, row.names = FALSE,
+             caption = "Table S4. Overlap of the meta-analysis DEGs between analyses: share (%) of the DEGs of the row analysis also found by the column analysis.")
+```
+
+# S3. Microarray case study
+
+The bundled microarray demo combines three GEO series of wild-type *Synechocystis* sp. PCC 6803 on platform GPL15867 (GSE82120, GSE63352, GSE68250), grown at high CO2 (HC) and 3 h or 24 h after the shift to low CO2 (LC). After probe collapsing (the probe with the highest mean expression per gene; probes without a gene or with several genes removed) and intersection, `r format(s3$genes_kept, big.mark = ",")` genes were measured in all three studies (Table S5). With Fisher's method, the meta-analysis found `r s3$summary$meta_degs[s3$summary$comparison == "LC_3h vs HC"]` DEGs for LC_3h vs HC (two studies; GSE82120 has no 3 h samples) and `r format(s3$summary$meta_degs[s3$summary$comparison == "LC_24h vs HC"], big.mark = ",")` for LC_24h vs HC (three studies) (Table S6).
+
+```{r table-s5}
+x <- s3$preparation
+knitr::kable(data.frame(Study = x$study, Samples = x$samples, Probes = x$probes, `Probes without a gene` = x$no_gene,
+                        `Probes with several genes` = x$multiple_genes, Genes = x$genes,
+                        `log2 applied` = ifelse(x$log2_applied, "yes", "no"), check.names = FALSE),
+             caption = "Table S5. Microarray demo: data preparation per study.")
+```
+
+```{r table-s6}
+x <- s3$summary
+knitr::kable(data.frame(Comparison = x$comparison, Studies = x$studies, Genes = x$genes, `Meta-DEGs` = x$meta_degs,
+                        Up = x$up, Down = x$down, `New (%)` = sprintf("%d (%s)", x$new, x$new_pct),
+                        `Side-tracked (%)` = sprintf("%d (%s)", x$sidetracked, x$sidetracked_pct), check.names = FALSE),
+             caption = "Table S6. Microarray demo: meta-analysis DEGs (Fisher's method).")
+```
+
+**Known low-CO2-inducible genes.** All `r nrow(s3$known)` checked genes of the inorganic-carbon concentrating mechanism and of the *flv4-2* operon were up-regulated meta-analysis DEGs in both comparisons (Table S7). Their locus tags were checked against KEGG (organism `syn`, list retrieved on `r s3$kegg_list_date`) and UniProt (taxon 1111708); some literature symbols (*sbtA*, *cupA*, *flv4*, *flv2*) are not used by these databases, and KEGG names *cmpC*/*cmpD* as *nrtC*/*nrtD*, so all names are given.
+
+```{r table-s7}
+x <- s3$known
+knitr::kable(data.frame(Locus = x$locus, `Literature name` = x$expected, System = x$system,
+                        KEGG = ifelse(is.na(x$kegg), "-", x$kegg), UniProt = paste0(x$uniprot, " (", x$uniprot_genes, ")"),
+                        `log2FC 3 h` = sprintf("%.2f", x$LC_3h_vs_HC_log2fc), `log2FC 24 h` = sprintf("%.2f", x$LC_24h_vs_HC_log2fc),
+                        `Meta-DEG (3 h / 24 h)` = paste(ifelse(x$LC_3h_vs_HC_meta_deg, "yes", "no"),
+                                                         ifelse(x$LC_24h_vs_HC_meta_deg, "yes", "no"), sep = " / "),
+                        check.names = FALSE),
+             caption = "Table S7. Known low-CO2-inducible genes in the microarray meta-analysis: mean log2 fold change across studies (LC vs HC) and whether the gene is a meta-analysis DEG.")
+```
+
+**Functional enrichment.** The up-regulated meta-DEGs were tested against all tested genes with STRING and KEGG (Tables S8 and S9). `r paste(vapply(names(s3$enrichment), function(con) sprintf("%s: %d up-regulated DEGs; %s", con, s3$enrichment[[con]]$up, s3$enrichment[[con]]$string_label), ""), collapse = " ")`
+
+```{r table-s8}
+rows <- do.call(rbind, lapply(names(s3$enrichment), function(con) {
+  t <- s3$enrichment[[con]]$string_top
+  if (is.null(t) || nrow(t) == 0) return(data.frame(Comparison = con, Category = "-", Term = "no term at FDR < 0.05", FDR = "-"))
+  data.frame(Comparison = con, Category = t$category, Term = t$description, FDR = signif(t$fdr, 2))
+}))
+knitr::kable(rows, row.names = FALSE, caption = "Table S8. STRING enrichment of the up-regulated meta-DEGs (top 10 terms by FDR, publications excluded).")
+```
+
+```{r table-s9}
+rows <- do.call(rbind, lapply(names(s3$enrichment), function(con) {
+  t <- s3$enrichment[[con]]$kegg_top
+  if (is.null(t) || nrow(t) == 0) return(data.frame(Comparison = con, Pathway = "no pathway at q < 0.05", q = "-"))
+  data.frame(Comparison = con, Pathway = t$Description, q = signif(t$qvalue, 2))
+}))
+knitr::kable(rows, row.names = FALSE,
+             caption = sprintf("Table S9. KEGG pathway enrichment of the up-regulated meta-DEGs (%s).",
+                               s3$enrichment[[1]]$kegg_label))
+```
+
+# S4. Performance
+
+Table S10 lists the computer used. Table S11 gives the run time and memory of the meta-analysis pipeline before and after the refactoring of the code, from `dev/BENCHMARKS.md`. In the app, the time from clicking *Load demo data* to the results was `r f1(s4$rnaseq_median)` s for the RNA-Seq demo and `r f1(s4$microarray_median)` s for the microarray demo (median of 3 runs, each in a new app session; Table S12).
+
+```{r table-s10}
+knitr::kable(s4$machine, col.names = c("Item", "Value"), caption = "Table S10. Computer and software used for the timings.")
+```
+
+```{r table-s11}
+knitr::kable(s4$benchmarks, col.names = c("Dataset", "Pipeline", "Median time", "Memory allocated", "Result kept in memory", "Meta-DEGs"),
+             caption = "Table S11. Pipeline benchmarks (dev/BENCHMARKS.md): demo (3 studies x 4 samples, 3,405 genes) and simulated data (6 studies x 6 samples, 30,000 genes). Memory is that allocated in the main R process and cannot be measured for the parallel run.")
+```
+
+```{r table-s12}
+x <- s4$app_times
+knitr::kable(data.frame(Run = x$repeat_no, `RNA-Seq demo (s)` = f1(x$rnaseq_demo_s), `Microarray demo (s)` = f1(x$microarray_demo_s),
+                        check.names = FALSE),
+             caption = "Table S12. Time from clicking 'Load demo data' to the results in the app (headless Chrome, a new app session per run; includes the analysis in a background process and the drawing of the results).")
+```
+
+# S5. The ready-to-run analysis bundle
+
+After an analysis, *Download reproducible analysis (ZIP)* in the RNA-Seq and Microarray tabs gives a bundle with the code, setup and data of that analysis, ready to run on another computer (Table S13). `setup.R` installs the same TMA release with BiocManager and lists every package whose version differs from the original run; `analysis.R` repeats the analysis with every setting of the run, including the plot display options of each comparison (heatmap and volcano options, figure format and size) and the enrichment choices, reads the data in `data/` with relative paths and writes the same files as `results/` to `rerun/`. For GEO imports, the bundle also contains the downloaded series files and the sample-to-condition mapping, so it runs offline. The example below is the bundle of the RNA-Seq demo analysis (DESeq2 + Fisher; ZIP of `r round(s5$zip_bytes / 1024)` KB). Re-running its `analysis.R` with `Rscript` took `r f1(s5$rerun_time)` s and reproduced all `r nrow(s5$comparison)` result tables of the run exactly (`r sum(s5$comparison$identical)` of `r nrow(s5$comparison)` byte-identical).
+
+```{r table-s13}
+x <- s5$listing
+knitr::kable(data.frame(File = x$file, `Size (KB)` = sprintf("%.1f", x$bytes / 1024), check.names = FALSE),
+             caption = "Table S13. Files of the example bundle (tma_analysis/).")
+```
+
+The README of the example bundle:
+
+```{r readme, results = "asis"}
+cat("```\n", paste(readLines(out("S5_example_README.md")), collapse = "\n"), "\n```\n", sep = "")
+```
