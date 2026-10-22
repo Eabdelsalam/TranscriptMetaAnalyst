@@ -8,3 +8,4 @@
 ^.*\.BiocCheck$
 ^manual$
 ^LICENSE\.md$
+^resubmission_tasks\.md$
