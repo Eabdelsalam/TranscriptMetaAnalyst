@@ -386,6 +386,11 @@ run_string_enrichment <- function(genes, species, background = NULL, id_type = "
   } else {
     table <- table[table$fdr <= cutoff, intersect(cols, names(table)), drop = FALSE]
     table <- table[order(table$fdr), , drop = FALSE]
+    # STRING may return the gene lists of each term as lists; keep them as
+    # comma-separated text, so the table stays flat and can be downloaded
+    for (col in names(table)[vapply(table, is.list, logical(1))]) {
+      table[[col]] <- vapply(table[[col]], function(x) paste(unlist(x), collapse = ","), character(1))
+    }
   }
   rownames(table) <- NULL
   version <- suppressMessages(rbioapi::rba_string_version())
